@@ -1,92 +1,180 @@
-# dilidili
+# 🚀 xiaozhi-esp32-server-golang
 
+> **Xiaozhi AI Backend for ESP32 Devices**
 
+---
 
-## Getting started
+## 项目简介 | Project Overview
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+xiaozhi-esp32-server-golang 是一款高性能、全流式的 AI 后端服务，专为物联网与智能语音场景设计。项目基于 Go 语言开发，集成了 ASR（自动语音识别）、LLM（大语言模型）、TTS（语音合成）等核心能力，支持大规模并发与多协议接入，助力智能终端与边缘设备的 AI 语音交互。
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+---
 
-## Add your files
+## ✨ 主要特性 | Key Features
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+- ⚡ **端到端全流式 AI 语音链路**：ASR → LLM → TTS 全流程流式处理，低延迟实时交互
+- 🎙️ **声纹识别与动态TTS切换**：根据说话人身份自动切换TTS音色，个性化语音体验
+- 🔌 **Transport 接口层抽象**：WebSocket / MQTT UDP 统一抽象，灵活注入主逻辑，便于协议扩展
+- 📬 **消息队列化处理**：LLM 与 TTS 采用消息队列异步处理，支持业务逻辑灵活注入
+- 🌐 **多协议高并发接入**：支持大规模设备并发接入与消息推送
+- ♻️ **高效资源池与连接复用**：外部资源连接池机制，降低响应耗时，提升系统吞吐
+- 🤖 **多引擎AI能力集成**：基于 Eino 框架，支持 FunASR、OpenAI 兼容、Ollama、Doubao、EdgeTTS、CosyVoice 等多种引擎
+- 🧩 **模块化可扩展架构**：VAD/ASR/LLM/TTS/MCP/视觉等核心模块独立可插拔
+- 🎵 **MCP Audio Server**：音频资源分页获取与流式处理，音乐播放与音量控制
+- 🦞 **OpenClaw 智能体接入**：按智能体生成专属 OpenClaw Endpoint，支持连接状态查看、会话测试、进入/退出关键词路由（默认“打开龙虾/进入龙虾”与“关闭龙虾/退出龙虾”）
+- 🖥️ **全功能Web管理控制台**：可视化配置向导、VAD/ASR/LLM/TTS全链路可用性测试、设备管理与消息注入、实时延迟监控与OTA验证
+- 🧠 **高级业务功能**：MCP 市场聚合与导入、声音复刻、知识库（Dify/RAGFlow/WeKnora）、设备/智能体维度 MCP 远程调用调试
+- 📦 **易用的一键部署方案**：预编译 aio 包开箱即用（主程序+控制台+声纹服务）、Docker 一键部署、支持 Linux/Windows/macOS 本地编译
+- 🔐 **安全与权限体系**（规划中）：预留用户认证与权限管理接口
 
+---
+
+[deepwiki 架构分析](https://deepwiki.com/hackers365/xiaozhi-esp32-server-golang)
+
+## 🚀 快速开始 | Quick Start
+
+### 方式一：一键启动包（推荐）
+
+下载对应平台的压缩包，解压后运行即可：
+
+- **Release 页面**：<https://github.com/hackers365/xiaozhi-esp32-server-golang/releases>
+- **使用教程**：[doc/quickstart_bundle_tutorial.md](doc/quickstart_bundle_tutorial.md)
+
+启动后访问 **http://<服务器IP或域名>:8080** 进入 Web 控制台进行配置。
+
+### 方式二：Docker 部署
+
+- [Docker Compose（带控制台）](doc/docker_compose.md)
+- [Docker（无控制台）](doc/docker.md)
+
+### 方式三：本地编译
+
+适用于开发环境或需要定制编译的场景。
+
+**安装依赖**（以 Ubuntu 为例）
+
+```bash
+# Go 1.20+
+# Opus 编解码
+sudo apt-get install -y pkg-config libopus0 libopusfile-dev
+
+# ONNX Runtime（1.21.0）
+wget https://github.com/microsoft/onnxruntime/releases/download/v1.21.0/onnxruntime-linux-x64-1.21.0.tgz
+tar -xzf onnxruntime-linux-x64-1.21.0.tgz
+sudo cp -r onnxruntime-linux-x64-1.21.0/include/* /usr/local/include/onnxruntime/
+sudo cp -r onnxruntime-linux-x64-1.21.0/lib/* /usr/local/lib/
+sudo ldconfig
+
+# ten_vad 运行时依赖
+sudo apt install -y libc++1 libc++abi1
 ```
-cd existing_repo
-git remote add origin http://110.87.103.170:6080/xiaodi/dilidili.git
-git branch -M master
-git push -uf origin master
+
+> 📖 完整依赖说明与 Windows/macOS 配置请参考 [config.md](doc/config.md)
+
+主程序、控制台前后端、声纹服务的分离编译与 AIO 打包流程请参考 [doc/compile_deploy.md](doc/compile_deploy.md)
+
+参考 [FunASR 官方文档](https://github.com/modelscope/FunASR/blob/main/runtime/docs/SDK_advanced_guide_online_zh.md) 部署。
+
+**编译与启动**
+
+```bash
+# 编译
+go build -o xiaozhi_server ./cmd/server/
+
+# 启动（配置文件详见 config/config.yaml）
+./xiaozhi_server -c config/config.yaml
 ```
 
-## Integrate with your tools
+---
 
-- [ ] [Set up project integrations](http://110.87.103.170:6080/xiaodi/dilidili/-/settings/integrations)
+## 📚 文档导航 | Docs
 
-## Collaborate with your team
+### 部署相关
+- [一键启动包教程](doc/quickstart_bundle_tutorial.md)
+- [Docker Compose 部署](doc/docker_compose.md)
+- [Docker 部署](doc/docker.md)
+- [编译与部署指南](doc/compile_deploy.md)
+- [配置详解](doc/config.md)
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+### 使用指南
+- [管理后台使用指南](doc/manager_console_guide.md)
+- [WebSocket 服务与 OTA 配置](doc/websocket_server.md)
+- [MQTT + UDP 配置](doc/mqtt_udp.md)
+- [MQTT UDP 协议](doc/mqtt_udp_protocol.md)
 
-## Test and Deploy
+### 功能模块
+- [视觉能力](doc/vision.md)
+- [声纹识别](doc/speaker_identification.md)
+- [MCP 架构](doc/mcp.md)
+- [MCP 音频资源](doc/mcp_resource.md)
+- [MCP 市场（市场发现/导入/热更新）](doc/mcp_market.md)
+- [OpenClaw 智能体接入（Endpoint/关键词路由/会话测试）](doc/openclaw_integration.md)
+- [声音复刻（用户操作与管理员额度）](doc/voice_clone.md)
+- [知识库（Provider 配置/同步/召回测试/RAG）](doc/knowledge_base.md)
+- [设备/智能体维度 MCP 远程调用（Endpoint/Tools/Call）](doc/mcp_remote_call_agent_device.md)
 
-Use the built-in continuous integration in GitLab.
+### 设备接入
+- [ESP32 端接入指南](doc/esp32_xiaozhi_backend_guide.md)
+- [OTA MQTT 授权说明](doc/ota_mqtt_auth.md)
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+---
 
-***
+## 🧩 模块架构 | Module Overview
 
-# Editing this README
+| 模块 | 功能简介 | 技术栈 |
+|------|----------|--------|
+| VAD | 语音活动检测 | Silero VAD / WebRTC VAD / ten_vad |
+| ASR | 语音识别 | FunASR / Doubao ASR |
+| LLM | 大模型推理 | Eino 框架兼容、OpenAI、Ollama 等 |
+| TTS | 语音合成 | Doubao / EdgeTTS / CosyVoice |
+| MCP | 多协议接入、MCP 市场发现导入、设备/智能体维度远程调用调试 | MCP Server / 接入点 / MCP Market / SSE / StreamableHTTP / WebSocket Controller / MCP Tool Call |
+| OpenClaw | 智能体维度接入点、进入/退出关键词模式切换、会话消息转发与测试 | OpenClaw WebSocket / Agent Endpoint / Chat Router |
+| 视觉 | 视觉处理 | Doubao / 阿里云视觉 |
+| 声纹识别 | 说话人识别 | sherpa-onnx + 向量数据库 |
+| 声音复刻 | 用户侧复刻音色创建与试听 | Minimax / CosyVoice / 千问 |
+| 知识库（RAG） | 文档同步、召回测试与对话检索 | Dify / RAGFlow / WeKnora |
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+---
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## 📈 性能与测试 | Performance & Testing
 
-## Name
-Choose a self-explaining name for your project.
+- [延迟测试报告](doc/delay_test.md)
+- 管理后台提供 VAD/ASR/LLM/TTS 可用性与延迟测试入口
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+---
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## 🛠️ 规划中 | Roadmap
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+- 主动式ai
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+---
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## 🤝 贡献 | Contributing
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+欢迎提交 Issue、PR 或建议！
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+---
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+## 📄 License
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+MIT License
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+---
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+## 📬 联系方式 | Contact
 
-## License
-For open source projects, say how it is licensed.
+**个人微信**：hackers365 （加微信拉你进交流群）
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+![个人微信](https://github.com/user-attachments/assets/6b8d3d11-7bf5-4fa4-a73e-5109019dab85)
+
+
+**开源不易，您的赞助会让项目持续更新**
+
+<img width="250" height="250" alt="eab0f4d3d8b6f977863a7bef36e3d64b" src="https://github.com/user-attachments/assets/9a949cb3-d788-446b-a0b9-8542edbb0842" />
+
+
+
+
+---
+
+> © 2024 xiaozhi-esp32-server-golang
