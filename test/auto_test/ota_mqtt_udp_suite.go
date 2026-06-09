@@ -374,7 +374,7 @@ func buildOTAURL(serverAddr string) (string, error) {
 	case "wss":
 		parsed.Scheme = "https"
 	}
-	parsed.Path = "/xiaozhi/ota/"
+	parsed.Path = "/dili/ota/"
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
 	return parsed.String(), nil

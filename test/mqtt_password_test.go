@@ -10,7 +10,7 @@ func main() {
 	deviceId := "02:4A:7D:E3:89:BF"
 	clientId := "e3b0c442-98fc-4e1a-8c3d-6a5b6a5b6a5b"
 	ip := "1.202.193.194"
-	signatureKey := "your_ota_signature_key_here"
+	signatureKey := "dili_ota_signature_key"
 
 	fmt.Println("=== MQTT凭据生成测试 ===")
 

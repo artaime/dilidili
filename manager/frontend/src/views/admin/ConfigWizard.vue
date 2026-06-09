@@ -182,7 +182,7 @@ const otaForm = reactive({
   host: '',
   port: 8989,
   protocol: 'http',
-  signature_key: 'xiaozhi_ota_signature_key',
+  signature_key: 'dili_ota_signature_key',
   enableMqttUdp: false,
   mqttServerPort: 1883,
   udpPort: 8990
@@ -574,7 +574,7 @@ const finalOtaUrl = computed(() => {
 const finalWsUrl = computed(() => {
   if (!otaForm.host?.trim()) return '请先在 OTA 步骤填写域名或 IP'
   const proto = otaForm.protocol === 'https' ? 'wss' : 'ws'
-  return `${proto}://${otaForm.host.trim()}:${otaForm.port}/xiaozhi/v1/`
+  return `${proto}://${otaForm.host.trim()}:${otaForm.port}/dili/v1/`
 })
 
 const finalMqttEndpoint = computed(() => {
@@ -590,7 +590,7 @@ const finalUdpEndpoint = computed(() => {
 function buildWsUrl() {
   if (!otaForm.host?.trim()) return ''
   const proto = otaForm.protocol === 'https' ? 'wss' : 'ws'
-  return `${proto}://${otaForm.host.trim()}:${otaForm.port}/xiaozhi/v1/`
+  return `${proto}://${otaForm.host.trim()}:${otaForm.port}/dili/v1/`
 }
 
 const MQTT_SERVER_DEFAULT_USER = 'admin'
@@ -605,7 +605,7 @@ async function saveMqttServerConfig() {
     listen_port: port,
     username: MQTT_SERVER_DEFAULT_USER,
     password: MQTT_SERVER_DEFAULT_PASS,
-    signature_key: otaForm.signature_key?.trim() || 'xiaozhi_ota_signature_key',
+    signature_key: otaForm.signature_key?.trim() || 'dili_ota_signature_key',
     enable_auth: true,
     tls: {
       enable: useTls,
@@ -744,7 +744,7 @@ async function saveOta() {
     config_id: 'ota_ota_config',
     provider: 'default',
     json_data: JSON.stringify({
-      signature_key: otaForm.signature_key?.trim() || 'xiaozhi_ota_signature_key',
+      signature_key: otaForm.signature_key?.trim() || 'dili_ota_signature_key',
       test: {
         websocket: { url: wsUrl },
         mqtt: { enable: otaForm.enableMqttUdp, endpoint: mqttEndpoint }

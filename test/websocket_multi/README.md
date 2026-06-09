@@ -10,7 +10,7 @@
 
 ```bash
 go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
-  -server ws://127.0.0.1:8989/xiaozhi/v1/ \
+  -server ws://127.0.0.1:8989/dili/v1/ \
   -count 100 \
   -audio_wav ./test/websocket_client/test.wav \
   -ramp_ms 20 \
@@ -32,7 +32,7 @@ go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
 
 ```bash
 go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
-  -server ws://127.0.0.1:8989/xiaozhi/v1/ \
+  -server ws://127.0.0.1:8989/dili/v1/ \
   -count 50 \
   -audio_wav ./test/websocket_client/test.wav \
   -ramp_ms 30 \
@@ -43,7 +43,7 @@ go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
 
 ```bash
 go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
-  -server ws://127.0.0.1:8989/xiaozhi/v1/ \
+  -server ws://127.0.0.1:8989/dili/v1/ \
   -count 100 \
   -audio_wav ./test/websocket_client/test.wav \
   -ramp_ms 20 \
@@ -54,7 +54,7 @@ go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
 
 ```bash
 go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
-  -server ws://127.0.0.1:8989/xiaozhi/v1/ \
+  -server ws://127.0.0.1:8989/dili/v1/ \
   -count 300 \
   -audio_wav ./test/websocket_client/test.wav \
   -ramp_ms 10 \
@@ -65,7 +65,7 @@ go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
 
 ```bash
 go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
-  -server ws://127.0.0.1:8989/xiaozhi/v1/ \
+  -server ws://127.0.0.1:8989/dili/v1/ \
   -count 500 \
   -audio_wav ./test/websocket_client/test.wav \
   -ramp_ms 5 \

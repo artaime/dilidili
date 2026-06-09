@@ -1,15 +1,15 @@
 {
   "mqtt_server": {
     "listen_host": "0.0.0.0",
-    "listen_port": 6887,
+    "listen_port": 2883,
     "client_id": "dili_server",
     "username": "admin",
-    "password": "your_password",
-    "signature_key": "mqtt_auth_key",
+    "password": "admin123",
+    "signature_key": "dili_ota_signature_key",
     "enable_auth": false,
     "tls": {
       "enable": false,
-      "port": 6888,
+      "port": 8883,
       "pem": "config/server.pem",
       "key": "config/server.key"
     }
@@ -22,6 +22,6 @@
     "rotation_time": 10
   },
   "ota": {
-    "signature_key": "your_ota_signature_key_here"
+    "signature_key": "dili_ota_signature_key"
   }
 }

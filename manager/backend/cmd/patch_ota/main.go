@@ -83,7 +83,7 @@ func patchType(db *gorm.DB, typ, lanIP string) error {
 
 func applyOTA(data map[string]interface{}, lanIP string) {
 	endpoint := lanIP + ":8883"
-	wsURL := "ws://" + lanIP + ":8989/xiaozhi/v1/"
+	wsURL := "ws://" + lanIP + ":8989/dili/v1/"
 	for _, key := range []string{"test", "external"} {
 		section, _ := data[key].(map[string]interface{})
 		if section == nil {

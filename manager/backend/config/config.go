@@ -46,11 +46,12 @@ func (c *DatabaseConfig) GetStorageType() string {
 
 // MySQLConfig MySQL 数据库配置
 type MySQLConfig struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Database string `json:"database"`
+	Host        string `json:"host"`
+	Port        int    `json:"port"`
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	Database    string `json:"database"`
+	AutoMigrate bool   `json:"auto_migrate"`
 }
 
 // SQLiteConfig SQLite 数据库配置

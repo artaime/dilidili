@@ -959,7 +959,7 @@ func cloneMap(src map[string]interface{}) map[string]interface{} {
 
 func main() {
 	addr := flag.String("addr", ":18080", "listen address")
-	secret := flag.String("jwt-secret", "xiaozhi_admin_secret_key", "JWT secret")
+	secret := flag.String("jwt-secret", "dili_admin_secret_key", "JWT secret")
 	verbose := flag.Bool("verbose", false, "enable verbose websocket logs")
 	flag.Parse()
 

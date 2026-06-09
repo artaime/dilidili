@@ -137,9 +137,9 @@ go test ./...
 ## API / RPC / 数据库相关约定
 
 - 主服务设备入口集中在 `internal/app/server/websocket/websocket_server.go`：
-  - `/xiaozhi/v1/`：设备 WebSocket 对话入口。
+  - `/dili/v1/`：设备 WebSocket 对话入口。
   - `/xiaozhi/mqtt_udp/v1/`：MQTT+UDP 模式的 WebSocket 协商入口。
-  - `/xiaozhi/ota/`、`/xiaozhi/ota/activate`：OTA/激活相关。
+  - `/dili/ota/`、`/dili/ota/activate`：OTA/激活相关。
   - `/mcp`：MCP WebSocket。
   - `/ws/openclaw`：OpenClaw WebSocket。
   - `/xiaozhi/api/mcp/tools/`：MCP tools API。

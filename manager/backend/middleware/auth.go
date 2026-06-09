@@ -25,7 +25,7 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-var jwtSecret = []byte("xiaozhi_admin_secret_key")
+var jwtSecret = []byte("dili_admin_secret_key")
 
 // 生成JWT Token
 func GenerateToken(userID uint, username, role string) (string, error) {
@@ -65,10 +65,10 @@ func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 添加调试日志
 		log.Printf("[JWTAuth] 处理请求: %s %s, 客户端IP: %s", c.Request.Method, c.Request.URL.Path, c.ClientIP())
-		
+
 		authHeader := c.GetHeader("Authorization")
 		log.Printf("[JWTAuth] Authorization头: %s", authHeader)
-		
+
 		if authHeader == "" {
 			log.Printf("[JWTAuth] ❌ 缺少认证头")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "缺少认证头"})
@@ -78,7 +78,7 @@ func JWTAuth() gin.HandlerFunc {
 
 		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
 		log.Printf("[JWTAuth] 提取的token长度: %d, 前缀: %s", len(tokenString), tokenString[:min(20, len(tokenString))])
-		
+
 		claims, err := ParseToken(tokenString)
 		if err != nil {
 			log.Printf("[JWTAuth] ❌ token解析失败: %v", err)

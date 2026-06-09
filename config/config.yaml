@@ -84,7 +84,7 @@ mqtt_server:
   client_id: "xiaozhi_server"           # 服务器客户端ID
   username: "admin"                     # 默认用户名
   password: "your_mqtt_password"                   # 默认密码
-  signature_key: "your_ota_signature_key_here"  # OTA更新签名密钥
+  signature_key: "dili_ota_signature_key"  # OTA更新签名密钥
   enable_auth: false                    # 是否启用身份验证
   # TLS安全连接配置（AIToy/胖豆固件使用 TLS 连接 MQTT）
   tls:
@@ -238,7 +238,7 @@ tts:
     frame_duration: 20                     # 帧持续时间（毫秒）
   # 小智TTS配置
   xiaozhi:
-    server_addr: "wss://your-server/xiaozhi/v1/"  # 服务器地址
+    server_addr: "wss://your-server/dili/v1/"  # 服务器地址
     device_id: "your_device_id"                    # 设备ID
     client_id: "your_client_id"                    # 客户端ID
     token: "your_token"                            # 访问令牌
@@ -354,7 +354,7 @@ vision:
 
 # OTA（空中升级）配置
 ota:
-  signature_key: "your_ota_signature_key_here"  # OTA签名密钥
+  signature_key: "dili_ota_signature_key"  # OTA签名密钥
   # AIToy/胖豆硬件：多固件 subs 形态（仅 User-Agent AIToy / board.type pangdou-* / 多子版本 JSON 时生效）
   aitoy:
     subs:
@@ -373,14 +373,14 @@ ota:
   # 测试环境配置，内部测试用
   test:
     websocket:
-      url: "ws://127.0.0.1:6989/xiaozhi/v1/"  # WebSocket地址
+      url: "ws://127.0.0.1:6989/dili/v1/"  # WebSocket地址
     mqtt:
       enable: true                 # 方案 A：内置 MQTT，OTA 下发给设备
       endpoint: "127.0.0.1:6887"  # 设备 MQTT
   # 外部环境配置，线上环境用
   external:
     websocket:
-      url: "ws://127.0.0.1:6989/xiaozhi/v1/"
+      url: "ws://127.0.0.1:6989/dili/v1/"
     mqtt:
       enable: true
       endpoint: "127.0.0.1:6887"

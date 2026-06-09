@@ -74,8 +74,8 @@ function Start-Service {
     Set-Content -Path $PidFile -Value $proc.Id -Encoding ascii
     Write-Info "started (PID $($proc.Id))"
     Write-Info "console:  http://127.0.0.1:8080/"
-    Write-Info "ota:      http://${LanIP}:8989/xiaozhi/ota/"
-    Write-Info "ws:       ws://${LanIP}:8989/xiaozhi/v1/"
+    Write-Info "ota:      http://${LanIP}:8989/dili/ota/"
+    Write-Info "ws:       ws://${LanIP}:8989/dili/v1/"
     Write-Info "mqtt:     ${LanIP}:8883 (TLS)"
     Write-Info "udp:      ${LanIP}:8990"
 }
@@ -137,7 +137,7 @@ function Show-Status {
     }
 
     try {
-        $r = Invoke-WebRequest -Uri "http://127.0.0.1:8989/xiaozhi/ota/" -Method POST -UseBasicParsing -TimeoutSec 3 `
+        $r = Invoke-WebRequest -Uri "http://127.0.0.1:8989/dili/ota/" -Method POST -UseBasicParsing -TimeoutSec 3 `
             -Headers @{ "Device-Id" = "00:00:00:00:00:01"; "Client-Id" = "health-check" } `
             -ContentType "application/json" -Body "{}"
         Write-Info "ota :8989 -> HTTP $($r.StatusCode)"

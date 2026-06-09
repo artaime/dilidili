@@ -138,7 +138,7 @@ func (m *MetricsWriter) WriteEvent(e MetricEvent) {
 }
 
 func main() {
-	serverAddr := flag.String("server", "ws://localhost:8989/xiaozhi/v1/", "服务器地址")
+	serverAddr := flag.String("server", "ws://localhost:8989/dili/v1/", "服务器地址")
 	clientCount := flag.Int("count", 10, "客户端数量")
 	chatText := flag.String("text", "你好", "聊天内容, 多句以逗号分隔会依次发送")
 	deviceId := flag.String("device", "", "设备ID")

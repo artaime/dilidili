@@ -24,7 +24,7 @@ CGO_LDFLAGS="-lm" go test -buildvcs=false -tags nolibopusfile ./test/auto_test
 ```bash
 CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
   -runner auto \
-  -server ws://127.0.0.1:8990/xiaozhi/v1/ \
+  -server ws://127.0.0.1:8990/dili/v1/ \
   -device auto-test-device \
   -cases all \
   -case_timeout 80s
@@ -35,7 +35,7 @@ CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
 ```bash
 CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
   -runner auto \
-  -server ws://127.0.0.1:8990/xiaozhi/v1/ \
+  -server ws://127.0.0.1:8990/dili/v1/ \
   -device auto-test-device \
   -cases manual_roundtrip,abort_during_tts
 ```
@@ -85,8 +85,8 @@ CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
 
 | Case | 输入 | 期望输出 / 断言 |
 | --- | --- | --- |
-| `ota_metadata` | POST `/xiaozhi/ota/`，携带设备信息、`Device-Id`、`Client-Id` | 返回 `websocket.url`、`server_time`、`firmware.version`；启用时校验 `activation` 和 `mqtt` |
-| `ota_activate_invalid_algorithm` | POST `/xiaozhi/ota/activate`，提交非法 `algorithm` | HTTP 400 |
+| `ota_metadata` | POST `/dili/ota/`，携带设备信息、`Device-Id`、`Client-Id` | 返回 `websocket.url`、`server_time`、`firmware.version`；启用时校验 `activation` 和 `mqtt` |
+| `ota_activate_invalid_algorithm` | POST `/dili/ota/activate`，提交非法 `algorithm` | HTTP 400 |
 | `ota_activate_invalid_challenge_if_required` | OTA 返回 activation challenge 后，POST 错误 challenge | HTTP 202；若无 challenge 则 SKIP |
 
 #### MQTT / UDP
@@ -316,7 +316,7 @@ CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
 ### 2.5 OTA / 激活流程
 
 #### `ota_metadata`
-- 覆盖场景：调用 `/xiaozhi/ota/`。
+- 覆盖场景：调用 `/dili/ota/`。
 - 核心校验：
   - 返回 `websocket.url`
   - 返回 `server_time`
@@ -324,7 +324,7 @@ CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
   - 若服务端开启了对应能力，则同时校验 `activation` / `mqtt` 结构完整性
 
 #### `ota_activate_invalid_algorithm`
-- 覆盖场景：调用 `/xiaozhi/ota/activate`，提交非法 `algorithm`。
+- 覆盖场景：调用 `/dili/ota/activate`，提交非法 `algorithm`。
 - 核心校验：
   - 服务端返回 `400`
   - 激活接口的参数校验链路生效
@@ -577,7 +577,7 @@ CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
 ```bash
 CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
   -runner auto \
-  -server ws://127.0.0.1:8990/xiaozhi/v1/ \
+  -server ws://127.0.0.1:8990/dili/v1/ \
   -device smoke-device \
   -cases manual_roundtrip,auto1_roundtrip,realtime_roundtrip,hello_metadata,injected_message_skip_llm,iot_roundtrip,mcp_initialize,abort_during_tts,ota_metadata \
   -case_timeout 80s
@@ -590,7 +590,7 @@ CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
 ```bash
 CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
   -runner auto \
-  -server ws://127.0.0.1:8990/xiaozhi/v1/ \
+  -server ws://127.0.0.1:8990/dili/v1/ \
   -device ws-regression-device \
   -cases auto1_roundtrip,auto2_roundtrip,realtime_roundtrip,injected_message_skip_llm,realtime_interrupt,realtime_duplicate_start_ignored \
   -case_timeout 80s
@@ -603,10 +603,10 @@ CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
 ```bash
 CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
   -runner auto \
-  -server ws://localhost:9990/xiaozhi/v1/ \
+  -server ws://localhost:9990/dili/v1/ \
   -device smoke-agent \
   -cases agent_ws_endpoint_mcp \
-  -endpoint_auth_token xiaozhi_mcp_openclaw_secret_key
+  -endpoint_auth_token dili_mcp_openclaw_secret_key
 ```
 
 长连接保活与 10 分钟工具刷新边界回归：
@@ -614,10 +614,10 @@ CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
 ```bash
 CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
   -runner auto \
-  -server ws://localhost:9990/xiaozhi/v1/ \
+  -server ws://localhost:9990/dili/v1/ \
   -device smoke-agent \
   -cases agent_ws_endpoint_mcp_keepalive \
-  -endpoint_auth_token xiaozhi_mcp_openclaw_secret_key
+  -endpoint_auth_token dili_mcp_openclaw_secret_key
 ```
 
 ### MQTT / UDP 主链路
@@ -627,7 +627,7 @@ CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
 ```bash
 CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
   -runner auto \
-  -server ws://127.0.0.1:8990/xiaozhi/v1/ \
+  -server ws://127.0.0.1:8990/dili/v1/ \
   -device mqtt-regression-device \
   -cases mqtt_udp_manual_roundtrip,mqtt_udp_auto1_roundtrip,mqtt_udp_auto2_roundtrip,mqtt_udp_realtime_roundtrip,mqtt_udp_realtime_interrupt,mqtt_udp_realtime_duplicate_start_ignored \
   -case_timeout 80s
@@ -640,7 +640,7 @@ CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
 ```bash
 CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
   -runner auto \
-  -server ws://127.0.0.1:8990/xiaozhi/v1/ \
+  -server ws://127.0.0.1:8990/dili/v1/ \
   -device injected-regression-device \
   -cases injected_message_skip_llm,mqtt_udp_injected_message_warm_path,mqtt_udp_injected_message_auto_listen,mqtt_udp_injected_message_cold_rehello \
   -case_timeout 80s
@@ -653,7 +653,7 @@ CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
 ```bash
 CGO_LDFLAGS="-lm" go run -buildvcs=false -tags nolibopusfile ./test/auto_test \
   -runner auto \
-  -server ws://127.0.0.1:8990/xiaozhi/v1/ \
+  -server ws://127.0.0.1:8990/dili/v1/ \
   -device full-regression-device \
   -cases all \
   -case_timeout 80s

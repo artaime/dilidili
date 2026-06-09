@@ -22,7 +22,7 @@ func TestAdminGetAgentMCPEndpointIncludesRuntimeStatusFields(t *testing.T) {
 		ConfigID:  "ota-default",
 		IsDefault: true,
 		Enabled:   true,
-		JsonData:  `{"external":{"websocket":{"url":"wss://example.test/go_ws/xiaozhi/v1/"}}}`,
+		JsonData:  `{"external":{"websocket":{"url":"wss://example.test/go_ws/dili/v1/"}}}`,
 	}).Error; err != nil {
 		t.Fatalf("create ota config: %v", err)
 	}

@@ -52,13 +52,13 @@ OTA用于设备自动获取服务器下发的WebSocket/MQTT连接参数和固件
 ota:
   test:
     websocket:
-      url: "ws://192.168.208.214:8989/xiaozhi/v1/"
+      url: "ws://192.168.208.214:8989/dili/v1/"
     mqtt:
       enable: false
       endpoint: "192.168.208.214"
   external:
     websocket:
-      url: "wss://www.tb263.cn:55555/go_ws/xiaozhi/v1/"
+      url: "wss://www.tb263.cn:55555/go_ws/dili/v1/"
     mqtt:
       enable: false
       endpoint: "www.youdomain.cn"
@@ -75,21 +75,21 @@ ota:
   ota:
     test:
       websocket:
-        url: "ws://192.168.1.100:8989/xiaozhi/v1/"
+        url: "ws://192.168.1.100:8989/dili/v1/"
   ```
 - 修改外网WebSocket地址：
   ```yaml
   ota:
     external:
       websocket:
-        url: "wss://yourdomain.com:55555/go_ws/xiaozhi/v1/"
+        url: "wss://yourdomain.com:55555/go_ws/dili/v1/"
   ```
 
 ---
 
 ## 4. OTA接口说明（设备如何获取配置）
 
-1. 设备通过HTTP POST请求 `http://服务器地址:端口/xiaozhi/ota/`。
+1. 设备通过HTTP POST请求 `http://服务器地址:端口/dili/ota/`。
 2. 请求头需包含：
    - `Device-Id`：设备唯一ID（如MAC地址）
    - `Client-Id`：客户端唯一ID

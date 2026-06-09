@@ -13,13 +13,13 @@
 ## 启动
 
 ```bash
-go run ./test/test_openclaw_server -addr :18080 -jwt-secret xiaozhi_admin_secret_key
+go run ./test/test_openclaw_server -addr :18080 -jwt-secret dili_admin_secret_key
 ```
 
 输出详细 WebSocket 调试日志：
 
 ```bash
-go run ./test/test_openclaw_server -addr :18080 -jwt-secret xiaozhi_admin_secret_key -verbose
+go run ./test/test_openclaw_server -addr :18080 -jwt-secret dili_admin_secret_key -verbose
 ```
 
 ## 生成 token（测试）
@@ -31,7 +31,7 @@ node test/xiaozhi_openclaw/xiaozhi-integration/generate-token.js 1 main agent_ma
 或显式指定与服务端一致的密钥（推荐）：
 
 ```bash
-JWT_SECRET=xiaozhi_admin_secret_key \
+JWT_SECRET=dili_admin_secret_key \
 node test/xiaozhi_openclaw/xiaozhi-integration/generate-token.js 1 main agent_main
 ```
 

@@ -92,7 +92,7 @@ flowchart LR
 
 ### 设备接入
 
-- WebSocket 入口：`internal/app/server/websocket/websocket_server.go` 的 `/xiaozhi/v1/`。
+- WebSocket 入口：`internal/app/server/websocket/websocket_server.go` 的 `/dili/v1/`。
 - MQTT+UDP 入口：WebSocket 协商 `/xiaozhi/mqtt_udp/v1/`，MQTT/UDP 适配在 `internal/app/server/mqtt_udp`。
 - 设备连接建立后进入 `App.OnNewConnection`，按 deviceID 创建或替换 `ChatManager`。
 
@@ -173,7 +173,7 @@ flowchart LR
 
 ### 设备 WebSocket 对话
 
-1. 设备连接 `/xiaozhi/v1/`。
+1. 设备连接 `/dili/v1/`。
 2. `WebSocketServer.internalHandleChat` 提取 `device-id` / `client-id`，升级 WebSocket。
 3. 创建 `WebSocketConn` 并回调 `App.OnNewConnection`。
 4. `App.OnNewConnection` 创建 `ChatManager` 并启动。

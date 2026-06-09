@@ -190,7 +190,7 @@ tts:
     channels: 1
     frame_duration: 20
   xiaozhi:
-    server_addr: "wss://api.tenclass.net/xiaozhi/v1/"
+    server_addr: "wss://api.tenclass.net/dili/v1/"
     device_id: "ba:8f:17:de:94:94"
     client_id: "e4b0c442-98fc-4e1b-8c3d-6a5b6a5b6a6d"
     token: "test-token"
@@ -258,12 +258,12 @@ vision:
 ota:
   test:
     websocket:
-      url: "ws://192.168.208.214:8989/xiaozhi/v1/"
+      url: "ws://192.168.208.214:8989/dili/v1/"
     mqtt:
       endpoint: "192.168.208.214"
   external:
     websocket:
-      url: "wss://www.youdomain.cn/go_ws/xiaozhi/v1/"
+      url: "wss://www.youdomain.cn/go_ws/dili/v1/"
     mqtt:
       endpoint: "www.youdomain.cn"
 

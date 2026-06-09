@@ -282,7 +282,7 @@ async function loadServiceAddress() {
           if (matched) {
             const protocol = matched[1] === 'wss' ? 'https' : 'http'
             const port = matched[3] || (matched[1] === 'wss' ? '443' : '80')
-            otaUrl = `${protocol}://${matched[2]}:${port}/xiaozhi/ota/`
+            otaUrl = `${protocol}://${matched[2]}:${port}/dili/ota/`
           }
         }
       }

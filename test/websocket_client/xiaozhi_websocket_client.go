@@ -138,7 +138,7 @@ func GetServerVisionURL() string {
 
 func main() {
 	// 解析命令行参数
-	serverAddr := flag.String("server", "ws://localhost:8989/xiaozhi/v1/", "服务器地址")
+	serverAddr := flag.String("server", "ws://localhost:8989/dili/v1/", "服务器地址")
 	deviceID := flag.String("device", "test-device-001", "设备ID")
 	audioFile := flag.String("audio", "", "音频文件路径")
 	text := flag.String("text", "你好测试", "文本")

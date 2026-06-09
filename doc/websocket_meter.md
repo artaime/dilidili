@@ -13,12 +13,12 @@ Usage of ./ws_multi:
   -device string
         设备ID
   -server string
-        服务器地址 (default "ws://localhost:8989/xiaozhi/v1/")
+        服务器地址 (default "ws://localhost:8989/dili/v1/")
   -text string
         聊天内容, 多句以逗号分隔会依次发送 (default "你好")
-root@87311584e5fe:/workspace# ./ws_multi -count 1 -server wss://joeyzhou.chat/ws/xiaozhi/v1/ -text "你好,在干什么,一起出去玩吧" 
+root@87311584e5fe:/workspace# ./ws_multi -count 1 -server wss://joeyzhou.chat/ws/dili/v1/ -text "你好,在干什么,一起出去玩吧" 
 运行小智客户端
-服务器: wss://joeyzhou.chat/ws/xiaozhi/v1/
+服务器: wss://joeyzhou.chat/ws/dili/v1/
 客户端数量: 1
 发送内容: 你好,在干什么,一起出去玩吧
 2025-05-27 09:54:51.095 [info] [audio_utils.go:199] tts云端首帧耗时: 532 ms
@@ -31,7 +31,7 @@ root@87311584e5fe:/workspace# ./ws_multi -count 1 -server wss://joeyzhou.chat/ws
 2025-05-27 09:54:52.296 [info] [audio_utils.go:269] tts云端->首帧解码完成耗时: 391 ms
 2025-05-27 09:54:52.628 [info] [cosyvoice.go:306] tts耗时: 从输入至获取MP3数据结束耗时: 723 ms
 0 客户端开始运行
-0 客户端已连接到服务器: wss://joeyzhou.chat/ws/xiaozhi/v1/
+0 客户端已连接到服务器: wss://joeyzhou.chat/ws/dili/v1/
 收到消息: {Type:hello Text: State: SessionID:cafd2800-1979-06d5-19cf-b8bf53bb55dc Transport:websocket AudioFormat:<nil>}
 发送Opus帧: 20
 发送Opus帧: 50

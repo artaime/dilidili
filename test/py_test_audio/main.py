@@ -341,7 +341,7 @@ def main():
         f.write(f"=== 小智WebSocket客户端日志 - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
     
     parser = argparse.ArgumentParser(description="小智WebSocket客户端")
-    parser.add_argument("--server", "-s", default="ws://localhost:8989/xiaozhi/v1/", help="服务器地址")
+    parser.add_argument("--server", "-s", default="ws://localhost:8989/dili/v1/", help="服务器地址")
     parser.add_argument("--device", "-d", default="test-device-001", help="设备ID")
     parser.add_argument("--audio", "-a", default="../test.wav", help="音频文件路径")
     parser.add_argument("--text", "-t", default="你好测试", help="文本")

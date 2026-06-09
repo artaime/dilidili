@@ -55,33 +55,35 @@ func Init(cfg config.DatabaseConfig) *gorm.DB {
 	log.Println("数据库连接成功")
 
 	// 自动迁移数据库表结构
-	log.Println("开始自动迁移数据库表结构...")
-	err = db.AutoMigrate(
-		&models.User{},
-		&models.APIToken{},
-		&models.Device{},
-		&models.Agent{},
-		&models.KnowledgeBase{},
-		&models.KnowledgeBaseDocument{},
-		&models.AgentKnowledgeBase{},
-		&models.Config{},
-		&models.MCPMarketService{},
-		&models.GlobalRole{},
-		&models.Role{}, // 新增：统一角色表
-		&models.ChatMessage{},
-		&models.SpeakerGroup{},
-		&models.SpeakerSample{},
-		&models.VoiceClone{},
-		&models.VoiceCloneAudio{},
-		&models.VoiceCloneTask{},
-		&models.UserVoiceCloneQuota{},
-	)
-	if err != nil {
-		log.Printf("数据库表结构迁移失败: %v", err)
-		log.Println("将使用fallback模式运行（硬编码用户验证）")
-		return nil
+	if cfg.MySQL.AutoMigrate {
+		log.Println("开始自动迁移数据库表结构...")
+		err = db.AutoMigrate(
+			&models.User{},
+			&models.APIToken{},
+			&models.Device{},
+			&models.Agent{},
+			&models.KnowledgeBase{},
+			&models.KnowledgeBaseDocument{},
+			&models.AgentKnowledgeBase{},
+			&models.Config{},
+			&models.MCPMarketService{},
+			&models.GlobalRole{},
+			&models.Role{}, // 新增：统一角色表
+			&models.ChatMessage{},
+			&models.SpeakerGroup{},
+			&models.SpeakerSample{},
+			&models.VoiceClone{},
+			&models.VoiceCloneAudio{},
+			&models.VoiceCloneTask{},
+			&models.UserVoiceCloneQuota{},
+		)
+		if err != nil {
+			log.Printf("数据库表结构迁移失败: %v", err)
+			log.Println("将使用fallback模式运行（硬编码用户验证）")
+			return nil
+		}
+		log.Println("数据库表结构迁移成功")
 	}
-	log.Println("数据库表结构迁移成功")
 
 	if err := dropDeprecatedAgentStatusColumn(db); err != nil {
 		log.Printf("删除旧智能体状态字段失败: %v", err)

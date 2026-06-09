@@ -387,7 +387,7 @@ func main1() {
 var listenMode = "manual" // 全局变量，用于存储拾音模式
 
 func main() {
-	otaUrl := flag.String("ota", "https://api.tenclass.net/xiaozhi/ota/", "OTA服务器地址")
+	otaUrl := flag.String("ota", "https://api.tenclass.net/dili/ota/", "OTA服务器地址")
 	deviceID := flag.String("device", "ba:8f:17:de:94:94", "设备ID")
 	mode := flag.String("mode", "manual", "拾音模式: manual(手动) 或 auto(自动)")
 	ttsProvider := flag.String("tts_provider", constants.TtsTypeCosyvoice, "TTS provider: cosyvoice|edge|edge_offline|indextts_vllm")

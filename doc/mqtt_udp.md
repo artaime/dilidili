@@ -72,13 +72,13 @@ OTA（Over-the-Air）配置用于设备远程获取服务器、MQTT、WebSocket�
   ota:
     test:
       websocket:
-        url: "ws://192.168.208.214:8989/xiaozhi/v1/"
+        url: "ws://192.168.208.214:8989/dili/v1/"
       mqtt:
         enable: false
         endpoint: "192.168.208.214"
     external:
       websocket:
-        url: "wss://www.tb263.cn:55555/go_ws/xiaozhi/v1/"
+        url: "wss://www.tb263.cn:55555/go_ws/dili/v1/"
       mqtt:
         enable: false
         endpoint: "www.youdomain.cn"
@@ -94,7 +94,7 @@ OTA（Over-the-Air）配置用于设备远程获取服务器、MQTT、WebSocket�
   - 支持根据设备IP自动区分内外网，返回不同的连接参数，便于测试和生产环境隔离。
 
 **注意事项：**
-- OTA接口通常为 `/xiaozhi/ota/`，需在WebSocket服务端开放对应路由。
+- OTA接口通常为 `/dili/ota/`，需在WebSocket服务端开放对应路由。
 - 设备需在请求头中带上 `Device-Id` 和 `Client-Id`。
 - 可结合激活机制，返回激活码、挑战码等信息，提升设备安全性。
 
@@ -133,13 +133,13 @@ udp:
 ota:
   test:
     websocket:
-      url: "ws://192.168.208.214:8989/xiaozhi/v1/"
+      url: "ws://192.168.208.214:8989/dili/v1/"
     mqtt:
       enable: false
       endpoint: "192.168.208.214"
   external:
     websocket:
-      url: "wss://www.tb263.cn:55555/go_ws/xiaozhi/v1/"
+      url: "wss://www.tb263.cn:55555/go_ws/dili/v1/"
     mqtt:
       enable: false
       endpoint: "www.youdomain.cn"
@@ -164,13 +164,13 @@ udp:
 ota:
   test:
     websocket:
-      url: "ws://192.168.1.100:8989/xiaozhi/v1/"
+      url: "ws://192.168.1.100:8989/dili/v1/"
     mqtt:
       enable: false
       endpoint: "192.168.1.100"
   external:
     websocket:
-      url: "wss://emqx.example.com/go_ws/xiaozhi/v1/"
+      url: "wss://emqx.example.com/go_ws/dili/v1/"
     mqtt:
       enable: false
       endpoint: "emqx.example.com"

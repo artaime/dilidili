@@ -163,7 +163,7 @@ go build -o xiaozhi_server.exe ./cmd/server
 
 1. 分离部署模式下，主程序本身不负责控制台前后端和声纹服务进程管理。
 2. 主程序启动前，建议控制台后端已经可访问，否则 `manager` 配置提供者拉配置时会失败。
-3. 如果设备走 WebSocket，核心接入地址通常为 `ws://<host>:8989/xiaozhi/v1/`。
+3. 如果设备走 WebSocket，核心接入地址通常为 `ws://<host>:8989/dili/v1/`。
 
 ### 4.2 控制台后端
 
@@ -432,8 +432,8 @@ http://<服务器IP或域名>:8080
 
 设备常见接入信息如下：
 
-- WebSocket：`ws://<host>:8989/xiaozhi/v1/`
-- OTA 接口：`http://<host>:8989/xiaozhi/ota/`
+- WebSocket：`ws://<host>:8989/dili/v1/`
+- OTA 接口：`http://<host>:8989/dili/ota/`
 - MQTT：`<host>:2883`
 - UDP：`<host>:8990`
 

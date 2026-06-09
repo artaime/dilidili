@@ -48,7 +48,7 @@
             <section class="config-section">
               <div class="section-title">WebSocket 下发</div>
               <el-form-item label="WebSocket URL" prop="test.websocket.url">
-                <el-input v-model="form.test.websocket.url" placeholder="例如：ws://host:port/xiaozhi/v1/" />
+                <el-input v-model="form.test.websocket.url" placeholder="例如：ws://host:port/dili/v1/" />
               </el-form-item>
             </section>
 
@@ -95,7 +95,7 @@
             <section class="config-section">
               <div class="section-title">WebSocket 下发</div>
               <el-form-item label="WebSocket URL" prop="external.websocket.url">
-                <el-input v-model="form.external.websocket.url" placeholder="例如：wss://example.com/xiaozhi/v1/" />
+                <el-input v-model="form.external.websocket.url" placeholder="例如：wss://example.com/dili/v1/" />
               </el-form-item>
             </section>
 
@@ -149,10 +149,10 @@ const configId = ref(null)
 const formRef = ref()
 
 const createDefaultState = () => ({
-  signature_key: 'xiaozhi_ota_signature_key',
+  signature_key: 'dili_ota_signature_key',
   test: {
     websocket: {
-      url: 'ws://127.0.0.1:8989/xiaozhi/v1/'
+      url: 'ws://127.0.0.1:8989/dili/v1/'
     },
     mqtt: {
       enable: true,
@@ -161,7 +161,7 @@ const createDefaultState = () => ({
   },
   external: {
     websocket: {
-      url: 'ws://127.0.0.1:8989/xiaozhi/v1/'
+      url: 'ws://127.0.0.1:8989/dili/v1/'
     },
     mqtt: {
       enable: false,
@@ -253,10 +253,10 @@ const loadConfig = async () => {
       try {
         const configData = JSON.parse(config.json_data || '{}')
         applyState({
-          signature_key: configData.signature_key || 'xiaozhi_ota_signature_key',
+          signature_key: configData.signature_key || 'dili_ota_signature_key',
           test: {
             websocket: {
-              url: configData.test?.websocket?.url || 'ws://127.0.0.1:8989/xiaozhi/v1/'
+              url: configData.test?.websocket?.url || 'ws://127.0.0.1:8989/dili/v1/'
             },
             mqtt: {
               enable: configData.test?.mqtt?.enable !== undefined ? configData.test.mqtt.enable : true,
@@ -265,7 +265,7 @@ const loadConfig = async () => {
           },
           external: {
             websocket: {
-              url: configData.external?.websocket?.url || 'ws://127.0.0.1:8989/xiaozhi/v1/'
+              url: configData.external?.websocket?.url || 'ws://127.0.0.1:8989/dili/v1/'
             },
             mqtt: {
               enable: configData.external?.mqtt?.enable !== undefined ? configData.external.mqtt.enable : false,

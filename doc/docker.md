@@ -69,7 +69,7 @@ docker run -itd --name xiaozhi_server -v $(pwd)/config:/workspace/config -p 8989
 - 如果使用 ten_vad 作为 VAD 提供商，在配置文件中设置 `vad.provider: "ten_vad"` 即可
 
 现在应该可以连上 
->ws://机器ip:8989/xiaozhi/v1/ 
+>ws://机器ip:8989/dili/v1/ 
 
 进行聊天了
 

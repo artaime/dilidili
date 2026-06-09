@@ -2,8 +2,8 @@ package config
 
 import "strings"
 
-const DefaultInternalAuthToken = "xiaozhi_admin_secret_key"
-const DefaultEndpointAuthToken = "xiaozhi_mcp_openclaw_secret_key"
+const DefaultInternalAuthToken = "dili_admin_secret_key"
+const DefaultEndpointAuthToken = "dili_mcp_openclaw_secret_key"
 
 // ResolveInternalAuthToken 解析控制台内部服务通用 Token。
 // 优先级：

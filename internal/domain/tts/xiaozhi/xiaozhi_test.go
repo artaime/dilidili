@@ -146,7 +146,7 @@ func TestTextToSpeechStream(t *testing.T) {
 	//初始化log日志输出至标准输出
 	//initLog()
 	provider := NewXiaozhiProvider(map[string]interface{}{
-		"server_addr": "wss://api.tenclass.net/xiaozhi/v1/",
+		"server_addr": "wss://api.tenclass.net/dili/v1/",
 		"device_id":   "ba:8f:17:de:94:94",
 	})
 

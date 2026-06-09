@@ -23,8 +23,8 @@ config_provider:          #对应domain/config/中的provider
 
 manager:                  #内控管理配置, 对应domain/config/manager/manager.go
   backend_url: "http://127.0.0.1:8080" #内控地址
-  auth_token: "xiaozhi_admin_secret_key" # 控制台内部HTTP接口调用Token（默认值）
-  endpoint_auth_token: "xiaozhi_mcp_openclaw_secret_key" # MCP/OpenClaw端点JWT签名校验Token（默认值）
+  auth_token: "dili_admin_secret_key" # 控制台内部HTTP接口调用Token（默认值）
+  endpoint_auth_token: "dili_mcp_openclaw_secret_key" # MCP/OpenClaw端点JWT签名校验Token（默认值）
   history_timeout: 5s        # HTTP请求超时时间
 
 # 系统提示词，定义AI助手的角色和行为
@@ -45,7 +45,7 @@ redis:
   port: 6379             # Redis端口
   password: "ticket_dev" # Redis密码
   db: 0                  # 使用的数据库编号
-  key_prefix: "xiaozhi"  # 键名前缀
+  key_prefix: "dili"  # 键名前缀
 
 # WebSocket服务配置
 websocket:
@@ -58,7 +58,7 @@ mqtt:
   broker: "127.0.0.1"         # MQTT代理服务器地址
   type: "tcp"                 # 连接类型
   port: 2883                  # MQTT端口
-  client_id: "xiaozhi_server" # 客户端ID
+  client_id: "dili_server" # 客户端ID
   username: "admin"           # MQTT用户名
   password: "test!@#"         # MQTT密码
 
@@ -67,10 +67,10 @@ mqtt_server:
   enable: true                          # 是否启用MQTT服务器
   listen_host: "0.0.0.0"                # 监听地址
   listen_port: 2883                     # 监听端口
-  client_id: "xiaozhi_server"           # 服务器客户端ID
+  client_id: "dili_server"           # 服务器客户端ID
   username: "admin"                     # 默认用户名
   password: "test!@#"                   # 默认密码
-  signature_key: "your_ota_signature_key_here"  # OTA更新签名密钥
+  signature_key: "dili_ota_signature_key"  # OTA更新签名密钥
   enable_auth: false                    # 是否启用身份验证
   # TLS安全连接配置
   tls:
@@ -199,7 +199,7 @@ tts:
     frame_duration: 20                     # 帧持续时间（毫秒）
   # 小智TTS配置
   xiaozhi:
-    server_addr: "wss://api.tenclass.net/xiaozhi/v1/"  # 服务器地址
+    server_addr: "wss://api.tenclass.net/dili/v1/"  # 服务器地址
     device_id: "ba:8f:17:de:94:94"                      # 设备ID
     client_id: "e4b0c442-98fc-4e1b-8c3d-6a5b6a5b6a6d"  # 客户端ID
     token: "test-token"                                 # 访问令牌
@@ -253,7 +253,7 @@ llm:
 # 视觉识别配置
 vision:
   enable_auth: false  # 是否启用身份验证
-  vision_url: "http://192.168.208.214:8989/xiaozhi/api/vision"  # 下发给设备的 视觉API地址
+  vision_url: "http://192.168.208.214:8989/dili/api/vision"  # 下发给设备的 视觉API地址
   # 视觉语言模型配置
   vllm:
     provider: "aliyun_vision"  # 视觉模型提供商
@@ -274,18 +274,18 @@ vision:
 
 # OTA（空中升级）配置
 ota:
-  signature_key: "your_ota_signature_key_here"  # OTA签名密钥
+  signature_key: "dili_ota_signature_key"  # OTA签名密钥
   # 测试环境配置，内部测试用
   test:
     websocket:
-      url: "ws://192.168.208.214:8989/xiaozhi/v1/"  # WebSocket地址
+      url: "ws://192.168.208.214:8989/dili/v1/"  # WebSocket地址
     mqtt:
       enable: false                # 当为true时，会将 mqtt 配置给设备
       endpoint: "192.168.208.214"  # MQTT端点，可以带端口
   # 外部环境配置，线上环境用
   external:
     websocket:
-      url: "wss://www.tb263.cn:55555/go_ws/xiaozhi/v1/"  # WebSocket地址
+      url: "wss://www.tb263.cn:55555/go_ws/dili/v1/"  # WebSocket地址
     mqtt:
       enable: false                # 当为true时，会将 mqtt 配置给设备
       endpoint: "www.youdomain.cn" # MQTT端点，可以带端口

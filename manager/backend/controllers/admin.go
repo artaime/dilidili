@@ -1539,7 +1539,7 @@ type helloResponse struct {
 const (
 	otaTestDeviceID = "ota-test-device"
 	otaTestClientID = "ota-test-client"
-	otaHTTPPath     = "/xiaozhi/ota/"
+	otaHTTPPath     = "/dili/ota/"
 )
 
 // testMQTTUDPConfig 测试MQTT UDP连接

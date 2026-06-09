@@ -10,18 +10,18 @@ OTA接口现在支持基于HMAC-SHA256签名的MQTT密码验证机制，提供�
 
 ```yaml
 mqtt_server:
-  signature_key: "your_ota_signature_key_here"
+  signature_key: "dili_ota_signature_key"
 ota:
-  signature_key: "your_ota_signature_key_here"
+  signature_key: "dili_ota_signature_key"
   test:
     websocket:
-      url: "ws://192.168.208.214:8989/xiaozhi/v1/"
+      url: "ws://192.168.208.214:8989/dili/v1/"
     mqtt:
       enable: false
       endpoint: "192.168.208.214"
   external:
     websocket:
-      url: "wss://www.tb263.cn:55555/go_ws/xiaozhi/v1/"
+      url: "wss://www.tb263.cn:55555/go_ws/dili/v1/"
     mqtt:
       enable: false
       endpoint: "www.youdomain.cn"
@@ -210,16 +210,16 @@ type MqttCredentialInfo struct {
 mqtt_server:
   enable: false
 ota:
-  signature_key: "your_ota_signature_key_here"
+  signature_key: "dili_ota_signature_key"
   test:  # 内网测试的返回
     websocket:
-      url: "ws://192.168.208.214:8989/xiaozhi/v1/"
+      url: "ws://192.168.208.214:8989/dili/v1/"
     mqtt:
       enable: true
       endpoint: "192.168.208.214:1883"  # xiaozhi-mqtt-gateway中的mqtt server地址
   external:  # 外网的返回
     websocket:
-      url: "wss://www.tb263.cn:55555/go_ws/xiaozhi/v1/"
+      url: "wss://www.tb263.cn:55555/go_ws/dili/v1/"
     mqtt:
       enable: true
       endpoint: "mqtt.youdomain.com:1883"  # xiaozhi-mqtt-gateway中的mqtt server地址

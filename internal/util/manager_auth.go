@@ -6,8 +6,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-const DefaultManagerAuthToken = "xiaozhi_admin_secret_key"
-const DefaultManagerEndpointAuthToken = "xiaozhi_mcp_openclaw_secret_key"
+const DefaultManagerAuthToken = "dili_admin_secret_key"
+const DefaultManagerEndpointAuthToken = "dili_mcp_openclaw_secret_key"
 
 // GetManagerAuthToken 获取主程序与控制台之间通用的内部调用鉴权 Token。
 // 优先级：
