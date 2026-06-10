@@ -61,12 +61,15 @@
 
     <template v-if="!isBindMode">
       <div class="device-form-grid">
-        <el-form-item label="设备标识" prop="device_name">
+        <el-form-item label="设备标识 (MAC)" prop="device_name">
           <el-input
             v-model="form.device_name"
-            placeholder="设备端上报的 Device-ID / MAC"
+            placeholder="出厂预登记 MAC，例如 28:0A:C6:1D:3B:E8"
             clearable
           />
+          <div v-if="isAdmin" class="form-hint">
+            小程序绑定前，管理员需先预录入设备 MAC。未登记设备将无法被家长绑定。
+          </div>
         </el-form-item>
         <el-form-item label="激活码" prop="device_code">
           <el-input v-model="form.device_code" placeholder="设备激活码" clearable />
@@ -201,8 +204,8 @@ const validateDeviceIdentity = (_, value, callback) => {
   const deviceName = String(form.value.device_name || '').trim()
   const deviceCode = String(form.value.device_code || '').trim()
   if (props.isAdmin) {
-    if (!deviceName && !deviceCode) {
-      callback(new Error('设备标识和激活码至少填写一个'))
+    if (!deviceName) {
+      callback(new Error('出厂预登记请填写设备 MAC（device_name）'))
       return
     }
   } else if (!deviceName) {

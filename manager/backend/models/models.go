@@ -14,6 +14,12 @@ type User struct {
 	Password  string    `json:"-" gorm:"type:varchar(255);not null"`
 	Email     string    `json:"email" gorm:"type:varchar(100);uniqueIndex:idx_users_email"`
 	Role      string    `json:"role" gorm:"type:varchar(20);not null;default:'user'"` // admin, user
+	WxOpenID  *string   `json:"wx_openid,omitempty" gorm:"type:varchar(64);uniqueIndex:idx_users_wx_openid"`
+	WxUnionID *string   `json:"wx_unionid,omitempty" gorm:"type:varchar(64)"`
+	Nickname  string    `json:"nickname,omitempty" gorm:"type:varchar(100)"`
+	AvatarURL string    `json:"avatar_url,omitempty" gorm:"type:varchar(512)"`
+	Phone     string    `json:"phone,omitempty" gorm:"type:varchar(20)"`
+	Source    string    `json:"source,omitempty" gorm:"type:varchar(20);default:'web'"` // web, miniprogram
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -312,6 +318,23 @@ type ChatMessage struct {
 	// 状态
 	IsDeleted bool      `json:"is_deleted" gorm:"default:false;index"`
 	CreatedAt time.Time `json:"created_at" gorm:"index:idx_created_at"`
+}
+
+// ParentMessage 家长留言
+type ParentMessage struct {
+	ID          uint       `json:"id" gorm:"primarykey"`
+	UserID      uint       `json:"user_id" gorm:"not null;index"`
+	DeviceID    uint       `json:"device_id" gorm:"not null;index"`
+	TextContent string     `json:"text_content" gorm:"type:text;not null"`
+	AudioPath   string     `json:"audio_path,omitempty" gorm:"type:varchar(512)"`
+	SourceType  string     `json:"source_type" gorm:"type:varchar(20);not null;default:'text'"` // text, voice
+	Status      string     `json:"status" gorm:"type:varchar(20);not null;default:'pending';index"` // pending, notified, played, skipped, expired
+	CreatedAt   time.Time  `json:"created_at"`
+	PlayedAt    *time.Time `json:"played_at,omitempty"`
+}
+
+func (ParentMessage) TableName() string {
+	return "parent_messages"
 }
 
 // TableName 指定表名

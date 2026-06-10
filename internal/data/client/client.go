@@ -157,6 +157,9 @@ type ClientState struct {
 
 	// ASR首次返回字符的回调函数（在 session 中设置）
 	OnAsrFirstTextCallback func(text string, isFinal bool)
+
+	// ASR 结果拦截器（家长留言确认等场景）
+	OnAsrResultInterceptor func(text string) (handled bool, err error)
 }
 
 // IsSpeakerEnabled 检查是否启用声纹识别（从全局配置中读取）

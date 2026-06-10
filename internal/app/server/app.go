@@ -13,6 +13,7 @@ import (
 	"xiaozhi-esp32-server-golang/internal/app/server/types"
 	"xiaozhi-esp32-server-golang/internal/app/server/websocket"
 	"xiaozhi-esp32-server-golang/internal/data/history"
+	parentmsg "xiaozhi-esp32-server-golang/internal/data/parentmessage"
 	user_config "xiaozhi-esp32-server-golang/internal/domain/config"
 	config_types "xiaozhi-esp32-server-golang/internal/domain/config/types"
 	"xiaozhi-esp32-server-golang/internal/domain/mcp"
@@ -34,12 +35,20 @@ type App struct {
 
 	// ChatManager管理 - 使用concurrent map
 	chatManagers cmap.ConcurrentMap[string, *chat.ChatManager]
+
+	parentMessageClient *parentmsg.Client
 }
 
 func NewApp() *App {
 	var err error
 	app := &App{
 		chatManagers: cmap.New[*chat.ChatManager](),
+		parentMessageClient: parentmsg.NewClient(parentmsg.ClientConfig{
+			BaseURL:   util.GetBackendURL(),
+			AuthToken: util.GetManagerAuthToken(),
+			Timeout:   viper.GetDuration("manager.history_timeout"),
+			Enabled:   true,
+		}),
 	}
 	mcp.RegisterCurrentDeviceTransportResolver(func(deviceID string) string {
 		chatManager, exists := app.GetChatManager(deviceID)
@@ -342,6 +351,11 @@ func (a *App) OnNewConnection(transport types.IConn) {
 
 	// OpenClaw离线消息补发（延迟重试，避免连接刚建立时会话尚未初始化）
 	go a.replayOpenClawOfflineMessages(deviceID)
+
+	if a.parentMessageClient != nil {
+		chatManager.SetParentMessageClient(a.parentMessageClient)
+		chatManager.NotifyPendingParentMessages()
+	}
 
 	// 启动ChatManager
 	go func() {

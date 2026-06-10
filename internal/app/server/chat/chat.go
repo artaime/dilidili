@@ -16,9 +16,10 @@ import (
 	"xiaozhi-esp32-server-golang/internal/app/server/auth"
 	"xiaozhi-esp32-server-golang/internal/app/server/chat/plugins"
 	types_conn "xiaozhi-esp32-server-golang/internal/app/server/types"
-	types_audio "xiaozhi-esp32-server-golang/internal/data/audio"
+	types_audio 	"xiaozhi-esp32-server-golang/internal/data/audio"
 	. "xiaozhi-esp32-server-golang/internal/data/client"
 	. "xiaozhi-esp32-server-golang/internal/data/msg"
+	parentmsg "xiaozhi-esp32-server-golang/internal/data/parentmessage"
 	chathooks "xiaozhi-esp32-server-golang/internal/domain/chat/hooks"
 	"xiaozhi-esp32-server-golang/internal/domain/chat/streamtransform"
 	userconfig "xiaozhi-esp32-server-golang/internal/domain/config"
@@ -67,6 +68,11 @@ type ChatManager struct {
 	retainedSessionCleanupTimer  *time.Timer
 	retainedSessionCleanupTarget *ChatSession
 	retainedSessionIdleTimeout   time.Duration
+
+	parentMessageClient     *parentmsg.Client
+	parentMessageMu         sync.Mutex
+	parentMessageState      *parentMessageFlowState
+	parentMessageNotifyOnce atomic.Bool
 }
 
 type pendingSpeakRequest struct {

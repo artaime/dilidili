@@ -60,6 +60,10 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		AudioBasePath: audioBasePath,
 		MaxFileSize:   maxFileSize,
 	}
+	mpAuthController := &controllers.MpAuthController{DB: db, Cfg: cfg}
+	mpDeviceController := &controllers.MpDeviceController{DB: db}
+	mpMessageController := controllers.NewMpMessageController(db, cfg)
+	parentMessageInternalController := &controllers.ParentMessageInternalController{DB: db}
 
 	// API路由组
 	api := r.Group("/api")
@@ -69,6 +73,9 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		api.GET("/captcha/challenge", authController.GetSimpleCaptcha)
 		api.POST("/login", authController.Login)
 		api.POST("/register", authController.Register)
+
+		// 小程序公开路由
+		api.POST("/mp/auth/login", mpAuthController.Login)
 
 		// 数据库初始化相关路由（无需认证）
 		api.GET("/setup/status", setupController.CheckSetupStatus)
@@ -90,6 +97,8 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			internal.POST("/internal/pool/stats", poolStatsController.ReportPoolStats)                             // 上报资源池统计数据（内部服务接口）
 			internal.POST("/internal/devices/:device_name/switch-role", adminController.SwitchDeviceRoleByNameInternal)
 			internal.POST("/internal/devices/:device_name/restore-default-role", adminController.RestoreDeviceDefaultRoleInternal)
+			internal.GET("/internal/devices/:device_name/parent-messages/pending", parentMessageInternalController.GetPendingMessage)
+			internal.PATCH("/internal/parent-messages/:id/status", parentMessageInternalController.UpdateMessageStatus)
 		}
 
 		// 需要认证的路由
@@ -97,6 +106,21 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		auth.Use(middleware.JWTAuth())
 		{
 			auth.GET("/profile", authController.GetProfile)
+
+			// 小程序认证路由
+			mp := auth.Group("/mp")
+			{
+				mp.GET("/profile", mpAuthController.Profile)
+				mp.GET("/devices/check", mpDeviceController.CheckDevice)
+				mp.POST("/devices/bind", mpDeviceController.BindDevice)
+				mp.GET("/devices", mpDeviceController.ListDevices)
+				mp.DELETE("/devices/:id", mpDeviceController.UnbindDevice)
+				mp.POST("/messages", mpMessageController.CreateMessage)
+				mp.GET("/messages", mpMessageController.ListMessages)
+				mp.GET("/messages/:id", mpMessageController.GetMessage)
+				mp.DELETE("/messages/:id", mpMessageController.DeleteMessage)
+			}
+
 			// 通用接口，获取系统中的设备信息
 			auth.GET("/dashboard/stats", userController.GetDashboardStats)
 			// 设备角色接口（管理员和普通用户均可访问，控制器内做权限校验）

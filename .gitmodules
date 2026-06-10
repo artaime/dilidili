@@ -1,3 +1,6 @@
 [submodule "asr_server"]
 	path = asr_server
 	url = https://github.com/hackers365/asr_server.git
+[submodule "manager/miniprogram"]
+	path = manager/miniprogram
+	url = ssh://git@110.87.103.170:6122/xiaodi/dilidili_mp.git

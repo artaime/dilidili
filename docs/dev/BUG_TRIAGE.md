@@ -1,0 +1,61 @@
+# Bug 定位指南
+
+修 bug 时先读本页。智能体：L1 任务必读。
+
+## 调用链
+
+```
+ESP32 设备
+  → Transport（WebSocket / MQTT-UDP）
+    → internal/app/server/chat/ChatManager
+      → VAD → ASR → LLM → TTS（internal/domain/*）
+      → MCP / OpenClaw（internal/domain/mcp、openclaw）
+  → 管理台 Gin API
+    → manager/backend/router → controllers → database
+    → 内部接口回调主服务（/api/internal/*）
+```
+
+## 按现象查表
+
+| 现象 | 优先文件 |
+|------|----------|
+| 启动/配置失败 | `cmd/server/main.go`、`config/config.yaml`、`internal/domain/config/` |
+| 配置拉取/热更新异常 | `internal/domain/config/manager/`、`manager/backend/controllers/admin.go` |
+| WebSocket 连接/断连 | `internal/app/server/websocket/websocket_server.go`、`websocket_conn.go` |
+| OTA 升级失败 | `internal/app/server/websocket/ota.go`、`manager/backend/controllers/` |
+| MQTT-UDP 断连/播报异常 | `internal/app/server/mqtt_udp/`、`doc/mqtt_udp.md` |
+| 语音识别无结果/延迟高 | `internal/app/server/chat/asr.go`、`internal/domain/asr/` |
+| LLM 回复异常/超时 | `internal/app/server/chat/llm.go`、`internal/domain/llm/` |
+| TTS 无声音/音色错误 | `internal/app/server/chat/tts.go`、`internal/domain/tts/` |
+| VAD 误切/漏检 | `internal/domain/vad/` |
+| MCP 工具调用失败 | `internal/domain/mcp/`、`internal/app/server/chat/mcp.go` |
+| OpenClaw 会话/路由异常 | `internal/domain/openclaw/`、`internal/app/server/websocket/openclaw.go` |
+| 知识库/RAG 召回异常 | `internal/domain/rag/`、`manager/backend/controllers/knowledge.go` |
+| 管理台 API 401/403 | `manager/backend/middleware/auth.go` |
+| 管理台 API 4xx 参数错误 | `manager/backend/controllers/`、`manager/backend/router/router.go` |
+| 管理台 API 5xx / DB 错误 | `manager/backend/database/`、`manager/backend/controllers/` |
+| 控制台 UI 异常 | `manager/frontend/src/views/` |
+
+## 按错误文案 grep
+
+```bash
+rg "关键词" internal/ manager/backend/
+```
+
+| 关键词 | 位置 |
+|--------|------|
+| `config_provider` | `internal/domain/config/` |
+| `ChatManager` | `internal/app/server/chat/` |
+| `mcp-endpoint` | `manager/backend/controllers/`、`internal/domain/mcp/` |
+| `openclaw` | `internal/domain/openclaw/`、`internal/app/server/websocket/openclaw.go` |
+| `activation` | `manager/backend/controllers/device_activation` |
+
+## L1 流程
+
+BUG_TRIAGE 定位 → fix → `go test ./...` → CHANGELOG Fixed
+
+复杂 bug 可选：`docs/features/fix-*/BUGFIX.md`（用 BUGFIX 模板）
+
+## 维护
+
+新错误模式修复后补充上表。

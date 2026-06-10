@@ -1392,6 +1392,13 @@ func (s *ChatSession) AddAsrResultToQueueWithOptions(text string, speakerResult 
 		log.Debugf("AddAsrResultToQueue speaker: %s (confidence: %.2f)", speakerResult.SpeakerName, speakerResult.Confidence)
 	}
 
+	if s.clientState != nil && s.clientState.OnAsrResultInterceptor != nil {
+		handled, err := s.clientState.OnAsrResultInterceptor(text)
+		if handled {
+			return err
+		}
+	}
+
 	// 检查 session 是否已被停止（通过尝试获取锁来判断）
 	// 如果 StopSpeaking 正在执行，这里会等待；如果已执行完成，tryLock 会立即返回
 	if !s.stopSpeakingMu.TryLock() {

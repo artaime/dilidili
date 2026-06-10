@@ -33,5 +33,15 @@
     "enabled": true,
     "audio_base_path": "./data/chat_history/audio",
     "max_file_size": 10485760
+  },
+  "wechat": {
+    "miniprogram": {
+      "app_id": "",
+      "app_secret": ""
+    }
+  },
+  "parent_message": {
+    "audio_base_path": "./storage/parent_messages/audio",
+    "max_file_size": 10485760
   }
 }

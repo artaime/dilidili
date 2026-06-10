@@ -16,6 +16,22 @@ type Config struct {
 	SpeakerService    SpeakerServiceConfig `json:"speaker_service"`
 	Storage           StorageConfig        `json:"storage"`
 	History           HistoryConfig        `json:"history"`
+	WeChat            WeChatConfig         `json:"wechat"`
+	ParentMessage     ParentMessageConfig  `json:"parent_message"`
+}
+
+type WeChatConfig struct {
+	MiniProgram WeChatMiniProgramConfig `json:"miniprogram"`
+}
+
+type WeChatMiniProgramConfig struct {
+	AppID     string `json:"app_id"`
+	AppSecret string `json:"app_secret"`
+}
+
+type ParentMessageConfig struct {
+	AudioBasePath string `json:"audio_base_path"`
+	MaxFileSize   int64  `json:"max_file_size"`
 }
 
 type ServerConfig struct {

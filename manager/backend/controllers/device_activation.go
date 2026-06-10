@@ -100,29 +100,19 @@ func (dac *DeviceActivationController) GetActivationInfo(c *gin.Context) {
 	}
 
 	var device models.Device
-	var isNewDevice bool
 
 	// 使用device_id (对应device_name字段) 查找设备
 	if err := dac.DB.Where("device_name = ?", deviceId).First(&device).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			// 设备不存在，创建新设备记录
-			device = models.Device{
-				DeviceName: deviceId,
-				UserID:     0, // user_id置为0
-				DeviceCode: generateCode(),
-				Challenge:  generateChallenge(),
-				Activated:  false,
-			}
-
-			if err := dac.DB.Create(&device).Error; err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "创建设备记录失败"})
-				return
-			}
-			isNewDevice = true
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询设备失败"})
+			c.JSON(http.StatusOK, gin.H{
+				"registered": false,
+				"activated":  false,
+				"message":    "设备未登记，请联系厂商",
+			})
 			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询设备失败"})
+		return
 	}
 
 	// 如果设备已激活，直接返回状态
@@ -149,12 +139,6 @@ func (dac *DeviceActivationController) GetActivationInfo(c *gin.Context) {
 		needUpdate = true
 	}
 
-	// 确保user_id为0（如果不是新设备且未激活）
-	if !isNewDevice && device.UserID != 0 {
-		device.UserID = 0
-		needUpdate = true
-	}
-
 	// 更新数据库
 	if needUpdate {
 		updates := map[string]interface{}{}
@@ -163,9 +147,6 @@ func (dac *DeviceActivationController) GetActivationInfo(c *gin.Context) {
 		}
 		if device.Challenge != "" {
 			updates["challenge"] = device.Challenge
-		}
-		if !isNewDevice && device.UserID == 0 {
-			updates["user_id"] = device.UserID
 		}
 		if err := updateDeviceColumns(dac.DB, device.ID, updates); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "更新设备信息失败"})

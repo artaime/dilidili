@@ -76,6 +76,7 @@ func Init(cfg config.DatabaseConfig) *gorm.DB {
 			&models.VoiceCloneAudio{},
 			&models.VoiceCloneTask{},
 			&models.UserVoiceCloneQuota{},
+			&models.ParentMessage{},
 		)
 		if err != nil {
 			log.Printf("数据库表结构迁移失败: %v", err)
