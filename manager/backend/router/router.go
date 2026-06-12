@@ -98,6 +98,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			internal.POST("/internal/devices/:device_name/switch-role", adminController.SwitchDeviceRoleByNameInternal)
 			internal.POST("/internal/devices/:device_name/restore-default-role", adminController.RestoreDeviceDefaultRoleInternal)
 			internal.GET("/internal/devices/:device_name/parent-messages/pending", parentMessageInternalController.GetPendingMessage)
+			internal.GET("/internal/parent-messages/:id/audio", parentMessageInternalController.GetMessageAudio)
 			internal.PATCH("/internal/parent-messages/:id/status", parentMessageInternalController.UpdateMessageStatus)
 		}
 
@@ -111,6 +112,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			mp := auth.Group("/mp")
 			{
 				mp.GET("/profile", mpAuthController.Profile)
+				mp.PATCH("/profile", mpAuthController.UpdateProfile)
 				mp.GET("/devices/check", mpDeviceController.CheckDevice)
 				mp.POST("/devices/bind", mpDeviceController.BindDevice)
 				mp.GET("/devices", mpDeviceController.ListDevices)

@@ -24,3 +24,12 @@ func TestClassifyParentMessageIntent(t *testing.T) {
 		}
 	}
 }
+
+func TestParseParentMessageIntentJSON(t *testing.T) {
+	if parseParentMessageIntentJSON(`{"intent":"play"}`) != parentMessageIntentAffirmative {
+		t.Fatal("expected play")
+	}
+	if parseParentMessageIntentJSON(`说明：{"intent":"skip"}`) != parentMessageIntentNegative {
+		t.Fatal("expected skip")
+	}
+}

@@ -34,9 +34,10 @@ type wxCode2SessionResponse struct {
 
 func (ctrl *MpAuthController) Login(c *gin.Context) {
 	var req struct {
-		Code     string `json:"code" binding:"required"`
-		Nickname string `json:"nickname"`
-		Avatar   string `json:"avatar_url"`
+		Code       string `json:"code" binding:"required"`
+		Nickname   string `json:"nickname"`
+		Avatar     string `json:"avatar_url"`
+		FamilyRole string `json:"family_role"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
@@ -68,7 +69,7 @@ func (ctrl *MpAuthController) Login(c *gin.Context) {
 	openID := wxResp.OpenID
 	err = ctrl.DB.Where("wx_openid = ?", openID).First(&user).Error
 	if err == gorm.ErrRecordNotFound {
-		user, err = ctrl.createMiniProgramUser(wxResp, req.Nickname, req.Avatar)
+		user, err = ctrl.createMiniProgramUser(wxResp, req.Nickname, req.Avatar, req.FamilyRole)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -83,6 +84,9 @@ func (ctrl *MpAuthController) Login(c *gin.Context) {
 		}
 		if req.Avatar != "" {
 			updates["avatar_url"] = strings.TrimSpace(req.Avatar)
+		}
+		if req.FamilyRole != "" {
+			updates["family_role"] = normalizeFamilyRole(req.FamilyRole)
 		}
 		if wxResp.UnionID != "" {
 			unionID := wxResp.UnionID
@@ -103,12 +107,13 @@ func (ctrl *MpAuthController) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"token": token,
 		"user": gin.H{
-			"id":         user.ID,
-			"username":   user.Username,
-			"nickname":   user.Nickname,
-			"avatar_url": user.AvatarURL,
-			"role":       user.Role,
-			"source":     user.Source,
+			"id":          user.ID,
+			"username":    user.Username,
+			"nickname":    user.Nickname,
+			"avatar_url":  user.AvatarURL,
+			"family_role": normalizeFamilyRole(user.FamilyRole),
+			"role":        user.Role,
+			"source":      user.Source,
 		},
 	})
 }
@@ -122,12 +127,70 @@ func (ctrl *MpAuthController) Profile(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"data": gin.H{
-			"id":         user.ID,
-			"username":   user.Username,
-			"nickname":   user.Nickname,
-			"avatar_url": user.AvatarURL,
-			"phone":      user.Phone,
-			"source":     user.Source,
+			"id":          user.ID,
+			"username":    user.Username,
+			"nickname":    user.Nickname,
+			"avatar_url":  user.AvatarURL,
+			"phone":       user.Phone,
+			"family_role": normalizeFamilyRole(user.FamilyRole),
+			"source":      user.Source,
+		},
+	})
+}
+
+func (ctrl *MpAuthController) UpdateProfile(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	currentUID, _ := userID.(uint)
+
+	var req struct {
+		Nickname   string `json:"nickname"`
+		AvatarURL  string `json:"avatar_url"`
+		FamilyRole string `json:"family_role"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
+		return
+	}
+
+	updates := map[string]interface{}{}
+	if nickname := strings.TrimSpace(req.Nickname); nickname != "" {
+		updates["nickname"] = nickname
+	}
+	if avatar := strings.TrimSpace(req.AvatarURL); avatar != "" {
+		updates["avatar_url"] = avatar
+	}
+	if req.FamilyRole != "" {
+		if !isValidFamilyRole(req.FamilyRole) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "无效的亲属角色"})
+			return
+		}
+		updates["family_role"] = strings.TrimSpace(req.FamilyRole)
+	}
+	if len(updates) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "没有可更新的字段"})
+		return
+	}
+
+	if err := ctrl.DB.Model(&models.User{}).Where("id = ?", currentUID).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新资料失败"})
+		return
+	}
+
+	var user models.User
+	if err := ctrl.DB.Where("id = ?", currentUID).First(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询用户失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "资料已更新",
+		"data": gin.H{
+			"id":          user.ID,
+			"username":    user.Username,
+			"nickname":    user.Nickname,
+			"avatar_url":  user.AvatarURL,
+			"phone":       user.Phone,
+			"family_role": normalizeFamilyRole(user.FamilyRole),
+			"source":      user.Source,
 		},
 	})
 }
@@ -156,7 +219,7 @@ func (ctrl *MpAuthController) exchangeWxCode(appID, appSecret, code string) (*wx
 	return &wxResp, nil
 }
 
-func (ctrl *MpAuthController) createMiniProgramUser(wxResp *wxCode2SessionResponse, nickname, avatar string) (models.User, error) {
+func (ctrl *MpAuthController) createMiniProgramUser(wxResp *wxCode2SessionResponse, nickname, avatar, familyRole string) (models.User, error) {
 	prefix := wxResp.OpenID
 	if len(prefix) > 8 {
 		prefix = prefix[:8]
@@ -189,15 +252,16 @@ func (ctrl *MpAuthController) createMiniProgramUser(wxResp *wxCode2SessionRespon
 		unionIDPtr = &unionID
 	}
 	user := models.User{
-		Username:  username,
-		Password:  string(hashed),
-		Email:     fmt.Sprintf("%s@miniprogram.local", username),
-		Role:      "user",
-		WxOpenID:  &openID,
-		WxUnionID: unionIDPtr,
-		Nickname:  strings.TrimSpace(nickname),
-		AvatarURL: strings.TrimSpace(avatar),
-		Source:    "miniprogram",
+		Username:   username,
+		Password:   string(hashed),
+		Email:      fmt.Sprintf("%s@miniprogram.local", username),
+		Role:       "user",
+		WxOpenid:   &openID,
+		WxUnionid:  unionIDPtr,
+		Nickname:   strings.TrimSpace(nickname),
+		AvatarURL:  strings.TrimSpace(avatar),
+		FamilyRole: normalizeFamilyRole(familyRole),
+		Source:     "miniprogram",
 	}
 	if err := ctrl.DB.Create(&user).Error; err != nil {
 		return models.User{}, fmt.Errorf("创建用户失败")

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+const maxParentMessageDurationSec = 60
 
 type MpMessageController struct {
 	DB           *gorm.DB
@@ -51,6 +54,7 @@ func (ctrl *MpMessageController) CreateMessage(c *gin.Context) {
 	var req struct {
 		DeviceID    uint   `json:"device_id" binding:"required"`
 		TextContent string `json:"text_content" binding:"required"`
+		Title       string `json:"title"`
 		SourceType  string `json:"source_type"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -61,12 +65,27 @@ func (ctrl *MpMessageController) CreateMessage(c *gin.Context) {
 	if sourceType == "" {
 		sourceType = "text"
 	}
-	ctrl.saveMessage(c, currentUID, req.DeviceID, strings.TrimSpace(req.TextContent), "", sourceType)
+	textContent := sanitizeMessageText(req.TextContent)
+	ctrl.saveMessage(c, currentUID, saveMessageInput{
+		DeviceID:    req.DeviceID,
+		TextContent: textContent,
+		Title:       req.Title,
+		SourceType:  sourceType,
+	})
+}
+
+type saveMessageInput struct {
+	DeviceID         uint
+	TextContent      string
+	Title            string
+	SourceType       string
+	AudioPath        string
+	AudioDurationSec int
 }
 
 func (ctrl *MpMessageController) createMessageMultipart(c *gin.Context, userID uint) {
 	deviceIDStr := strings.TrimSpace(c.PostForm("device_id"))
-	textContent := strings.TrimSpace(c.PostForm("text_content"))
+	title := strings.TrimSpace(c.PostForm("title"))
 	sourceType := strings.TrimSpace(c.PostForm("source_type"))
 	if sourceType == "" {
 		sourceType = "voice"
@@ -75,6 +94,17 @@ func (ctrl *MpMessageController) createMessageMultipart(c *gin.Context, userID u
 	var deviceID uint
 	if _, err := fmt.Sscanf(deviceIDStr, "%d", &deviceID); err != nil || deviceID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "device_id 无效"})
+		return
+	}
+
+	audioDurationSec := 0
+	if raw := strings.TrimSpace(c.PostForm("audio_duration_sec")); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil {
+			audioDurationSec = v
+		}
+	}
+	if audioDurationSec > maxParentMessageDurationSec {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "录音时长不能超过 60 秒"})
 		return
 	}
 
@@ -91,32 +121,43 @@ func (ctrl *MpMessageController) createMessageMultipart(c *gin.Context, userID u
 		return
 	}
 
-	if textContent == "" {
-		if transcribed, err := transcribeAudioFile(ctrl.Cfg.SpeakerService.URL, audioPath); err == nil {
-			textContent = transcribed
-		}
-	}
-	if textContent == "" {
-		_ = ctrl.AudioStorage.DeleteAudioFile(audioPath)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未能识别语音内容，请补充文字或重录"})
-		return
-	}
-
-	ctrl.saveMessage(c, userID, deviceID, textContent, audioPath, sourceType)
+	ctrl.saveMessage(c, userID, saveMessageInput{
+		DeviceID:         deviceID,
+		Title:            title,
+		SourceType:       sourceType,
+		AudioPath:        audioPath,
+		AudioDurationSec: audioDurationSec,
+	})
 }
 
-func (ctrl *MpMessageController) saveMessage(c *gin.Context, userID, deviceID uint, textContent, audioPath, sourceType string) {
-	if textContent == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "留言内容不能为空"})
-		return
+func (ctrl *MpMessageController) saveMessage(c *gin.Context, userID uint, input saveMessageInput) {
+	sourceType := strings.TrimSpace(input.SourceType)
+	if sourceType == "" {
+		sourceType = "text"
 	}
-	if len([]rune(textContent)) > 500 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "留言内容不能超过 500 字"})
+
+	switch sourceType {
+	case "text":
+		if input.TextContent == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "留言内容不能为空"})
+			return
+		}
+		if len([]rune(input.TextContent)) > 500 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "留言内容不能超过 500 字"})
+			return
+		}
+	case "voice":
+		if strings.TrimSpace(input.AudioPath) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "请上传音频文件"})
+			return
+		}
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的留言类型"})
 		return
 	}
 
 	var device models.Device
-	if err := ctrl.DB.Where("id = ? AND user_id = ?", deviceID, userID).First(&device).Error; err != nil {
+	if err := ctrl.DB.Where("id = ? AND user_id = ?", input.DeviceID, userID).First(&device).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "设备不存在或不属于当前用户"})
 			return
@@ -125,15 +166,22 @@ func (ctrl *MpMessageController) saveMessage(c *gin.Context, userID, deviceID ui
 		return
 	}
 
+	now := time.Now()
 	msg := models.ParentMessage{
-		UserID:      userID,
-		DeviceID:    device.ID,
-		TextContent: textContent,
-		AudioPath:   audioPath,
-		SourceType:  sourceType,
-		Status:      "pending",
+		UserID:           userID,
+		DeviceID:         device.ID,
+		Title:            resolveMessageTitle(input.Title, sourceType, now),
+		TextContent:      input.TextContent,
+		AudioPath:        input.AudioPath,
+		AudioDurationSec: input.AudioDurationSec,
+		SourceType:       sourceType,
+		Status:           "pending",
+		CreatedAt:        now,
 	}
 	if err := ctrl.DB.Create(&msg).Error; err != nil {
+		if input.AudioPath != "" {
+			_ = ctrl.AudioStorage.DeleteAudioFile(input.AudioPath)
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建留言失败"})
 		return
 	}
@@ -165,7 +213,7 @@ func (ctrl *MpMessageController) ListMessages(c *gin.Context) {
 	}
 	deviceMap := ctrl.loadDeviceMap(deviceIDs)
 
-	result := make([]gin.H, 0, len(messages))
+	result := make([]map[string]interface{}, 0, len(messages))
 	for _, msg := range messages {
 		device := deviceMap[msg.DeviceID]
 		result = append(result, enrichParentMessage(msg, device))
@@ -242,29 +290,6 @@ func (ctrl *MpMessageController) loadDeviceMap(deviceIDs []uint) map[uint]models
 	return result
 }
 
-func enrichParentMessage(msg models.ParentMessage, device models.Device) gin.H {
-	statusText := map[string]string{
-		"pending":  "待播放",
-		"notified": "已通知",
-		"played":   "已播放",
-		"skipped":  "已跳过",
-		"expired":  "已过期",
-	}
-	return gin.H{
-		"id":           msg.ID,
-		"device_id":    msg.DeviceID,
-		"device_name":  device.DeviceName,
-		"device_nick":  device.NickName,
-		"text_content": msg.TextContent,
-		"source_type":  msg.SourceType,
-		"status":       msg.Status,
-		"status_text":  statusText[msg.Status],
-		"has_audio":    msg.AudioPath != "",
-		"created_at":   msg.CreatedAt,
-		"played_at":    msg.PlayedAt,
-	}
-}
-
 func parentMessageStatusAllowed(status string) bool {
 	switch status {
 	case "notified", "played", "skipped", "expired":
@@ -283,17 +308,29 @@ func updateParentMessageStatus(db *gorm.DB, id uint, status string) error {
 	return db.Model(&models.ParentMessage{}).Where("id = ?", id).Updates(updates).Error
 }
 
-func findPendingParentMessage(db *gorm.DB, deviceName string) (*models.ParentMessage, error) {
+func findPendingParentMessages(db *gorm.DB, deviceName string) ([]models.ParentMessage, error) {
 	var device models.Device
 	normalized := normalizeDeviceNameCandidate(deviceName)
 	if err := db.Where("LOWER(REPLACE(device_name, '-', ':')) = ?", normalized).First(&device).Error; err != nil {
 		return nil, err
 	}
-	var msg models.ParentMessage
+	var messages []models.ParentMessage
 	if err := db.Where("device_id = ? AND status = ?", device.ID, "pending").
-		Order("id ASC").First(&msg).Error; err != nil {
+		Order("id ASC").Find(&messages).Error; err != nil {
 		return nil, err
 	}
+	return messages, nil
+}
+
+func findPendingParentMessage(db *gorm.DB, deviceName string) (*models.ParentMessage, error) {
+	messages, err := findPendingParentMessages(db, deviceName)
+	if err != nil {
+		return nil, err
+	}
+	if len(messages) == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	msg := messages[0]
 	return &msg, nil
 }
 

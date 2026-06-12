@@ -14,12 +14,13 @@ type User struct {
 	Password  string    `json:"-" gorm:"type:varchar(255);not null"`
 	Email     string    `json:"email" gorm:"type:varchar(100);uniqueIndex:idx_users_email"`
 	Role      string    `json:"role" gorm:"type:varchar(20);not null;default:'user'"` // admin, user
-	WxOpenID  *string   `json:"wx_openid,omitempty" gorm:"type:varchar(64);uniqueIndex:idx_users_wx_openid"`
-	WxUnionID *string   `json:"wx_unionid,omitempty" gorm:"type:varchar(64)"`
-	Nickname  string    `json:"nickname,omitempty" gorm:"type:varchar(100)"`
-	AvatarURL string    `json:"avatar_url,omitempty" gorm:"type:varchar(512)"`
-	Phone     string    `json:"phone,omitempty" gorm:"type:varchar(20)"`
-	Source    string    `json:"source,omitempty" gorm:"type:varchar(20);default:'web'"` // web, miniprogram
+	WxOpenid  *string   `json:"wx_openid,omitempty" gorm:"type:varchar(64);uniqueIndex:idx_users_wx_openid"`
+	WxUnionid *string   `json:"wx_unionid,omitempty" gorm:"type:varchar(64)"`
+	Nickname   string `json:"nickname,omitempty" gorm:"type:varchar(100)"`
+	AvatarURL  string `json:"avatar_url,omitempty" gorm:"type:varchar(512)"`
+	Phone      string `json:"phone,omitempty" gorm:"type:varchar(20)"`
+	FamilyRole string `json:"family_role,omitempty" gorm:"type:varchar(20);default:'其他'"` // 爸爸, 妈妈, 爷爷, 奶奶, 外公, 外婆, 其他
+	Source     string `json:"source,omitempty" gorm:"type:varchar(20);default:'web'"`       // web, miniprogram
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -45,8 +46,8 @@ type Device struct {
 	AgentID      uint       `json:"agent_id" gorm:"not null;default:0"`                                       // 智能体ID，一台设备只能属于一个智能体
 	RoleID       *uint      `json:"role_id" gorm:"index"`                                                     // 角色ID（可选，覆盖智能体配置）
 	NickName     string     `json:"nick_name" gorm:"type:varchar(100)"`                                       // 设备昵称，用户可修改
-	DeviceCode   string     `json:"device_code" gorm:"type:varchar(100);uniqueIndex:idx_devices_device_code"` // 6位激活码
-	DeviceName   string     `json:"device_name" gorm:"type:varchar(100)"`                                     // 设备标识/Device-ID，设备端上报使用
+	DeviceCode   string     `json:"device_code" gorm:"type:varchar(100);uniqueIndex:idx_devices_device_name_code,priority:2"` // 6位激活码
+	DeviceName   string     `json:"device_name" gorm:"type:varchar(100);uniqueIndex:idx_devices_device_name_code,priority:1"` // 设备标识/Device-ID，设备端上报使用
 	Challenge    string     `json:"challenge" gorm:"type:varchar(128)"`                                       // 激活挑战码
 	PreSecretKey string     `json:"pre_secret_key" gorm:"type:varchar(128)"`                                  // 预激活密钥
 	Activated    bool       `json:"activated" gorm:"default:false"`                                           // 设备是否已激活
@@ -322,15 +323,17 @@ type ChatMessage struct {
 
 // ParentMessage 家长留言
 type ParentMessage struct {
-	ID          uint       `json:"id" gorm:"primarykey"`
-	UserID      uint       `json:"user_id" gorm:"not null;index"`
-	DeviceID    uint       `json:"device_id" gorm:"not null;index"`
-	TextContent string     `json:"text_content" gorm:"type:text;not null"`
-	AudioPath   string     `json:"audio_path,omitempty" gorm:"type:varchar(512)"`
-	SourceType  string     `json:"source_type" gorm:"type:varchar(20);not null;default:'text'"` // text, voice
-	Status      string     `json:"status" gorm:"type:varchar(20);not null;default:'pending';index"` // pending, notified, played, skipped, expired
-	CreatedAt   time.Time  `json:"created_at"`
-	PlayedAt    *time.Time `json:"played_at,omitempty"`
+	ID               uint       `json:"id" gorm:"primarykey"`
+	UserID           uint       `json:"user_id" gorm:"not null;index"`
+	DeviceID         uint       `json:"device_id" gorm:"not null;index"`
+	Title            string     `json:"title,omitempty" gorm:"type:varchar(100)"`
+	TextContent      string     `json:"text_content,omitempty" gorm:"type:text"`
+	AudioPath        string     `json:"audio_path,omitempty" gorm:"type:varchar(512)"`
+	AudioDurationSec int        `json:"audio_duration_sec,omitempty" gorm:"default:0"`
+	SourceType       string     `json:"source_type" gorm:"type:varchar(20);not null;default:'text'"`     // text, voice
+	Status           string     `json:"status" gorm:"type:varchar(20);not null;default:'pending';index"` // pending, notified, played, skipped, expired
+	CreatedAt        time.Time  `json:"created_at"`
+	PlayedAt         *time.Time `json:"played_at,omitempty"`
 }
 
 func (ParentMessage) TableName() string {
