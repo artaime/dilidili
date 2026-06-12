@@ -6,6 +6,14 @@
 
 ### Added
 
+- 初始化项目治理（full 档）：`governance-kit/`、`llms.txt`、`scripts/check-governance.ps1`；精简 `AGENTS.md`
+
+### Changed
+
+- MQTT 监听端口 6887、TLS 6888；管理前端 dev 代理指向远程 API
+
+### Added
+
 - 家长留言升级：亲属角色（`family_role`）、留言标题、语音原声存储（最长 60 秒，无需 ASR）
 - 小程序留言 UX：按住说话、上滑取消、松手填标题、语音/文字列表徽章
 - 内部 API：`GET /api/internal/parent-messages/:id/audio`；pending 返回全部待播留言

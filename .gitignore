@@ -23,3 +23,11 @@ chat_history/
 *.local.conf
 *.pro.conf
 *.dev.conf
+
+# Local secrets / env (governance-kit)
+.env
+.env.*
+!.env.example
+
+/governance-kit/
+.cursor/

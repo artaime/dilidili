@@ -1,0 +1,33 @@
+# xiaozhi-esp32-server-golang
+
+> ESP32 智能终端 AI 语音后端，端到端全流式 ASR → LLM → TTS，支持 WebSocket / MQTT-UDP 多协议接入与管理控制台。
+
+## Docs
+
+- [HOW_TO_USE](docs/dev/HOW_TO_USE.md)
+- [PROJECT_MAP](docs/PROJECT_MAP.md)
+- [AGENTS](AGENTS.md)
+- [README](README.md)
+
+## Stack
+
+Go 1.24 主服务 + Gin 管理后端 + Vue 前端
+
+## Entry
+
+- Main: `cmd/server/main.go` (`./xiaozhi_server -c config/config.yaml`)
+- Manager API: `manager/backend/main.go`
+- Manager UI: `manager/frontend/`
+
+## Commands
+
+- Build: `go build -o xiaozhi_server ./cmd/server/`
+- Test: `go test ./...`
+- Governance check: `powershell -File scripts/check-governance.ps1`
+
+## Key Modules
+
+- Transport: `internal/app/server/websocket/`, `internal/app/server/mqtt_udp/`
+- Chat pipeline: `internal/app/server/chat/`
+- Providers: `internal/domain/{vad,asr,llm,tts,mcp,rag}/`
+- Admin API: `manager/backend/router/router.go`
