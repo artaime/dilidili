@@ -221,6 +221,26 @@ func (ctrl *MpMessageController) ListMessages(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
+func (ctrl *MpMessageController) GetMessageAudio(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	currentUID, _ := userID.(uint)
+
+	var msg models.ParentMessage
+	if err := ctrl.DB.Where("id = ? AND user_id = ?", c.Param("id"), currentUID).First(&msg).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "留言不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询留言失败"})
+		return
+	}
+	if msg.SourceType != "voice" || strings.TrimSpace(msg.AudioPath) == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "音频不存在"})
+		return
+	}
+	serveParentMessageAudio(c, msg.AudioPath)
+}
+
 func (ctrl *MpMessageController) GetMessage(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	currentUID, _ := userID.(uint)

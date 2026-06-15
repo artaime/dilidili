@@ -69,10 +69,12 @@ type ChatManager struct {
 	retainedSessionCleanupTarget *ChatSession
 	retainedSessionIdleTimeout   time.Duration
 
-	parentMessageClient     *parentmsg.Client
-	parentMessageMu         sync.Mutex
-	parentMessageState      *parentMessageFlowState
-	parentMessageNotifyOnce atomic.Bool
+	parentMessageClient      *parentmsg.Client
+	parentMessageMu          sync.Mutex
+	parentMessageState       *parentMessageFlowState
+	parentMessageNotifyOnce  atomic.Bool
+	parentMessageNotifyGen   atomic.Uint64
+	parentMessageUDPNotified atomic.Bool
 }
 
 type pendingSpeakRequest struct {
@@ -119,7 +121,7 @@ const (
 
 const (
 	defaultSpeakRequestReuseWindow = 60 * time.Second
-	defaultSpeakReadyTimeout       = 5 * time.Second
+	defaultSpeakReadyTimeout       = 15 * time.Second
 	defaultRetainedSessionIdleTTL  = 10 * time.Minute
 )
 
@@ -544,6 +546,10 @@ func (c *ChatManager) HandleHelloMessage(msg *ClientMessage) error {
 	if isDuplicateMqttHello {
 		log.Infof("设备 %s duplicate_hello 处理完成", clientState.DeviceID)
 	}
+	if isFirstHello || requiresFreshHello {
+		c.parentMessageUDPNotified.Store(false)
+		c.NotifyPendingParentMessages(ParentMessageNotifyFromHello)
+	}
 	return nil
 }
 
@@ -920,6 +926,7 @@ func (c *ChatManager) resetMcpRuntimeOnMqttTransportReady() {
 	c.mcpInitState = chatMcpInitStateIdle
 	c.helloInited = false
 	c.needFreshHello = false
+	c.parentMessageUDPNotified.Store(false)
 	if c.clientState == nil || c.mcpTransport == nil {
 		return
 	}
@@ -932,6 +939,7 @@ func (c *ChatManager) resetMcpRuntimeOnMqttTransportReady() {
 func (c *ChatManager) HandleMqttTransportReady() {
 	c.markMqttConversationStateStale("transport_ready")
 	c.resetMcpRuntimeOnMqttTransportReady()
+	c.NotifyPendingParentMessages(ParentMessageNotifyFromTransport)
 }
 
 func (c *ChatManager) resetSpeakPathAfterGoodbye() {
@@ -1248,6 +1256,39 @@ func (c *ChatManager) InjectMessage(message string, skipLlm bool, autoListen boo
 	return session.AddAsrResultToQueueWithOptions(message, nil, options)
 }
 
+func speakRequestEnabled() bool {
+	if !viper.IsSet("chat.speak_request_enabled") {
+		return true
+	}
+	return viper.GetBool("chat.speak_request_enabled")
+}
+
+// prepareInjectedSpeechWithoutSpeakRequest 按 AI 玩具协议（hello + session + UDP）准备主动播报，不依赖 speak_request/speak_ready。
+func (c *ChatManager) prepareInjectedSpeechWithoutSpeakRequest() error {
+	if _, err := c.ensureClientSessionID(); err != nil {
+		return err
+	}
+	waitCtx := c.ctx
+	if waitCtx == nil {
+		waitCtx = context.Background()
+	}
+	if c.requiresHelloBootstrapForSession() || c.GetSession() == nil {
+		if err := c.waitForInjectedSpeechSession(waitCtx); err != nil {
+			return err
+		}
+	}
+	c.refreshSpeakPathWarmFromTransport()
+	if c.serverTransport != nil && !c.serverTransport.HasActiveUDPBinding() {
+		report := c.collectParentMessageReadiness()
+		return fmt.Errorf("parent message not ready: %s", report.BlockingReason)
+	}
+	if c.currentSpeakPathWarmAt() <= 0 {
+		c.markSpeakPathWarm(time.Now())
+	}
+	log.Infof("设备 %s 主动播报走标准协议链路（无 speak_request）", c.DeviceID)
+	return nil
+}
+
 func (c *ChatManager) prepareSpeakPathForInjectedSpeech(previewText string, autoListen bool) error {
 	if c == nil || c.serverTransport == nil {
 		return nil
@@ -1255,6 +1296,9 @@ func (c *ChatManager) prepareSpeakPathForInjectedSpeech(previewText string, auto
 	if c.serverTransport.GetTransportType() != types_conn.TransportTypeMqttUdp {
 		log.Debugf("设备 %s 注入消息跳过 speak_request: transport=%s", c.DeviceID, c.serverTransport.GetTransportType())
 		return nil
+	}
+	if !speakRequestEnabled() {
+		return c.prepareInjectedSpeechWithoutSpeakRequest()
 	}
 	if !c.shouldSendSpeakRequest(time.Now()) {
 		log.Debugf("设备 %s 注入消息复用现有播报链路，跳过 speak_request", c.DeviceID)
@@ -1291,6 +1335,9 @@ func (c *ChatManager) prepareSpeakPathForInjectedSpeech(previewText string, auto
 
 func (c *ChatManager) shouldSendSpeakRequest(now time.Time) bool {
 	if c == nil || c.serverTransport == nil {
+		return false
+	}
+	if !speakRequestEnabled() {
 		return false
 	}
 	if c.serverTransport.GetTransportType() != types_conn.TransportTypeMqttUdp {
@@ -1496,9 +1543,14 @@ func (c *ChatManager) refreshSpeakPathWarmFromTransport() {
 	}
 	if ts := c.serverTransport.GetUDPLastActiveTs(); ts > 0 {
 		c.updateSpeakPathWarmAt(ts)
-		return
+	} else {
+		c.markSpeakPathWarm(time.Now())
 	}
-	c.markSpeakPathWarm(time.Now())
+	if !c.parentMessageUDPNotified.Swap(true) {
+		log.Infof("设备 %s UDP 音频通道已绑定，触发家长留言检测 | %s",
+			c.DeviceID, c.collectParentMessageReadiness().String())
+		c.NotifyPendingParentMessages(ParentMessageNotifyFromUDP)
+	}
 }
 
 func (c *ChatManager) currentSpeakPathWarmAt() int64 {

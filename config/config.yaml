@@ -15,6 +15,7 @@ chat:
   chat_max_silence_duration: 400   # 句子结束静音阈值（毫秒），默认 400
   first_speech_pre_audio_ms: 800   # 首次检测到语音时保留的前置音频（毫秒），避免句首被 VAD 截断
   speak_request_reuse_window_ms: 60000 # MQTT-UDP 主动播报链路复用窗口（毫秒）
+  speak_request_enabled: false # AI 玩具协议无 speak_request/speak_ready，主动播报走 hello+UDP+tts
   realtime_mode: 4 # 1: vad打断模式 2: asr打断模式 3: asr时识别到声纹时进行打断 4. asr出结果打断(兼容流式或离线)
 
 chat_hooks:
@@ -36,8 +37,8 @@ config_provider:          #对应domain/config/中的provider
 
 manager:                  #内控管理配置, 对应domain/config/manager/manager.go
   backend_url: "http://127.0.0.1:6080" #内控地址
-  auth_token: "your_auth_token" # 控制台内部HTTP接口调用Token（默认值）
-  endpoint_auth_token: "your_endpoint_auth_token" # MCP/OpenClaw端点JWT签名校验Token（默认值）
+  auth_token: "dili_admin_secret_key" # 控制台内部HTTP接口调用Token（须与 manager internal_auth_token 一致）
+  endpoint_auth_token: "dili_mcp_openclaw_secret_key" # MCP/OpenClaw端点JWT签名校验Token（默认值）
   history_timeout: 5s        # HTTP请求超时时间
 
 # 系统提示词，定义AI助手的角色和行为

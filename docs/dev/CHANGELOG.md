@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- 小程序留言列表播放语音 401：补充 `GET /api/mp/messages/:id/audio`（JWT 鉴权），列表返回 `audio_url` 指向该接口
+- 固件端家长留言 JSON 解析失败：主服务兼容 pending API 旧版单对象/新版数组响应；失败后允许重试，MQTT transport_ready 时再次拉取
+- `config.yaml` 默认 `manager.auth_token` 与控制台 `internal_auth_token` 对齐，避免内部 API 401
+- 固件 WiFi MAC 与 BLE MAC 不一致：小程序绑定时将 BLE MAC 规范为 WiFi MAC，绑定成功后将 `device_name` 同步为该值；后端仅做格式归一与精确匹配
+- 家长留言 MQTT 播报：`hello` 完成后再启动；`speak_ready` 超时等可重试错误不标记 skipped；默认等待超时 15s
+- AI 玩具协议兼容：默认关闭 `speak_request` 握手，主动播报（含家长留言）改走 hello + session + UDP + tts 标准链路
+- 家长留言通知超时：hello/UDP 就绪后重置 60s 检测窗口；UDP 首次绑定时再触发；日志输出分环节就绪状态（`hello`/`session`/`udp_binding` 等）
+
 ### Added
 
 - 初始化项目治理（full 档）：`governance-kit/`、`llms.txt`、`scripts/check-governance.ps1`；精简 `AGENTS.md`

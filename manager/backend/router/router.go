@@ -119,6 +119,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				mp.DELETE("/devices/:id", mpDeviceController.UnbindDevice)
 				mp.POST("/messages", mpMessageController.CreateMessage)
 				mp.GET("/messages", mpMessageController.ListMessages)
+				mp.GET("/messages/:id/audio", mpMessageController.GetMessageAudio)
 				mp.GET("/messages/:id", mpMessageController.GetMessage)
 				mp.DELETE("/messages/:id", mpMessageController.DeleteMessage)
 			}

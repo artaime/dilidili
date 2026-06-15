@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -56,24 +57,52 @@ func (c *Client) ListPendingMessages(ctx context.Context, deviceName string) ([]
 	if c == nil || !c.enabled {
 		return nil, nil
 	}
+	deviceName = strings.TrimSpace(deviceName)
+	if deviceName == "" {
+		return nil, fmt.Errorf("device_name 不能为空")
+	}
 	body, err := c.client.DoRequestRaw(ctx, http.RequestOptions{
 		Method: "GET",
-		Path:   "/api/internal/devices/" + deviceName + "/parent-messages/pending",
+		Path:   "/api/internal/devices/" + url.PathEscape(deviceName) + "/parent-messages/pending",
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	var resp struct {
-		Data []PendingMessage `json:"data"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
+	messages, err := parsePendingMessagesResponse(body)
+	if err != nil {
 		return nil, fmt.Errorf("解析留言响应失败: %w", err)
 	}
-	for i := range resp.Data {
-		resp.Data[i].AudioURL = c.resolveAudioURL(resp.Data[i].AudioURL)
+	for i := range messages {
+		messages[i].AudioURL = c.resolveAudioURL(messages[i].AudioURL)
 	}
-	return resp.Data, nil
+	return messages, nil
+}
+
+func parsePendingMessagesResponse(body []byte) ([]PendingMessage, error) {
+	var envelope struct {
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil, fmt.Errorf("响应体不是合法 JSON: %w", err)
+	}
+	if len(envelope.Data) == 0 || string(envelope.Data) == "null" {
+		return nil, nil
+	}
+
+	var messages []PendingMessage
+	if err := json.Unmarshal(envelope.Data, &messages); err == nil {
+		return messages, nil
+	}
+
+	var single PendingMessage
+	if err := json.Unmarshal(envelope.Data, &single); err != nil {
+		return nil, fmt.Errorf("data 字段无法解析为留言列表: %w", err)
+	}
+	if single.ID == 0 {
+		return nil, nil
+	}
+	return []PendingMessage{single}, nil
 }
 
 func (c *Client) GetPendingMessage(ctx context.Context, deviceName string) (*PendingMessage, error) {

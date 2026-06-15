@@ -17,6 +17,8 @@ import (
 	data_client "xiaozhi-esp32-server-golang/internal/data/client"
 	msgdata "xiaozhi-esp32-server-golang/internal/data/msg"
 	"xiaozhi-esp32-server-golang/internal/util"
+
+	"github.com/spf13/viper"
 )
 
 func TestShouldSendSpeakRequestSkipsActiveConversationSignals(t *testing.T) {
@@ -193,6 +195,26 @@ func TestServerTransportSendMqttHelloIncludesUDPConfig(t *testing.T) {
 	}
 	if serverMsg.SessionID != manager.clientState.SessionID {
 		t.Fatalf("expected session_id %q, got %q", manager.clientState.SessionID, serverMsg.SessionID)
+	}
+}
+
+func TestPrepareSpeakPathSkipsSpeakRequestWhenDisabled(t *testing.T) {
+	viper.Set("chat.speak_request_enabled", false)
+	t.Cleanup(func() {
+		viper.Set("chat.speak_request_enabled", nil)
+	})
+
+	manager, conn := newSpeakRequestTestManager(types_conn.TransportTypeMqttUdp)
+	manager.helloInited = true
+	manager.session = &ChatSession{}
+	conn.udpSession = &mqtt_udp.UdpSession{}
+	conn.udpSession.SetRemoteAddr(&net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9527})
+
+	if err := manager.prepareSpeakPathForInjectedSpeech("家长留言询问", true); err != nil {
+		t.Fatalf("prepareSpeakPath returned error: %v", err)
+	}
+	if conn.sentCmdCount() != 0 {
+		t.Fatalf("expected no speak_request when disabled, got %d commands", conn.sentCmdCount())
 	}
 }
 

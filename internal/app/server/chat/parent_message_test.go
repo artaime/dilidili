@@ -1,6 +1,9 @@
 package chat
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestClassifyParentMessageIntent(t *testing.T) {
 	cases := []struct {
@@ -22,6 +25,15 @@ func TestClassifyParentMessageIntent(t *testing.T) {
 		if got != tc.expect {
 			t.Fatalf("classifyParentMessageIntent(%q) = %d, want %d", tc.text, got, tc.expect)
 		}
+	}
+}
+
+func TestIsParentMessageRetryableError(t *testing.T) {
+	if !isParentMessageRetryableError(fmt.Errorf("等待 speak_ready 超时")) {
+		t.Fatal("expected speak_ready timeout to be retryable")
+	}
+	if isParentMessageRetryableError(fmt.Errorf("文字留言内容为空")) {
+		t.Fatal("expected content error to be non-retryable")
 	}
 }
 

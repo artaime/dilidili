@@ -102,10 +102,14 @@ func (ctrl *MpDeviceController) BindDevice(c *gin.Context) {
 		return
 	}
 
+	normalizedMAC := normalizeDeviceNameCandidate(req.MAC)
 	updates := map[string]interface{}{
 		"user_id":   currentUID,
 		"agent_id":  agent.ID,
 		"activated": true,
+	}
+	if normalizedMAC != "" && normalizeDeviceNameCandidate(device.DeviceName) != normalizedMAC {
+		updates["device_name"] = normalizedMAC
 	}
 	if childNick != "" {
 		updates["nick_name"] = childNick

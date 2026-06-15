@@ -3,6 +3,8 @@ package controllers
 import (
 	"testing"
 	"time"
+
+	"xiaozhi/manager/backend/models"
 )
 
 func TestSanitizeMessageText(t *testing.T) {
@@ -36,5 +38,18 @@ func TestNormalizeFamilyRole(t *testing.T) {
 	}
 	if normalizeFamilyRole("invalid") != "其他" {
 		t.Fatal("expected 其他 for invalid role")
+	}
+}
+
+func TestEnrichParentMessageVoiceAudioURL(t *testing.T) {
+	msg := models.ParentMessage{
+		ID:         42,
+		SourceType: "voice",
+		AudioPath:  "/tmp/test.mp3",
+		CreatedAt:  time.Now(),
+	}
+	item := enrichParentMessage(msg, models.Device{})
+	if item["audio_url"] != "/api/mp/messages/42/audio" {
+		t.Fatalf("audio_url = %v, want /api/mp/messages/42/audio", item["audio_url"])
 	}
 }

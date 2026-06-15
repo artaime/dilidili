@@ -111,7 +111,7 @@ func enrichParentMessage(msg models.ParentMessage, device models.Device) map[str
 	if title == "" {
 		title = autoGenerateTitle(msg.SourceType, msg.CreatedAt)
 	}
-	return map[string]interface{}{
+	item := map[string]interface{}{
 		"id":                 msg.ID,
 		"device_id":          msg.DeviceID,
 		"device_name":        device.DeviceName,
@@ -129,4 +129,8 @@ func enrichParentMessage(msg models.ParentMessage, device models.Device) map[str
 		"created_at_display": formatCreatedAtDisplay(msg.CreatedAt),
 		"played_at":          msg.PlayedAt,
 	}
+	if msg.SourceType == "voice" && strings.TrimSpace(msg.AudioPath) != "" {
+		item["audio_url"] = fmt.Sprintf("/api/mp/messages/%d/audio", msg.ID)
+	}
+	return item
 }

@@ -354,7 +354,7 @@ func (a *App) OnNewConnection(transport types.IConn) {
 
 	if a.parentMessageClient != nil {
 		chatManager.SetParentMessageClient(a.parentMessageClient)
-		chatManager.NotifyPendingParentMessages()
+		chatManager.NotifyPendingParentMessages(chat.ParentMessageNotifyFromManager)
 	}
 
 	// 启动ChatManager

@@ -35,6 +35,10 @@
 
 时间描述示例：「今天/昨天/前天 + 早上/中午/傍晚/晚上 + HH点MM分」
 
+### 固件协议（AI 玩具 / pangdou-toy）
+
+固件 MQTT 协议见 [AI玩具协议.md](../../AI玩具协议.md)，**不含** `speak_request` / `speak_ready`。主服务默认 `chat.speak_request_enabled: false`，家长留言主动播报走 **hello → session → UDP → tts** 标准下行，与固件「讲个故事」等场景一致。
+
 ## API
 
 ### 公开
@@ -55,6 +59,7 @@
 | DELETE | `/api/mp/devices/:id` | 解绑设备 |
 | POST | `/api/mp/messages` | 创建留言（JSON 文字 / multipart 语音） |
 | GET | `/api/mp/messages` | 留言列表 |
+| GET | `/api/mp/messages/:id/audio` | 流式返回本人语音留言 mp3 |
 | DELETE | `/api/mp/messages/:id` | 撤回待播放留言 |
 
 ### 内部（主服务）
