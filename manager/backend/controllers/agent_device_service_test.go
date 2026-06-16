@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"xiaozhi/manager/backend/models"
+	"dili/manager/backend/models"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -194,5 +194,30 @@ func TestDeviceServiceBindingEnrichmentAndCrossUserRejection(t *testing.T) {
 	}
 	if updated.UserID != userB.ID || updated.AgentID != agentB.ID || updated.AgentName != "agent-b" || updated.Username != userB.Username {
 		t.Fatalf("updated device enrichment = user:%d agent:%d agentName:%q username:%q", updated.UserID, updated.AgentID, updated.AgentName, updated.Username)
+	}
+}
+
+func TestDeviceServiceAdminCreateWithoutUserRequiresDeviceName(t *testing.T) {
+	db := setupAgentDeviceServiceTestDB(t)
+	admin := createServiceTestUser(t, db, "device-admin", "admin")
+	deviceSvc := NewDeviceService(db)
+	scope := accessScope{ActorUserID: admin.ID, IsAdmin: true}
+
+	if _, err := deviceSvc.Create(scope, DevicePayload{}); err == nil || !strings.Contains(err.Error(), "设备标识") {
+		t.Fatalf("create without device name error = %v, want device name required", err)
+	}
+
+	created, err := deviceSvc.Create(scope, DevicePayload{
+		DeviceName: "SN-PRE-REGISTER-001",
+		NickName:   "预登记设备",
+	})
+	if err != nil {
+		t.Fatalf("admin pre-register device: %v", err)
+	}
+	if created.UserID != 0 {
+		t.Fatalf("pre-registered device user_id = %d, want 0", created.UserID)
+	}
+	if created.DeviceName != "SN-PRE-REGISTER-001" {
+		t.Fatalf("device_name = %q, want SN-PRE-REGISTER-001", created.DeviceName)
 	}
 }

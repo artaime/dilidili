@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"xiaozhi/manager/backend/models"
+	"dili/manager/backend/models"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -456,12 +456,20 @@ func (svc *DeviceService) ListByAgent(scope accessScope, agentID uint) ([]Device
 }
 
 func (svc *DeviceService) Create(scope accessScope, payload DevicePayload) (*DeviceResponse, error) {
-	targetUserID, err := targetUserIDFromScope(scope, payload.UserID)
-	if err != nil {
-		return nil, err
+	var targetUserID uint
+	if scope.IsAdmin {
+		targetUserID = payload.UserID
+	} else {
+		var err error
+		targetUserID, err = targetUserIDFromScope(scope, payload.UserID)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if err := svc.assertUserExists(targetUserID); err != nil {
-		return nil, err
+	if targetUserID > 0 {
+		if err := svc.assertUserExists(targetUserID); err != nil {
+			return nil, err
+		}
 	}
 	nickName, err := normalizeDeviceNickName(payload.NickName)
 	if err != nil {
@@ -469,12 +477,8 @@ func (svc *DeviceService) Create(scope accessScope, payload DevicePayload) (*Dev
 	}
 	deviceName := strings.TrimSpace(payload.DeviceName)
 	deviceCode := strings.TrimSpace(payload.DeviceCode)
-	if scope.IsAdmin {
-		if deviceCode == "" && deviceName == "" {
-			return nil, fmt.Errorf("激活码和设备标识至少填写一个")
-		}
-	} else if deviceName == "" {
-		return nil, fmt.Errorf("请输入设备标识")
+	if deviceName == "" {
+		return nil, fmt.Errorf("请填写设备标识")
 	}
 	if nickName == "" {
 		nickName = deviceName
@@ -548,11 +552,13 @@ func (svc *DeviceService) Update(scope accessScope, id uint, payload DevicePaylo
 	}
 
 	nextUserID := device.UserID
-	if scope.IsAdmin && payload.UserID > 0 {
+	if scope.IsAdmin {
 		nextUserID = payload.UserID
 	}
-	if err := svc.assertUserExists(nextUserID); err != nil {
-		return nil, err
+	if nextUserID > 0 {
+		if err := svc.assertUserExists(nextUserID); err != nil {
+			return nil, err
+		}
 	}
 	nickName, err := normalizeDeviceNickName(payload.NickName)
 	if err != nil {

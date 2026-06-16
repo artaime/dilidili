@@ -12,11 +12,12 @@
         v-model="form.user_id"
         placeholder="请选择所属用户"
         filterable
+        clearable
         style="width: 100%"
         :loading="loading.users"
       >
         <el-option
-          v-for="user in users"
+          v-for="user in eligibleUsers"
           :key="user.id"
           :label="userLabel(user)"
           :value="user.id"
@@ -52,7 +53,7 @@
     <el-form-item label="设备昵称" prop="nick_name">
       <el-input
         v-model="form.nick_name"
-        placeholder="例如：客厅音箱、办公室小智"
+        placeholder="例如：客厅音箱、办公室狄哩"
         maxlength="50"
         show-word-limit
         clearable
@@ -179,9 +180,12 @@ const agentLabel = (agent) => {
   return `${agent.name || `智能体 #${agent.id}`} (用户${agent.user_id}${username})`
 }
 
+const eligibleUsers = computed(() => users.value.filter((user) => user.role !== 'user'))
+
 const userLabel = (user) => {
   const name = user?.username || user?.name || `用户 #${user?.id}`
-  return `${name} (ID: ${user?.id})`
+  const roleLabel = user?.role === 'admin' ? '管理员' : (user?.role || '非普通用户')
+  return `${name} (${roleLabel} · ID: ${user?.id})`
 }
 
 const validateIdentifier = (_, value, callback) => {
@@ -196,34 +200,26 @@ const validateIdentifier = (_, value, callback) => {
   callback()
 }
 
-const validateDeviceIdentity = (_, value, callback) => {
+const validateDeviceName = (_, value, callback) => {
   if (isBindMode.value) {
     callback()
     return
   }
-  const deviceName = String(form.value.device_name || '').trim()
-  const deviceCode = String(form.value.device_code || '').trim()
-  if (props.isAdmin) {
-    if (!deviceName) {
-      callback(new Error('出厂预登记请填写设备 SN（device_name）'))
-      return
-    }
-  } else if (!deviceName) {
-    callback(new Error('请输入设备标识'))
+  const deviceName = String(value || '').trim()
+  if (!deviceName) {
+    callback(new Error(props.isAdmin ? '请填写设备标识（SN）' : '请输入设备标识'))
     return
   }
   callback()
 }
 
 const rules = computed(() => ({
-  user_id: props.isAdmin ? [{ required: true, message: '请选择所属用户', trigger: 'change' }] : [],
   agent_id: isBindMode.value && !hasFixedAgent.value
     ? [{ required: true, message: '请选择目标智能体', trigger: 'change' }]
     : [],
   identifier: [{ validator: validateIdentifier, trigger: 'blur' }],
   nick_name: [{ max: 50, message: '设备昵称最多 50 个字符', trigger: 'blur' }],
-  device_name: [{ validator: validateDeviceIdentity, trigger: 'blur' }],
-  device_code: [{ validator: validateDeviceIdentity, trigger: 'blur' }]
+  device_name: [{ validator: validateDeviceName, trigger: 'blur' }]
 }))
 
 const reloadOptions = async () => {

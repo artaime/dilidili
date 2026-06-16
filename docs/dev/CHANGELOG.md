@@ -6,6 +6,7 @@
 
 ### Changed
 
+- 管理端添加设备：所属用户改为选填且下拉仅显示非普通用户；设备标识（SN）改为必填
 - 设备唯一标识全局改用 SN：OTA 仅认 `board.sn`（AIToy 必填）；MQTT topic/clientId 中间段不再做 MAC `_`↔`:` 转换；小程序 BLE 绑定仅认 `sn`，移除 `ble_mac` 回退（详见 `docs/features/DEVICE_SN_IDENTITY.md`）
 - 设备唯一标识从 MAC 切换为 SN：`device_name` 存 SN；小程序 check/bind 改用 `sn` 参数；BLE Notify 解析 `sn`；管理端预登记与 Web 绑定 UI 同步；MQTT clientId 中间段与 Device-Id 均使用 SN；激活时校验 `serial_number == device_id`
 - 小程序绑定页仅保留蓝牙扫描绑定，移除手动输入 SN
