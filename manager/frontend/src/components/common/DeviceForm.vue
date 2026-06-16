@@ -35,17 +35,17 @@
       </el-select>
     </el-form-item>
 
-    <el-form-item v-if="isBindMode" label="设备验证码或 MAC" prop="identifier">
+    <el-form-item v-if="isBindMode" label="设备验证码或 SN" prop="identifier">
       <el-input
         v-model="form.identifier"
-        placeholder="请输入 6 位验证码或设备 MAC"
+        placeholder="请输入 6 位验证码或设备 SN"
         clearable
         autocomplete="off"
       />
       <div class="form-hint">
         <span>示例：</span>
         <code>123456</code>
-        <code>28:0A:C6:1D:3B:E8</code>
+        <code>SN-XXXXXXXX-XXXXXXXX</code>
       </div>
     </el-form-item>
 
@@ -61,14 +61,14 @@
 
     <template v-if="!isBindMode">
       <div class="device-form-grid">
-        <el-form-item label="设备标识 (MAC)" prop="device_name">
+        <el-form-item label="设备标识 (SN)" prop="device_name">
           <el-input
             v-model="form.device_name"
-            placeholder="出厂预登记 MAC，例如 28:0A:C6:1D:3B:E8"
+            placeholder="出厂预登记 SN，例如 SN-XXXXXXXX-XXXXXXXX"
             clearable
           />
           <div v-if="isAdmin" class="form-hint">
-            小程序绑定前，管理员需先预录入设备 MAC。未登记设备将无法被家长绑定。
+            小程序绑定前，管理员需先预录入设备 SN。未登记设备将无法被家长绑定。
           </div>
         </el-form-item>
         <el-form-item label="激活码" prop="device_code">
@@ -190,7 +190,7 @@ const validateIdentifier = (_, value, callback) => {
     return
   }
   if (!String(value || '').trim()) {
-    callback(new Error('请输入设备验证码或设备 MAC'))
+    callback(new Error('请输入设备验证码或设备 SN'))
     return
   }
   callback()
@@ -205,7 +205,7 @@ const validateDeviceIdentity = (_, value, callback) => {
   const deviceCode = String(form.value.device_code || '').trim()
   if (props.isAdmin) {
     if (!deviceName) {
-      callback(new Error('出厂预登记请填写设备 MAC（device_name）'))
+      callback(new Error('出厂预登记请填写设备 SN（device_name）'))
       return
     }
   } else if (!deviceName) {

@@ -20,7 +20,7 @@ func TestGetPendingMessageJSONRoundTrip(t *testing.T) {
 	if err := db.Save(&user).Error; err != nil {
 		t.Fatalf("save user: %v", err)
 	}
-	device := models.Device{UserID: user.ID, DeviceName: "11:22:33:44:55:66", DeviceCode: "123456", Activated: true}
+	device := models.Device{UserID: user.ID, DeviceName: "SN-TEST-DEVICE", DeviceCode: "123456", Activated: true}
 	if err := db.Create(&device).Error; err != nil {
 		t.Fatalf("create device: %v", err)
 	}
@@ -36,8 +36,8 @@ func TestGetPendingMessageJSONRoundTrip(t *testing.T) {
 	ctrl := &ParentMessageInternalController{DB: db}
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/internal/devices/11:22:33:44:55:66/parent-messages/pending", nil)
-	c.Params = gin.Params{{Key: "device_name", Value: "11:22:33:44:55:66"}}
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/internal/devices/SN-TEST-DEVICE/parent-messages/pending", nil)
+	c.Params = gin.Params{{Key: "device_name", Value: "SN-TEST-DEVICE"}}
 	ctrl.GetPendingMessage(c)
 
 	if w.Code != http.StatusOK {

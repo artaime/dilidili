@@ -49,7 +49,7 @@ func generateChallenge() string {
 // 1. 判断设备是否已激活
 // GET /api/internal/device/check-activation?device_id=xxx&client_id=xxx
 func (dac *DeviceActivationController) CheckDeviceActivation(c *gin.Context) {
-	deviceId := c.Query("device_id")
+	deviceId := normalizeDeviceSN(c.Query("device_id"))
 	//clientId := c.Query("client_id")
 
 	if deviceId == "" /*|| clientId == ""*/ {
@@ -91,7 +91,7 @@ func (dac *DeviceActivationController) CheckDeviceActivation(c *gin.Context) {
 // 2. 获取激活信息
 // GET /api/internal/device/activation-info?device_id=xxx&client_id=xxx
 func (dac *DeviceActivationController) GetActivationInfo(c *gin.Context) {
-	deviceId := c.Query("device_id")
+	deviceId := normalizeDeviceSN(c.Query("device_id"))
 	//clientId := c.Query("client_id")
 
 	if deviceId == "" /*|| clientId == ""*/ {
@@ -192,9 +192,26 @@ func (dac *DeviceActivationController) ActivateDevice(c *gin.Context) {
 		return
 	}
 
+	deviceID := normalizeDeviceSN(req.DeviceId)
+	serialNumber := normalizeDeviceSN(req.SerialNumber)
+	if deviceID == "" || serialNumber == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "device_id 与 serial_number 不能为空",
+		})
+		return
+	}
+	if deviceID != serialNumber {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"error":   "serial_number 与 device_id 不一致",
+		})
+		return
+	}
+
 	var device models.Device
-	// 使用device_id (对应device_name字段) 查找设备
-	if err := dac.DB.Where("device_name = ?", req.DeviceId).First(&device).Error; err != nil {
+	// 使用 device_id（对应 device_name 字段，值为 SN）查找设备
+	if err := dac.DB.Where("device_name = ?", deviceID).First(&device).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,

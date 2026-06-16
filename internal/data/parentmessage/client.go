@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,16 +20,17 @@ type ClientConfig struct {
 }
 
 type PendingMessage struct {
-	ID          uint      `json:"id"`
-	UserID      uint      `json:"user_id"`
-	DeviceID    uint      `json:"device_id"`
-	Title       string    `json:"title"`
-	TextContent string    `json:"text_content"`
-	SourceType  string    `json:"source_type"`
-	Status      string    `json:"status"`
-	FamilyRole  string    `json:"family_role"`
-	AudioURL    string    `json:"audio_url"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          uint       `json:"id"`
+	UserID      uint       `json:"user_id"`
+	DeviceID    uint       `json:"device_id"`
+	Title       string     `json:"title"`
+	TextContent string     `json:"text_content"`
+	SourceType  string     `json:"source_type"`
+	Status      string     `json:"status"`
+	FamilyRole  string     `json:"family_role"`
+	AudioURL    string     `json:"audio_url"`
+	CreatedAt   time.Time  `json:"created_at"`
+	PlayedAt    *time.Time `json:"played_at,omitempty"`
 }
 
 type Client struct {
@@ -36,6 +38,14 @@ type Client struct {
 	enabled bool
 	baseURL string
 }
+
+type SearchParams struct {
+	Start string
+	End   string
+	Limit int
+}
+
+const defaultParentMessageSearchLimit = 100
 
 func NewClient(cfg ClientConfig) *Client {
 	if cfg.Timeout <= 0 {
@@ -77,6 +87,99 @@ func (c *Client) ListPendingMessages(ctx context.Context, deviceName string) ([]
 		messages[i].AudioURL = c.resolveAudioURL(messages[i].AudioURL)
 	}
 	return messages, nil
+}
+
+func (c *Client) ListPlayedMessages(ctx context.Context, deviceName string, limit int) ([]PendingMessage, error) {
+	if c == nil || !c.enabled {
+		return nil, nil
+	}
+	deviceName = strings.TrimSpace(deviceName)
+	if deviceName == "" {
+		return nil, fmt.Errorf("device_name 不能为空")
+	}
+	path := "/api/internal/devices/" + url.PathEscape(deviceName) + "/parent-messages/played"
+	if limit > 0 {
+		path = fmt.Sprintf("%s?limit=%d", path, limit)
+	}
+	body, err := c.client.DoRequestRaw(ctx, http.RequestOptions{
+		Method: "GET",
+		Path:   path,
+	})
+	if err != nil {
+		return nil, err
+	}
+	messages, err := parsePendingMessagesResponse(body)
+	if err != nil {
+		return nil, fmt.Errorf("解析已播留言响应失败: %w", err)
+	}
+	for i := range messages {
+		messages[i].AudioURL = c.resolveAudioURL(messages[i].AudioURL)
+	}
+	return messages, nil
+}
+
+func (c *Client) SearchMessages(ctx context.Context, deviceName string, params SearchParams) ([]PendingMessage, error) {
+	if c == nil || !c.enabled {
+		return nil, nil
+	}
+	deviceName = strings.TrimSpace(deviceName)
+	if deviceName == "" {
+		return nil, fmt.Errorf("device_name 不能为空")
+	}
+	path := "/api/internal/devices/" + url.PathEscape(deviceName) + "/parent-messages/search"
+	query := url.Values{}
+	if strings.TrimSpace(params.Start) != "" {
+		query.Set("start", strings.TrimSpace(params.Start))
+	}
+	if strings.TrimSpace(params.End) != "" {
+		query.Set("end", strings.TrimSpace(params.End))
+	}
+	limit := params.Limit
+	if limit <= 0 {
+		limit = defaultParentMessageSearchLimit
+	}
+	query.Set("limit", strconv.Itoa(limit))
+	if encoded := query.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	body, err := c.client.DoRequestRaw(ctx, http.RequestOptions{
+		Method: "GET",
+		Path:   path,
+	})
+	if err != nil {
+		return nil, err
+	}
+	messages, err := parsePendingMessagesResponse(body)
+	if err != nil {
+		return nil, fmt.Errorf("解析留言搜索响应失败: %w", err)
+	}
+	for i := range messages {
+		messages[i].AudioURL = c.resolveAudioURL(messages[i].AudioURL)
+	}
+	return messages, nil
+}
+
+func (c *Client) GetMessage(ctx context.Context, messageID uint) (*PendingMessage, error) {
+	if c == nil || !c.enabled {
+		return nil, fmt.Errorf("parent message client disabled")
+	}
+	body, err := c.client.DoRequestRaw(ctx, http.RequestOptions{
+		Method: "GET",
+		Path:   fmt.Sprintf("/api/internal/parent-messages/%d", messageID),
+	})
+	if err != nil {
+		return nil, err
+	}
+	messages, err := parsePendingMessagesResponse(body)
+	if err != nil {
+		return nil, err
+	}
+	if len(messages) == 0 {
+		return nil, fmt.Errorf("留言不存在")
+	}
+	msg := messages[0]
+	msg.AudioURL = c.resolveAudioURL(msg.AudioURL)
+	return &msg, nil
 }
 
 func parsePendingMessagesResponse(body []byte) ([]PendingMessage, error) {

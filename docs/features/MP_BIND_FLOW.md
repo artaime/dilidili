@@ -4,13 +4,15 @@
 
 家长端 BLE 配网与账号绑定的标准流程。绑定通过 `POST /api/mp/devices/bind` 完成，同时将设备标记为 `activated=true`（不调用 `/api/internal/device/activate`）。
 
+设备唯一标识为 **SN**，存储于 `devices.device_name`。详见 [DEVICE_SN_IDENTITY.md](./DEVICE_SN_IDENTITY.md)。
+
 ## 流程时序
 
-1. 扫描并连接 BLE 设备
-2. 发送 `ForceGetSSID`，获取 `ble_mac` 与 WiFi 列表
+1. 扫描并连接 BLE 设备（进入绑定页自动扫描，也可点「重新扫描」）
+2. 发送 `ForceGetSSID`，获取 `sn` 与 WiFi 列表
 3. **绑定（WiFi 之前）**
-   - `GET /api/mp/devices/check?mac=` 预检登记与占用状态
-   - 弹窗确认 → 填写孩子昵称 → `POST /api/mp/devices/bind`
+   - `GET /api/mp/devices/check?sn=` 预检登记与占用状态
+   - 弹窗确认 → 填写孩子昵称 → `POST /api/mp/devices/bind`（body 含 `sn`）
 4. WiFi 配网（可跳过）：发送 ssid/password，监听 `sta_code` 1→5
 5. 配网完成或跳过后，开放音量/亮度系统设置
 6. 返回首页，`GET /api/mp/devices` 展示已绑定设备

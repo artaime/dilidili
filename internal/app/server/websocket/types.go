@@ -136,6 +136,7 @@ type Board struct {
 	Ip      string `json:"ip"`
 	Mac     string `json:"mac"`
 	BleMac  string `json:"ble_mac,omitempty"`
+	Sn      string `json:"sn,omitempty"`
 	Imei    string `json:"imei,omitempty"`
 }
 

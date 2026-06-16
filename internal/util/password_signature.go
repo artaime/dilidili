@@ -63,32 +63,32 @@ func ValidateMqttCredentials(clientId, username, password, signatureKey string) 
 		return nil, fmt.Errorf("密码签名验证失败")
 	}
 
-	// 解析clientId中的信息
+	// 解析 clientId 中的信息
 	groupId := clientIdParts[0]
-	macAddress := strings.ReplaceAll(clientIdParts[1], "_", ":")
+	deviceID := clientIdParts[1]
 	uuid := clientIdParts[2]
 
 	// 如果验证成功，返回解析后的有用信息
 	return &MqttCredentialInfo{
-		GroupId:    groupId,
-		MacAddress: macAddress,
-		UUID:       uuid,
-		UserData:   userData,
+		GroupId:  groupId,
+		DeviceID: deviceID,
+		UUID:     uuid,
+		UserData: userData,
 	}, nil
 }
 
 // MqttCredentialInfo MQTT凭据信息
 type MqttCredentialInfo struct {
-	GroupId    string                 `json:"groupId"`
-	MacAddress string                 `json:"macAddress"`
-	UUID       string                 `json:"uuid"`
-	UserData   map[string]interface{} `json:"userData"`
+	GroupId  string                 `json:"groupId"`
+	DeviceID string                 `json:"deviceId"`
+	UUID     string                 `json:"uuid"`
+	UserData map[string]interface{} `json:"userData"`
 }
 
 // GenerateMqttCredentials 生成MQTT凭据
-// 用于OTA接口生成MQTT连接信息
+// 用于 OTA 接口生成 MQTT 连接信息；deviceId 为设备 SN
 func GenerateMqttCredentials(deviceId, clientId, ip, signatureKey string) (*MqttCredentials, error) {
-	// 处理deviceId（替换冒号为下划线）
+	// clientId 中间段不允许包含 @@@；冒号替换为下划线（topic 安全编码）
 	deviceId = strings.ReplaceAll(deviceId, ":", "_")
 
 	// 构建用户名数据（包含IP信息）

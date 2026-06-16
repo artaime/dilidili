@@ -32,10 +32,10 @@ func (s *WebSocketServer) handleOta(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//从header头部获取Device-Id和Client-Id
-	deviceId := r.Header.Get("Device-Id")
+	headerDeviceId := r.Header.Get("Device-Id")
 	clientId := r.Header.Get("Client-Id")
 
-	if deviceId == "" || clientId == "" {
+	if headerDeviceId == "" || clientId == "" {
 		log.Errorf("缺少Device-Id或Client-Id")
 		http.Error(w, "缺少Device-Id或Client-Id", http.StatusBadRequest)
 		return
@@ -51,14 +51,29 @@ func (s *WebSocketServer) handleOta(w http.ResponseWriter, r *http.Request) {
 			log.Warnf("OTA请求体解析失败(将按默认设备处理): %v", err)
 		}
 	}
+
 	aitoyDevice := isAIToyOTARequest(&otaReq, r.Header.Get("User-Agent"))
+	if aitoyDevice && strings.TrimSpace(otaReq.Board.Sn) == "" {
+		log.Errorf("AIToy OTA 缺少 board.sn")
+		http.Error(w, "缺少 board.sn", http.StatusBadRequest)
+		return
+	}
+
+	deviceId := resolveOTADeviceID(headerDeviceId, &otaReq)
+	if deviceId != headerDeviceId {
+		log.Infof("OTA 设备标识: header=%s resolved=%s", headerDeviceId, deviceId)
+	}
+	if deviceId == "" {
+		log.Errorf("OTA 缺少设备 SN")
+		http.Error(w, "缺少设备 SN", http.StatusBadRequest)
+		return
+	}
+
 	if aitoyDevice {
 		log.Infof("OTA AIToy 设备: board=%s device=%s", otaReq.Board.Type, deviceId)
 		log.DeviceInfof(log.DeviceTagOTA, deviceId,
-			"AIToy OTA 请求 board=%s ua=%s ip=%s", otaReq.Board.Type, r.Header.Get("User-Agent"), ip)
+			"AIToy OTA 请求 board=%s ua=%s ip=%s header=%s", otaReq.Board.Type, r.Header.Get("User-Agent"), ip, headerDeviceId)
 	}
-
-	//deviceId = strings.ReplaceAll(deviceId, ":", "_")
 
 	//根据ip选择不同的配置
 	clientIp := r.Header.Get("X-Real-IP")
@@ -161,9 +176,9 @@ func getMqttInfo(deviceId, clientId, otaConfigPrefix, ip string) *MqttInfo {
 		return nil
 	}
 
-	macTopic := strings.ReplaceAll(deviceId, ":", "_")
-	// 协议文档为 devices/p2p/{mac}；本服务下行主题为 /p2p/device_sub/{mac}（连接时亦会自动订阅）
-	subscribeTopic := fmt.Sprintf("%s%s", client.DeviceSubTopicPrefix, macTopic)
+	deviceTopic := strings.ReplaceAll(deviceId, ":", "_")
+	// 协议文档为 devices/p2p/{deviceId}；本服务下行主题为 /p2p/device_sub/{deviceId}（连接时亦会自动订阅）
+	subscribeTopic := fmt.Sprintf("%s%s", client.DeviceSubTopicPrefix, deviceTopic)
 
 	return &MqttInfo{
 		Endpoint:       viper.GetString(otaConfigPrefix + "mqtt.endpoint"),
@@ -177,9 +192,9 @@ func getMqttInfo(deviceId, clientId, otaConfigPrefix, ip string) *MqttInfo {
 
 // handleOtaActivate 设备激活接口
 func (s *WebSocketServer) handleOtaActivate(w http.ResponseWriter, r *http.Request) {
-	deviceId := r.Header.Get("Device-Id")
+	headerDeviceId := r.Header.Get("Device-Id")
 	clientId := r.Header.Get("Client-Id")
-	if deviceId == "" || clientId == "" {
+	if headerDeviceId == "" || clientId == "" {
 		log.Errorf("缺少Device-Id或Client-Id")
 		http.Error(w, "缺少Device-Id或Client-Id", http.StatusBadRequest)
 		return
@@ -189,6 +204,10 @@ func (s *WebSocketServer) handleOtaActivate(w http.ResponseWriter, r *http.Reque
 		log.Errorf("激活请求解析失败: %v", err)
 		http.Error(w, "请求体解析失败", http.StatusBadRequest)
 		return
+	}
+	deviceId := resolveActivateDeviceID(headerDeviceId, req.Payload.SerialNumber)
+	if deviceId != headerDeviceId {
+		log.Infof("OTA 激活设备标识: header=%s resolved=%s", headerDeviceId, deviceId)
 	}
 	// 校验算法
 	if req.Payload.Algorithm != "hmac-sha256" {

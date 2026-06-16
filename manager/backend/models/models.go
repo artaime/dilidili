@@ -47,7 +47,7 @@ type Device struct {
 	RoleID       *uint      `json:"role_id" gorm:"index"`                                                     // 角色ID（可选，覆盖智能体配置）
 	NickName     string     `json:"nick_name" gorm:"type:varchar(100)"`                                       // 设备昵称，用户可修改
 	DeviceCode   string     `json:"device_code" gorm:"type:varchar(100);uniqueIndex:idx_devices_device_name_code,priority:2"` // 6位激活码
-	DeviceName   string     `json:"device_name" gorm:"type:varchar(100);uniqueIndex:idx_devices_device_name_code,priority:1"` // 设备标识/Device-ID，设备端上报使用
+	DeviceName   string     `json:"device_name" gorm:"type:varchar(100);uniqueIndex:idx_devices_device_name_code,priority:1"` // 设备 SN / Device-ID，设备端上报使用
 	Challenge    string     `json:"challenge" gorm:"type:varchar(128)"`                                       // 激活挑战码
 	PreSecretKey string     `json:"pre_secret_key" gorm:"type:varchar(128)"`                                  // 预激活密钥
 	Activated    bool       `json:"activated" gorm:"default:false"`                                           // 设备是否已激活
@@ -331,7 +331,7 @@ type ParentMessage struct {
 	AudioPath        string     `json:"audio_path,omitempty" gorm:"type:varchar(512)"`
 	AudioDurationSec int        `json:"audio_duration_sec,omitempty" gorm:"default:0"`
 	SourceType       string     `json:"source_type" gorm:"type:varchar(20);not null;default:'text'"`     // text, voice
-	Status           string     `json:"status" gorm:"type:varchar(20);not null;default:'pending';index"` // pending, notified, played, skipped, expired
+	Status           string     `json:"status" gorm:"type:varchar(20);not null;default:'pending';index"` // pending, notified, played, expired
 	CreatedAt        time.Time  `json:"created_at"`
 	PlayedAt         *time.Time `json:"played_at,omitempty"`
 }

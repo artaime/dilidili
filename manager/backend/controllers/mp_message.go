@@ -273,11 +273,6 @@ func (ctrl *MpMessageController) DeleteMessage(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询留言失败"})
 		return
 	}
-	if msg.Status != "pending" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "仅可撤回待播放的留言"})
-		return
-	}
-
 	if msg.AudioPath != "" {
 		_ = ctrl.AudioStorage.DeleteAudioFile(msg.AudioPath)
 	}
@@ -285,7 +280,7 @@ func (ctrl *MpMessageController) DeleteMessage(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除留言失败"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "留言已撤回"})
+	c.JSON(http.StatusOK, gin.H{"message": "留言已删除"})
 }
 
 func (ctrl *MpMessageController) loadDeviceMap(deviceIDs []uint) map[uint]models.Device {
@@ -312,7 +307,7 @@ func (ctrl *MpMessageController) loadDeviceMap(deviceIDs []uint) map[uint]models
 
 func parentMessageStatusAllowed(status string) bool {
 	switch status {
-	case "notified", "played", "skipped", "expired":
+	case "notified", "played", "expired":
 		return true
 	default:
 		return false
@@ -328,14 +323,51 @@ func updateParentMessageStatus(db *gorm.DB, id uint, status string) error {
 	return db.Model(&models.ParentMessage{}).Where("id = ?", id).Updates(updates).Error
 }
 
-func findPendingParentMessages(db *gorm.DB, deviceName string) ([]models.ParentMessage, error) {
+func findSelectableParentMessages(db *gorm.DB, deviceName string, start, end *time.Time, limit int) ([]models.ParentMessage, error) {
+	if limit <= 0 {
+		limit = 100
+	}
 	var device models.Device
-	normalized := normalizeDeviceNameCandidate(deviceName)
-	if err := db.Where("LOWER(REPLACE(device_name, '-', ':')) = ?", normalized).First(&device).Error; err != nil {
+	if err := db.Where("device_name = ?", normalizeDeviceSN(deviceName)).First(&device).Error; err != nil {
+		return nil, err
+	}
+	query := db.Where("device_id = ? AND status IN ?", device.ID, []string{"pending", "notified", "played"})
+	if start != nil {
+		query = query.Where("created_at >= ?", *start)
+	}
+	if end != nil {
+		query = query.Where("created_at <= ?", *end)
+	}
+	var messages []models.ParentMessage
+	if err := query.Order("created_at DESC").Limit(limit).Find(&messages).Error; err != nil {
+		return nil, err
+	}
+	return messages, nil
+}
+
+func findPlayedParentMessages(db *gorm.DB, deviceName string, limit int) ([]models.ParentMessage, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	var device models.Device
+	if err := db.Where("device_name = ?", normalizeDeviceSN(deviceName)).First(&device).Error; err != nil {
 		return nil, err
 	}
 	var messages []models.ParentMessage
-	if err := db.Where("device_id = ? AND status = ?", device.ID, "pending").
+	if err := db.Where("device_id = ? AND status = ?", device.ID, "played").
+		Order("played_at DESC, id DESC").Limit(limit).Find(&messages).Error; err != nil {
+		return nil, err
+	}
+	return messages, nil
+}
+
+func findPendingParentMessages(db *gorm.DB, deviceName string) ([]models.ParentMessage, error) {
+	var device models.Device
+	if err := db.Where("device_name = ?", normalizeDeviceSN(deviceName)).First(&device).Error; err != nil {
+		return nil, err
+	}
+	var messages []models.ParentMessage
+	if err := db.Where("device_id = ? AND status IN ?", device.ID, []string{"pending", "notified"}).
 		Order("id ASC").Find(&messages).Error; err != nil {
 		return nil, err
 	}

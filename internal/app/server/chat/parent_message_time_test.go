@@ -25,6 +25,16 @@ func TestFormatChildFriendlyTimeYesterdayEvening(t *testing.T) {
 	}
 }
 
+func TestBuildConfirmTransitionPrompt(t *testing.T) {
+	now := time.Date(2026, 6, 16, 15, 0, 0, 0, time.Local)
+	created := time.Date(2026, 6, 16, 14, 12, 0, 0, time.Local)
+	got := buildConfirmTransitionPrompt("爸爸", created, now)
+	want := "好的，接下来将播放爸爸今天傍晚14点12分的留言。"
+	if got != want {
+		t.Fatalf("buildConfirmTransitionPrompt() = %q, want %q", got, want)
+	}
+}
+
 func TestParentMessageNeedsAsk(t *testing.T) {
 	base := time.Date(2026, 6, 12, 10, 0, 0, 0, time.Local)
 	messages := []parentMessageItem{

@@ -404,7 +404,7 @@ type DevicePayload struct {
 	AgentID    uint   `json:"agent_id"`
 	Activated  *bool  `json:"activated"`
 	Code       string `json:"code"`
-	DeviceMAC  string `json:"device_mac"`
+	SN         string `json:"sn"`
 }
 
 type DeviceResponse struct {
@@ -649,12 +649,12 @@ func (svc *DeviceService) BindToAgent(scope accessScope, agentID uint, payload D
 	}
 
 	code := strings.TrimSpace(payload.Code)
-	deviceName := strings.TrimSpace(payload.DeviceMAC)
+	deviceName := normalizeDeviceSN(payload.SN)
 	if deviceName == "" {
-		deviceName = strings.TrimSpace(payload.DeviceName)
+		deviceName = normalizeDeviceSN(payload.DeviceName)
 	}
 	if code == "" && deviceName == "" {
-		return nil, fmt.Errorf("请填写设备验证码或设备MAC")
+		return nil, fmt.Errorf("请填写设备验证码或设备 SN")
 	}
 	if code != "" && !isSixDigitCode(code) {
 		return nil, fmt.Errorf("验证码格式错误")
@@ -675,8 +675,7 @@ func (svc *DeviceService) BindToAgent(scope accessScope, agentID uint, payload D
 			}
 		}
 	} else {
-		normalizedDeviceName := normalizeDeviceNameCandidate(deviceName)
-		if err := svc.DB.Where("LOWER(REPLACE(device_name, '-', ':')) = ?", normalizedDeviceName).First(&device).Error; err != nil {
+		if err := svc.DB.Where("device_name = ?", deviceName).First(&device).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				deviceExists = false
 			} else {
@@ -690,7 +689,7 @@ func (svc *DeviceService) BindToAgent(scope accessScope, agentID uint, payload D
 			if code != "" {
 				return nil, fmt.Errorf("验证码无效或设备已被绑定")
 			}
-			return nil, fmt.Errorf("设备MAC无效或设备已被绑定")
+			return nil, fmt.Errorf("设备 SN 无效或设备已被绑定")
 		}
 		device.UserID = agent.UserID
 		device.AgentID = agent.ID

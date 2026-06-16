@@ -31,3 +31,7 @@ chat_history/
 
 /governance-kit/
 .cursor/
+
+**/parent_messages/
+
+# manager/backend/storage/parent_messages

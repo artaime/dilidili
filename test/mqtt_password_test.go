@@ -7,7 +7,7 @@ import (
 
 func main() {
 	// 测试参数
-	deviceId := "02:4A:7D:E3:89:BF"
+	deviceId := "SN-024A7DE3-89BF"
 	clientId := "e3b0c442-98fc-4e1a-8c3d-6a5b6a5b6a5b"
 	ip := "1.202.193.194"
 	signatureKey := "dili_ota_signature_key"
@@ -44,7 +44,7 @@ func main() {
 
 	fmt.Printf("验证成功!\n")
 	fmt.Printf("Group ID: %s\n", credentialInfo.GroupId)
-	fmt.Printf("MAC Address: %s\n", credentialInfo.MacAddress)
+	fmt.Printf("Device ID: %s\n", credentialInfo.DeviceID)
 	fmt.Printf("UUID: %s\n", credentialInfo.UUID)
 	fmt.Printf("User Data: %+v\n", credentialInfo.UserData)
 

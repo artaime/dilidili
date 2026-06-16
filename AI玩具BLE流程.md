@@ -20,23 +20,23 @@
 
 6.  基于WriteServiceID（发送）和NotifyServiceID（接收）建立数据交换通道，发送指令
 
-    {"ForceGetSSID": "true"} 至设备端，请求获取周边 WIFI 列表及设备蓝牙 MAC 地址。
+    {"ForceGetSSID": "true"} 至设备端，请求获取周边 WIFI 列表及设备 SN。
 
-**二、设备端：WIFI 与蓝牙信息回传**
+**二、设备端：WIFI 与 SN 信息回传**
 
 设备接收到小程序的ForceGetSSID 请求后，通过 Notify 通道依次回传数据，包含扫描到的 WIFI 信息
 
-（单条独立报文）和设备蓝牙 MAC 地址，数据格式如下：
+（单条独立报文）和设备 SN，数据格式如下：
 
 WIFI 单条信息： {"rssi":-66,"mac":"C6B25B112A5D","ssid":"boya"} 、
 
 
 
-蓝牙 MAC 地址： {"ble_mac":"C0:50:85:A1:B7:E8"} （ble_mac 作为设备唯一标识）。
+设备 SN： {"sn":"SN-XXXXXXXX-XXXXXXXX"} （sn 作为设备唯一标识，也兼容 serial_number 字段）。
 
 **三、小程序端：设备绑定与 WIFI 配置**
 
-1.  接收到设备的 ble_mac 后，小程序向后台发送 `POST /api/mp/devices/bind` 完成绑定（同时将设备标记为已激活）；绑定前通过 `GET /api/mp/devices/check` 预检登记状态；
+1.  接收到设备的 sn 后，小程序向后台发送 `POST /api/mp/devices/bind`（body 含 `sn`）完成绑定（同时将设备标记为已激活）；绑定前通过 `GET /api/mp/devices/check?sn=` 预检登记状态；
 
 2.  绑定成功后，进入 WiFi 配网：接收到设备回传的 WIFI 列表后，将所有 WIFI 名称展示在界面，供用户选择；
 

@@ -33,7 +33,7 @@ func TestMpDeviceBindRejectsUnregisteredDevice(t *testing.T) {
 	user := createServiceTestUser(t, db, "mp-parent", "user")
 	ctrl := &MpDeviceController{DB: db}
 
-	_, found, err := ctrl.findDeviceByMAC("28:0A:C6:1D:3B:E8")
+	_, found, err := ctrl.findDeviceBySN("SN-TEST-UNREGISTERED")
 	if err != nil {
 		t.Fatalf("find device: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestMpDeviceBindRejectsUnregisteredDevice(t *testing.T) {
 		createServiceTestConfig(t, db, "tts", "tts-mp-default", "doubao")
 	}
 
-	device := models.Device{DeviceName: "28:0A:C6:1D:3B:E8", DeviceCode: "111111", NickName: "test-device"}
+	device := models.Device{DeviceName: "SN-TEST-001", DeviceCode: "111111", NickName: "test-device"}
 	if err := db.Create(&device).Error; err != nil {
 		t.Fatalf("create device: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestMpDeviceBindRejectsOccupiedDevice(t *testing.T) {
 
 	device := models.Device{
 		UserID:     userA.ID,
-		DeviceName: "aa:bb:cc:dd:ee:ff",
+		DeviceName: "SN-TEST-OCCUPIED",
 		DeviceCode: "222222",
 		Activated:  true,
 	}
@@ -97,7 +97,7 @@ func TestMpDeviceBindRejectsOccupiedDevice(t *testing.T) {
 	}
 
 	ctrl := &MpDeviceController{DB: db}
-	foundDevice, found, err := ctrl.findDeviceByMAC("aa:bb:cc:dd:ee:ff")
+	foundDevice, found, err := ctrl.findDeviceBySN("SN-TEST-OCCUPIED")
 	if err != nil || !found {
 		t.Fatalf("find device: found=%v err=%v", found, err)
 	}

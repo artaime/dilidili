@@ -27,7 +27,7 @@ type parentMessageIntentJSON struct {
 	Intent string `json:"intent"`
 }
 
-var parentMessageIntentJSONPattern = regexp.MustCompile(`\{[^}]*"intent"\s*:\s*"(play|skip|unknown)"[^}]*\}`)
+var parentMessageIntentJSONPattern = regexp.MustCompile(`\{[^}]*"intent"\s*:\s*"(play|unknown)"[^}]*\}`)
 
 func classifyParentMessageIntent(text string) parentMessageIntent {
 	normalized := strings.ToLower(strings.TrimSpace(text))
@@ -56,7 +56,7 @@ func (c *ChatManager) classifyParentMessageIntentWithLLM(ctx context.Context, as
 		return classifyParentMessageIntent(asrText)
 	}
 	intent, err := c.callLLMSyncText(ctx,
-		"你是意图分类器。用户是儿童，正在决定是否收听家长留言。只输出 JSON，格式为 {\"intent\":\"play\"} 或 {\"intent\":\"skip\"} 或 {\"intent\":\"unknown\"}，不要输出其它内容。",
+		"你是意图分类器。用户是儿童，正在决定是否收听家长留言。只输出 JSON，格式为 {\"intent\":\"play\"} 或 {\"intent\":\"unknown\"}，不要输出其它内容。",
 		"用户说："+strings.TrimSpace(asrText),
 	)
 	if err != nil {

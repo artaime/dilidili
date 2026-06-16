@@ -67,8 +67,8 @@ func (h *AuthHook) OnConnectAuthenticate(cl *mqttServer.Client, pk packets.Packe
 			return false
 		}
 
-		log.Infof("MQTT用户验证成功: groupId=%s, macAddress=%s, uuid=%s",
-			credentialInfo.GroupId, credentialInfo.MacAddress, credentialInfo.UUID)
+		log.Infof("MQTT用户验证成功: groupId=%s, deviceID=%s, uuid=%s",
+			credentialInfo.GroupId, credentialInfo.DeviceID, credentialInfo.UUID)
 		return true
 	}
 

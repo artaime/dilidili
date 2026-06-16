@@ -21,6 +21,7 @@ import (
 	. "xiaozhi-esp32-server-golang/internal/data/msg"
 	parentmsg "xiaozhi-esp32-server-golang/internal/data/parentmessage"
 	chathooks "xiaozhi-esp32-server-golang/internal/domain/chat/hooks"
+	"xiaozhi-esp32-server-golang/internal/domain/chat/devicestate"
 	"xiaozhi-esp32-server-golang/internal/domain/chat/streamtransform"
 	userconfig "xiaozhi-esp32-server-golang/internal/domain/config"
 	"xiaozhi-esp32-server-golang/internal/domain/mcp"
@@ -74,7 +75,10 @@ type ChatManager struct {
 	parentMessageState       *parentMessageFlowState
 	parentMessageNotifyOnce  atomic.Bool
 	parentMessageNotifyGen   atomic.Uint64
-	parentMessageUDPNotified atomic.Bool
+	parentMessageUDPNotified     atomic.Bool
+	parentMessagePollerStarted   atomic.Bool
+	parentMessagePendingSnapshot map[uint]struct{}
+	messageProfileStore          devicestate.MessageProfileStore
 }
 
 type pendingSpeakRequest struct {
@@ -549,6 +553,9 @@ func (c *ChatManager) HandleHelloMessage(msg *ClientMessage) error {
 	if isFirstHello || requiresFreshHello {
 		c.parentMessageUDPNotified.Store(false)
 		c.NotifyPendingParentMessages(ParentMessageNotifyFromHello)
+		if c.serverTransport == nil || c.serverTransport.GetTransportType() != types_conn.TransportTypeMqttUdp {
+			c.startParentMessagePoller()
+		}
 	}
 	return nil
 }
@@ -810,6 +817,7 @@ func (c *ChatManager) ensureSessionInternal(allowFreshHello bool) (*ChatSession,
 			c.hookHub,
 			c.transformRegistry,
 			WithChatSessionCloseHandler(c.handleSessionClosed),
+			WithIntentRouter(c.RouteUserIntent),
 		)
 		c.startingSession = session
 		c.startingSessionDone = make(chan struct{})
@@ -927,6 +935,8 @@ func (c *ChatManager) resetMcpRuntimeOnMqttTransportReady() {
 	c.helloInited = false
 	c.needFreshHello = false
 	c.parentMessageUDPNotified.Store(false)
+	c.parentMessagePollerStarted.Store(false)
+	c.resetParentMessagePendingSnapshot()
 	if c.clientState == nil || c.mcpTransport == nil {
 		return
 	}
@@ -939,7 +949,6 @@ func (c *ChatManager) resetMcpRuntimeOnMqttTransportReady() {
 func (c *ChatManager) HandleMqttTransportReady() {
 	c.markMqttConversationStateStale("transport_ready")
 	c.resetMcpRuntimeOnMqttTransportReady()
-	c.NotifyPendingParentMessages(ParentMessageNotifyFromTransport)
 }
 
 func (c *ChatManager) resetSpeakPathAfterGoodbye() {
@@ -1238,8 +1247,13 @@ func (c *ChatManager) GetSession() *ChatSession {
 }
 
 func (c *ChatManager) InjectMessage(message string, skipLlm bool, autoListen bool) error {
+	return c.injectSpeechSegment(message, skipLlm, injectedSpeechTTSTurnEndPolicy(autoListen))
+}
+
+// injectSpeechSegment 注入一段主动播报，可显式指定 TTS 结束策略（多段留言播报时中间段应保持 ttsTurnEndPolicyNone）。
+func (c *ChatManager) injectSpeechSegment(message string, skipLlm bool, turnEndPolicy ttsTurnEndPolicy) error {
 	c.cancelRetainedSessionCleanup("inject_message")
-	if err := c.prepareSpeakPathForInjectedSpeech(message, autoListen); err != nil {
+	if err := c.prepareSpeakPathForInjectedSpeech(message, false); err != nil {
 		return err
 	}
 	session, err := c.ensureSession()
@@ -1248,7 +1262,7 @@ func (c *ChatManager) InjectMessage(message string, skipLlm bool, autoListen boo
 	}
 	options := llmResponseChannelOptions{
 		onTTSPlaybackStart: c.newInjectedSpeechStartHook(),
-		ttsTurnEndPolicy:   injectedSpeechTTSTurnEndPolicy(autoListen),
+		ttsTurnEndPolicy:   turnEndPolicy,
 	}
 	if skipLlm {
 		return session.AddTextToTTSQueueWithOptions(message, options)
@@ -1550,6 +1564,7 @@ func (c *ChatManager) refreshSpeakPathWarmFromTransport() {
 		log.Infof("设备 %s UDP 音频通道已绑定，触发家长留言检测 | %s",
 			c.DeviceID, c.collectParentMessageReadiness().String())
 		c.NotifyPendingParentMessages(ParentMessageNotifyFromUDP)
+		c.startParentMessagePoller()
 	}
 }
 

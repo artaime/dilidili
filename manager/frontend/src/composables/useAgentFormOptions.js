@@ -148,7 +148,7 @@ export const buildDevicePayload = (form = {}, { isAdmin = false, mode = 'create'
     const identifier = String(form.identifier || '').trim()
     const payload = /^\d{6}$/.test(identifier)
       ? { code: identifier }
-      : { device_mac: identifier }
+      : { sn: identifier }
     const nickName = String(form.nick_name || '').trim()
     if (nickName) payload.nick_name = nickName
     return payload

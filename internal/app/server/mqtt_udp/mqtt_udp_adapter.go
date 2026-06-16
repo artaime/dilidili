@@ -501,8 +501,8 @@ func (s *MqttUdpAdapter) EnsureDeviceTransport(deviceId string) (*MqttUdpConn, e
 		return nil, fmt.Errorf("创建 udpSession 失败, deviceId: %s, err: %w", deviceId, err)
 	}
 
-	topicMacAddr := strings.ReplaceAll(deviceId, ":", "_")
-	publicTopic := fmt.Sprintf("%s%s", client.ServerPubTopicPrefix, topicMacAddr)
+	topicDeviceID := strings.ReplaceAll(deviceId, ":", "_")
+	publicTopic := fmt.Sprintf("%s%s", client.ServerPubTopicPrefix, topicDeviceID)
 
 	mqttClient := s.getClient()
 	if mqttClient == nil {
@@ -606,7 +606,7 @@ func (s *MqttUdpAdapter) processMessage() {
 			}
 			_, deviceId := s.getDeviceIdByTopic(mqttMsg.Topic())
 			if deviceId == "" {
-				Errorf("mac_addr解析失败: %v", mqttMsg.Topic())
+				Errorf("topic 解析 deviceId 失败: %v", mqttMsg.Topic())
 				continue
 			}
 
@@ -683,25 +683,23 @@ func (s *MqttUdpAdapter) rotateDeviceUdpSession(deviceSession *MqttUdpConn, devi
 }
 
 func (s *MqttUdpAdapter) getDeviceIdByTopic(topic string) (string, string) {
-	var topicMacAddr, deviceId string
-	//根据topic(/p2p/device_public/mac_addr)解析出来mac_addr
+	var topicDeviceID, deviceId string
+	// 根据 topic（/p2p/device_public/{deviceId}）解析设备 SN
 	strList := strings.Split(topic, "/")
 	if len(strList) == 4 {
-		topicMacAddr = strList[3]
+		topicDeviceID = strList[3]
 
-		// 检查是否为新格式: "GID_test@@@ba_8f_17_de_94_94@@@e4b0c442-98fc-4e1b-8c3d-6a5b6a5b6a6d"
-		if strings.Contains(topicMacAddr, "@@@") {
-			parts := strings.Split(topicMacAddr, "@@@")
+		// 检查是否为新格式: "GID_test@@@SN-xxx@@@e4b0c442-98fc-4e1b-8c3d-6a5b6a5b6a6d"
+		if strings.Contains(topicDeviceID, "@@@") {
+			parts := strings.Split(topicDeviceID, "@@@")
 			if len(parts) >= 2 {
-				// 提取中间部分作为MAC地址
-				macAddr := parts[1]
-				deviceId = strings.ReplaceAll(macAddr, "_", ":")
+				deviceId = parts[1]
 			}
 		} else {
-			deviceId = strings.ReplaceAll(topicMacAddr, "_", ":")
+			deviceId = topicDeviceID
 		}
 	}
 
-	log.Log().Debugf("topicMacAddr: %s, deviceId: %s", topicMacAddr, deviceId)
-	return topicMacAddr, deviceId
+	log.Log().Debugf("topicDeviceID: %s, deviceId: %s", topicDeviceID, deviceId)
+	return topicDeviceID, deviceId
 }

@@ -63,6 +63,10 @@ func buildTransitionPrompt(familyRole string, createdAt time.Time, now time.Time
 	return fmt.Sprintf("接下来将播放%s%s的留言。", role, timeDesc)
 }
 
+func buildConfirmTransitionPrompt(familyRole string, createdAt time.Time, now time.Time) string {
+	return "好的，" + buildTransitionPrompt(familyRole, createdAt, now)
+}
+
 func buildAskPromptFallback(familyRole string, createdAt time.Time, now time.Time) string {
 	role := normalizeFamilyRoleLabel(familyRole)
 	timeDesc := formatChildFriendlyTime(createdAt, now)

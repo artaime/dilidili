@@ -99,6 +99,11 @@ func Init(cfg config.DatabaseConfig) *gorm.DB {
 	if err := repairConfigProviders(db); err != nil {
 		log.Printf("修复配置provider失败: %v", err)
 	}
+	if result := db.Model(&models.ParentMessage{}).Where("status = ?", "skipped").Update("status", "pending"); result.Error != nil {
+		log.Printf("迁移 skipped 留言失败: %v", result.Error)
+	} else if result.RowsAffected > 0 {
+		log.Printf("已将 %d 条 skipped 留言迁移为 pending", result.RowsAffected)
+	}
 	return db
 }
 

@@ -98,6 +98,9 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			internal.POST("/internal/devices/:device_name/switch-role", adminController.SwitchDeviceRoleByNameInternal)
 			internal.POST("/internal/devices/:device_name/restore-default-role", adminController.RestoreDeviceDefaultRoleInternal)
 			internal.GET("/internal/devices/:device_name/parent-messages/pending", parentMessageInternalController.GetPendingMessage)
+			internal.GET("/internal/devices/:device_name/parent-messages/search", parentMessageInternalController.SearchParentMessages)
+			internal.GET("/internal/devices/:device_name/parent-messages/played", parentMessageInternalController.GetPlayedMessages)
+			internal.GET("/internal/parent-messages/:id", parentMessageInternalController.GetMessageDetail)
 			internal.GET("/internal/parent-messages/:id/audio", parentMessageInternalController.GetMessageAudio)
 			internal.PATCH("/internal/parent-messages/:id/status", parentMessageInternalController.UpdateMessageStatus)
 		}

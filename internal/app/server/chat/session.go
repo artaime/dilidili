@@ -108,11 +108,21 @@ type ChatSession struct {
 	openClawWarmupMu sync.Mutex
 	openClawWarmup   *openClawWarmupTask
 
+	intentRouter IntentRouterFunc
+
 	hookHub      *chathooks.Hub
 	closeHandler func(session *ChatSession, reason string)
 }
 
+type IntentRouterFunc func(ctx context.Context, text string, speakerResult *speaker.IdentifyResult) (handled bool, err error)
+
 type ChatSessionOption func(*ChatSession)
+
+func WithIntentRouter(handler IntentRouterFunc) ChatSessionOption {
+	return func(s *ChatSession) {
+		s.intentRouter = handler
+	}
+}
 
 func WithChatSessionCloseHandler(handler func(session *ChatSession, reason string)) ChatSessionOption {
 	return func(s *ChatSession) {
@@ -1664,6 +1674,13 @@ func (s *ChatSession) actionDoChat(ctx context.Context, text string, speakerResu
 			Timestamp:   time.Now(),
 		})
 		return nil
+	}
+
+	if s.intentRouter != nil {
+		handled, err := s.intentRouter(ctx, text, speakerResult)
+		if handled {
+			return err
+		}
 	}
 
 	clientState := s.clientState

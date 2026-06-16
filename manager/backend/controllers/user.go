@@ -174,8 +174,8 @@ func isSixDigitCode(value string) bool {
 	return true
 }
 
-func normalizeDeviceNameCandidate(value string) string {
-	return strings.ToLower(strings.ReplaceAll(strings.TrimSpace(value), "-", ":"))
+func normalizeDeviceSN(value string) string {
+	return strings.TrimSpace(value)
 }
 
 func normalizeDeviceNickName(value string) (string, error) {

@@ -3,7 +3,9 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"xiaozhi/manager/backend/models"
 
@@ -47,6 +49,142 @@ func (ctrl *ParentMessageInternalController) GetPendingMessage(c *gin.Context) {
 		result = append(result, enrichPendingParentMessage(msg, userMap[msg.UserID]))
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (ctrl *ParentMessageInternalController) SearchParentMessages(c *gin.Context) {
+	deviceName := strings.TrimSpace(c.Param("device_name"))
+	if deviceName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "device_name 必填"})
+		return
+	}
+	limit := 100
+	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	var startAt, endAt *time.Time
+	if raw := strings.TrimSpace(c.Query("start")); raw != "" {
+		if t, ok := parseParentMessageSearchTime(raw, false); ok {
+			startAt = &t
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "start 时间格式无效"})
+			return
+		}
+	}
+	if raw := strings.TrimSpace(c.Query("end")); raw != "" {
+		if t, ok := parseParentMessageSearchTime(raw, true); ok {
+			endAt = &t
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "end 时间格式无效"})
+			return
+		}
+	}
+
+	messages, err := findSelectableParentMessages(ctrl.DB, deviceName, startAt, endAt, limit)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusOK, gin.H{"data": []interface{}{}})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询留言失败"})
+		return
+	}
+	if len(messages) == 0 {
+		c.JSON(http.StatusOK, gin.H{"data": []interface{}{}})
+		return
+	}
+
+	userIDs := make([]uint, 0, len(messages))
+	for _, msg := range messages {
+		userIDs = append(userIDs, msg.UserID)
+	}
+	userMap := loadUserFamilyRoleMap(ctrl.DB, userIDs)
+
+	result := make([]gin.H, 0, len(messages))
+	for _, msg := range messages {
+		result = append(result, enrichPlayedParentMessage(msg, userMap[msg.UserID]))
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func parseParentMessageSearchTime(raw string, asEnd bool) (time.Time, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, false
+	}
+	loc := time.Local
+	layouts := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+		"2006-01-02",
+	}
+	for _, layout := range layouts {
+		t, err := time.ParseInLocation(layout, raw, loc)
+		if err == nil {
+			if asEnd && len(raw) == len("2006-01-02") {
+				return time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 59, int(time.Second-time.Nanosecond), loc), true
+			}
+			return t, true
+		}
+	}
+	return time.Time{}, false
+}
+
+func (ctrl *ParentMessageInternalController) GetPlayedMessages(c *gin.Context) {
+	deviceName := strings.TrimSpace(c.Param("device_name"))
+	if deviceName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "device_name 必填"})
+		return
+	}
+	limit := 20
+	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	messages, err := findPlayedParentMessages(ctrl.DB, deviceName, limit)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusOK, gin.H{"data": []interface{}{}})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询留言失败"})
+		return
+	}
+	if len(messages) == 0 {
+		c.JSON(http.StatusOK, gin.H{"data": []interface{}{}})
+		return
+	}
+
+	userIDs := make([]uint, 0, len(messages))
+	for _, msg := range messages {
+		userIDs = append(userIDs, msg.UserID)
+	}
+	userMap := loadUserFamilyRoleMap(ctrl.DB, userIDs)
+
+	result := make([]gin.H, 0, len(messages))
+	for _, msg := range messages {
+		result = append(result, enrichPlayedParentMessage(msg, userMap[msg.UserID]))
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (ctrl *ParentMessageInternalController) GetMessageDetail(c *gin.Context) {
+	var msg models.ParentMessage
+	if err := ctrl.DB.Where("id = ?", c.Param("id")).First(&msg).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "留言不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询留言失败"})
+		return
+	}
+	userMap := loadUserFamilyRoleMap(ctrl.DB, []uint{msg.UserID})
+	c.JSON(http.StatusOK, gin.H{"data": enrichPlayedParentMessage(msg, userMap[msg.UserID])})
 }
 
 func (ctrl *ParentMessageInternalController) GetMessageAudio(c *gin.Context) {
@@ -138,6 +276,14 @@ func enrichPendingParentMessage(msg models.ParentMessage, user models.User) gin.
 	}
 	if msg.SourceType == "voice" && strings.TrimSpace(msg.AudioPath) != "" {
 		item["audio_url"] = fmt.Sprintf("/api/internal/parent-messages/%d/audio", msg.ID)
+	}
+	return item
+}
+
+func enrichPlayedParentMessage(msg models.ParentMessage, user models.User) gin.H {
+	item := enrichPendingParentMessage(msg, user)
+	if msg.PlayedAt != nil {
+		item["played_at"] = *msg.PlayedAt
 	}
 	return item
 }

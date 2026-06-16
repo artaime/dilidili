@@ -19,6 +19,7 @@ const (
 	parentMessageMaxRetry       = 1
 	parentMessageNotifyAttempts = 60
 	parentMessageRetryDelay     = 3 * time.Second
+	parentMessageDismissPrompt  = "好的，等你准备好了可以跟我说播放留言。"
 )
 
 // 家长留言通知触发来源（用于日志与重试窗口重置）。
@@ -35,6 +36,7 @@ type parentMessageFlowState struct {
 	index      int
 	retryCount int
 	intentCh   chan parentMessageIntent
+	skipAsk    bool
 }
 
 type parentMessageReadiness struct {
@@ -161,6 +163,9 @@ func (c *ChatManager) NotifyPendingParentMessages(trigger string) {
 		log.Infof("设备 %s 家长留言通知已在进行，跳过重复触发 trigger=%s", c.DeviceID, trigger)
 		return
 	}
+	if trigger == ParentMessageNotifyFromHello {
+		c.resetParentMessagePendingSnapshot()
+	}
 
 	gen := c.parentMessageNotifyGen.Load()
 	log.Infof("设备 %s 开始家长留言就绪检测 trigger=%s gen=%d（协议要求：hello → session → UDP 绑定）",
@@ -191,7 +196,7 @@ func (c *ChatManager) NotifyPendingParentMessages(trigger string) {
 				return
 			}
 
-			started, err := c.tryStartParentMessageFlow(i+1, &lastReport, &lastPendingCount)
+			started, err := c.tryStartParentMessageNotifyAttempt(i+1, &lastReport, &lastPendingCount, trigger)
 			if err != nil {
 				if isParentMessageRetryableError(err) {
 					if (i+1)%5 == 0 || i == 0 {
@@ -221,7 +226,7 @@ func (c *ChatManager) NotifyPendingParentMessages(trigger string) {
 	}()
 }
 
-func (c *ChatManager) tryStartParentMessageFlow(attempt int, lastReport *parentMessageReadiness, lastPendingCount *int) (bool, error) {
+func (c *ChatManager) tryStartParentMessageNotifyAttempt(attempt int, lastReport *parentMessageReadiness, lastPendingCount *int, trigger string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -229,28 +234,38 @@ func (c *ChatManager) tryStartParentMessageFlow(attempt int, lastReport *parentM
 		return false, fmt.Errorf("parent message client 未配置")
 	}
 
-	messages, err := c.parentMessageClient.ListPendingMessages(ctx, c.DeviceID)
+	newPending, allPending, err := c.prepareParentMessageNotify(ctx, trigger)
 	if err != nil {
 		log.Warnf("设备 %s 家长留言第 %d 次拉取 pending 失败: %v", c.DeviceID, attempt, err)
 		return false, err
 	}
-	*lastPendingCount = len(messages)
-	if len(messages) == 0 {
-		log.Debugf("设备 %s 家长留言第 %d 次检测：无 pending 留言", c.DeviceID, attempt)
-		return false, nil
-	}
-	if !c.hasPlayableParentMessage(messages[0]) {
-		first := messages[0]
-		log.Warnf("设备 %s 待播放留言不可播放 message_id=%d source_type=%s audio_url=%q text_len=%d",
-			c.DeviceID, first.ID, first.SourceType, first.AudioURL, len(strings.TrimSpace(first.TextContent)))
+	*lastPendingCount = len(allPending)
+	if len(newPending) == 0 {
+		log.Debugf("设备 %s 家长留言第 %d 次检测：无新留言 pending=%d", c.DeviceID, attempt, len(allPending))
 		return false, nil
 	}
 
 	report := c.collectParentMessageReadiness()
 	*lastReport = report
 	if !report.Ready {
-		log.Debugf("设备 %s 家长留言第 %d 次检测：pending=%d 首条 id=%d 未就绪 %s",
-			c.DeviceID, attempt, len(messages), messages[0].ID, report.String())
+		log.Debugf("设备 %s 家长留言第 %d 次检测：新留言=%d 未就绪 %s",
+			c.DeviceID, attempt, len(newPending), report.String())
+		return false, c.parentMessageNotReadyError()
+	}
+
+	c.markParentMessagePendingSnapshot(allPending)
+	log.Infof("设备 %s 检测到 %d 条新留言，主动询问是否播放 trigger=%s attempt=%d ids=%v",
+		c.DeviceID, len(newPending), trigger, attempt, parentMessageIDs(newPending))
+	return c.tryStartParentMessageFlowWithMessages(attempt, newPending, false)
+}
+
+func (c *ChatManager) tryStartParentMessageFlowWithMessages(attempt int, messages []parentMessageItem, skipAsk bool) (bool, error) {
+	if len(messages) == 0 {
+		return false, nil
+	}
+
+	report := c.collectParentMessageReadiness()
+	if !report.Ready {
 		return false, c.parentMessageNotReadyError()
 	}
 
@@ -263,11 +278,13 @@ func (c *ChatManager) tryStartParentMessageFlow(attempt int, lastReport *parentM
 	state := &parentMessageFlowState{
 		messages: messages,
 		intentCh: make(chan parentMessageIntent, 1),
+		skipAsk:  skipAsk,
 	}
 	c.parentMessageState = state
 	c.parentMessageMu.Unlock()
 
-	log.Infof("设备 %s 开始家长留言流程，待播 %d 条 | %s", c.DeviceID, len(messages), report.String())
+	log.Infof("设备 %s 开始家长留言流程，待播 %d 条 skip_ask=%v | %s",
+		c.DeviceID, len(messages), skipAsk, report.String())
 	go c.runParentMessagePlayback(state)
 	return true, nil
 }
@@ -290,13 +307,14 @@ func (c *ChatManager) runParentMessagePlayback(state *parentMessageFlowState) {
 	for state.index < len(state.messages) {
 		msg := state.messages[state.index]
 		if !c.hasPlayableParentMessage(msg) {
-			c.updateParentMessageStatus(ctx, msg.ID, "skipped")
+			log.Warnf("设备 %s 留言不可播放，标记 expired message_id=%d", c.DeviceID, msg.ID)
+			c.updateParentMessageStatus(ctx, msg.ID, "expired")
 			state.index++
 			continue
 		}
 
 		now := time.Now()
-		if parentMessageNeedsAsk(state.index, state.messages) {
+		if !state.skipAsk && parentMessageNeedsAsk(state.index, state.messages) {
 			if err := c.askAndWaitParentMessageIntent(ctx, state, msg); err != nil {
 				if c.handleParentMessagePlaybackError(ctx, msg, state, err, "询问") {
 					return
@@ -307,18 +325,19 @@ func (c *ChatManager) runParentMessagePlayback(state *parentMessageFlowState) {
 				c.clientState.OnAsrResultInterceptor = nil
 			}
 			if intent != parentMessageIntentAffirmative {
-				c.updateParentMessageStatus(ctx, msg.ID, "skipped")
+				_ = c.InjectMessage(parentMessageDismissPrompt, true, true)
 				c.finishParentMessageSession(state.index)
 				return
 			}
-		} else {
-			transition := buildTransitionPrompt(msg.FamilyRole, msg.CreatedAt, now)
-			if err := c.InjectMessage(transition, true, false); err != nil {
+			if err := c.speakParentMessageTransition(ctx, msg, now, true); err != nil {
 				if c.handleParentMessagePlaybackError(ctx, msg, state, err, "过渡语") {
 					return
 				}
 			}
-			c.waitInjectedSpeechApprox(transition)
+		} else if err := c.speakParentMessageTransition(ctx, msg, now, false); err != nil {
+			if c.handleParentMessagePlaybackError(ctx, msg, state, err, "过渡语") {
+				return
+			}
 		}
 
 		if err := c.playParentMessage(ctx, msg); err != nil {
@@ -327,16 +346,59 @@ func (c *ChatManager) runParentMessagePlayback(state *parentMessageFlowState) {
 			}
 		}
 		c.updateParentMessageStatus(ctx, msg.ID, "played")
+		c.recordPlayedMessageProfile(msg)
 		state.index++
 	}
 
 	c.finishParentMessageSession(len(state.messages))
 }
 
+func (c *ChatManager) speakParentMessageTransition(ctx context.Context, msg parentMessageItem, now time.Time, confirmed bool) error {
+	transition := buildTransitionPrompt(msg.FamilyRole, msg.CreatedAt, now)
+	if confirmed {
+		transition = buildConfirmTransitionPrompt(msg.FamilyRole, msg.CreatedAt, now)
+	}
+	if err := c.injectSpeechSegment(transition, true, ttsTurnEndPolicyNone); err != nil {
+		return err
+	}
+	c.waitInjectedSpeechSettled(ctx, transition)
+	return nil
+}
+
+func (c *ChatManager) enableParentMessageIntentListening() {
+	if c == nil || c.clientState == nil {
+		return
+	}
+	c.clientState.OnAsrResultInterceptor = c.handleParentMessageASR
+}
+
+func (c *ChatManager) disableParentMessageIntentListening() {
+	if c == nil || c.clientState == nil {
+		return
+	}
+	c.clientState.OnAsrResultInterceptor = nil
+}
+
+func (c *ChatManager) resumeParentMessageIntentListeningAfterPrompt(state *parentMessageFlowState, prompt string) {
+	ctx := context.Background()
+	if c.ctx != nil {
+		ctx = c.ctx
+	}
+	c.waitInjectedSpeechSettled(ctx, prompt)
+
+	c.parentMessageMu.Lock()
+	active := c.parentMessageState == state
+	c.parentMessageMu.Unlock()
+	if !active {
+		return
+	}
+	c.enableParentMessageIntentListening()
+}
+
 func (c *ChatManager) askAndWaitParentMessageIntent(ctx context.Context, state *parentMessageFlowState, msg parentMessageItem) error {
 	c.updateParentMessageStatus(ctx, msg.ID, "notified")
 	state.retryCount = 0
-	c.clientState.OnAsrResultInterceptor = c.handleParentMessageASR
+	c.disableParentMessageIntentListening()
 
 	prompt := c.generateParentMessageAskPrompt(ctx, msg.FamilyRole, msg.CreatedAt)
 	log.Infof("设备 %s 家长留言询问语注入 message_id=%d | %s",
@@ -345,6 +407,8 @@ func (c *ChatManager) askAndWaitParentMessageIntent(ctx context.Context, state *
 		log.Warnf("设备 %s 家长留言询问语注入失败 message_id=%d: %v", c.DeviceID, msg.ID, err)
 		return err
 	}
+	c.waitInjectedSpeechSettled(ctx, prompt)
+	c.enableParentMessageIntentListening()
 	return nil
 }
 
@@ -383,8 +447,14 @@ func (c *ChatManager) handleParentMessageASR(text string) (bool, error) {
 			return true, nil
 		}
 		state.retryCount++
-		retryPrompt := "没听清呢，如果想听留言就说「要」，不想听就说「不要」。"
-		return true, c.InjectMessage(retryPrompt, true, true)
+		retryPrompt := "没听清呢，如果想听留言就说「好」。"
+		c.disableParentMessageIntentListening()
+		if err := c.InjectMessage(retryPrompt, true, true); err != nil {
+			c.enableParentMessageIntentListening()
+			return true, err
+		}
+		go c.resumeParentMessageIntentListeningAfterPrompt(state, retryPrompt)
+		return true, nil
 	}
 }
 
@@ -396,7 +466,12 @@ func (c *ChatManager) playParentMessage(ctx context.Context, msg parentMessageIt
 	if content == "" {
 		return fmt.Errorf("文字留言内容为空")
 	}
-	return c.InjectMessage(content, true, false)
+	log.Infof("设备 %s 播放文字留言 TTS id=%d len=%d", c.DeviceID, msg.ID, len([]rune(content)))
+	if err := c.injectSpeechSegment(content, true, ttsTurnEndPolicyGoodbyeAndIdle); err != nil {
+		return err
+	}
+	c.waitActiveTTSDrain(ctx)
+	return nil
 }
 
 func (c *ChatManager) playParentMessageVoice(ctx context.Context, msg parentMessageItem) error {
@@ -492,7 +567,6 @@ func (c *ChatManager) handleParentMessagePlaybackError(ctx context.Context, msg 
 		return true
 	}
 	log.Warnf("设备 %s 家长留言%s失败: %v | %s", c.DeviceID, stage, err, c.collectParentMessageReadiness().String())
-	c.updateParentMessageStatus(ctx, msg.ID, "skipped")
 	c.finishParentMessageSession(state.index)
 	return true
 }
@@ -519,6 +593,51 @@ func (c *ChatManager) waitInjectedSpeechApprox(text string) {
 	time.Sleep(delay)
 }
 
+// waitInjectedSpeechSettled 在估算等待后确认 TTS 已结束，避免过渡语/确认语未播完就注入正文。
+func (c *ChatManager) waitInjectedSpeechSettled(ctx context.Context, previewText string) {
+	c.waitInjectedSpeechApprox(previewText)
+	c.waitActiveTTSDrain(ctx)
+}
+
+func (c *ChatManager) waitActiveTTSDrain(ctx context.Context) {
+	if c == nil {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	const (
+		idleRequired = 200 * time.Millisecond
+		pollInterval = 50 * time.Millisecond
+	)
+	deadline := time.Now().Add(30 * time.Second)
+	var idleSince time.Time
+
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		if c.managerClosing.Load() {
+			return
+		}
+		session := c.GetSession()
+		if session == nil || !session.IsTTSActive() {
+			if idleSince.IsZero() {
+				idleSince = time.Now()
+			} else if time.Since(idleSince) >= idleRequired {
+				return
+			}
+		} else {
+			idleSince = time.Time{}
+		}
+		time.Sleep(pollInterval)
+	}
+	log.Warnf("设备 %s 等待 TTS 播报结束超时", c.DeviceID)
+}
+
 func (c *ChatManager) finishParentMessageSession(processedIndex int) {
 	c.parentMessageMu.Lock()
 	state := c.parentMessageState
@@ -533,6 +652,13 @@ func (c *ChatManager) finishParentMessageSession(processedIndex int) {
 		state.intentCh = nil
 	}
 	log.Infof("设备 %s 家长留言流程结束, processed=%d", c.DeviceID, processedIndex)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if _, err := c.syncDeviceMessageProfile(ctx); err != nil {
+			log.Debugf("设备 %s 留言流程结束后同步档案失败: %v", c.DeviceID, err)
+		}
+	}()
 }
 
 func (c *ChatManager) clearParentMessageFlow(status string) {

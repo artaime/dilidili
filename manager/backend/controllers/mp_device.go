@@ -16,13 +16,13 @@ type MpDeviceController struct {
 }
 
 func (ctrl *MpDeviceController) CheckDevice(c *gin.Context) {
-	mac := strings.TrimSpace(c.Query("mac"))
-	if mac == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "mac 参数必填"})
+	sn := normalizeDeviceSN(c.Query("sn"))
+	if sn == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "sn 参数必填"})
 		return
 	}
 
-	device, found, err := ctrl.findDeviceByMAC(mac)
+	device, found, err := ctrl.findDeviceBySN(sn)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询设备失败"})
 		return
@@ -66,7 +66,7 @@ func (ctrl *MpDeviceController) BindDevice(c *gin.Context) {
 	}
 
 	var req struct {
-		MAC           string `json:"mac" binding:"required"`
+		SN            string `json:"sn" binding:"required"`
 		ChildNickName string `json:"child_nick_name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -74,7 +74,7 @@ func (ctrl *MpDeviceController) BindDevice(c *gin.Context) {
 		return
 	}
 
-	device, found, err := ctrl.findDeviceByMAC(req.MAC)
+	device, found, err := ctrl.findDeviceBySN(req.SN)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询设备失败"})
 		return
@@ -102,14 +102,10 @@ func (ctrl *MpDeviceController) BindDevice(c *gin.Context) {
 		return
 	}
 
-	normalizedMAC := normalizeDeviceNameCandidate(req.MAC)
 	updates := map[string]interface{}{
 		"user_id":   currentUID,
 		"agent_id":  agent.ID,
 		"activated": true,
-	}
-	if normalizedMAC != "" && normalizeDeviceNameCandidate(device.DeviceName) != normalizedMAC {
-		updates["device_name"] = normalizedMAC
 	}
 	if childNick != "" {
 		updates["nick_name"] = childNick
@@ -177,10 +173,13 @@ func (ctrl *MpDeviceController) UnbindDevice(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "解绑成功"})
 }
 
-func (ctrl *MpDeviceController) findDeviceByMAC(mac string) (models.Device, bool, error) {
-	normalized := normalizeDeviceNameCandidate(mac)
+func (ctrl *MpDeviceController) findDeviceBySN(sn string) (models.Device, bool, error) {
+	normalized := normalizeDeviceSN(sn)
+	if normalized == "" {
+		return models.Device{}, false, nil
+	}
 	var device models.Device
-	err := ctrl.DB.Where("LOWER(REPLACE(device_name, '-', ':')) = ?", normalized).First(&device).Error
+	err := ctrl.DB.Where("device_name = ?", normalized).First(&device).Error
 	if err == gorm.ErrRecordNotFound {
 		return models.Device{}, false, nil
 	}

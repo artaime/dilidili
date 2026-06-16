@@ -104,7 +104,6 @@ func enrichParentMessage(msg models.ParentMessage, device models.Device) map[str
 		"pending":  "待播放",
 		"notified": "已通知",
 		"played":   "已播放",
-		"skipped":  "已跳过",
 		"expired":  "已过期",
 	}
 	title := strings.TrimSpace(msg.Title)

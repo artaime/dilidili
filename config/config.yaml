@@ -16,6 +16,14 @@ chat:
   first_speech_pre_audio_ms: 800   # 首次检测到语音时保留的前置音频（毫秒），避免句首被 VAD 截断
   speak_request_reuse_window_ms: 60000 # MQTT-UDP 主动播报链路复用窗口（毫秒）
   speak_request_enabled: false # AI 玩具协议无 speak_request/speak_ready，主动播报走 hello+UDP+tts
+  intent_router:
+    enabled: true
+    min_confidence: 0.70
+  device_message_profile:
+    played_history_limit: 20
+  parent_message:
+    poll_enabled: true
+    poll_interval_sec: 30   # 使用中轮询新留言并主动询问（需 hello+UDP 就绪）
   realtime_mode: 4 # 1: vad打断模式 2: asr打断模式 3: asr时识别到声纹时进行打断 4. asr出结果打断(兼容流式或离线)
 
 chat_hooks:
