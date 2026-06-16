@@ -127,8 +127,8 @@ export const createDefaultDeviceForm = ({ isAdmin = false, userId = null, mode =
   device_code: '',
   device_name: '',
   identifier: '',
-  activated: true,
-  agent_id: fixedAgentId || 0,
+  activated: false,
+  agent_id: fixedAgentId || null,
   mode
 })
 
@@ -170,6 +170,7 @@ export const buildDevicePayload = (form = {}, { isAdmin = false, mode = 'create'
 export function useAgentFormOptions(options = {}) {
   const isAdmin = computed(() => !!unref(options.isAdmin))
   const targetUserId = computed(() => Number(unref(options.targetUserId) || 0))
+  const operatorUserId = computed(() => Number(unref(options.operatorUserId) || 0))
 
   const users = ref([])
   const agents = ref([])
@@ -233,9 +234,14 @@ export function useAgentFormOptions(options = {}) {
     try {
       const response = await api.get(`${apiBase.value}/agents`)
       const items = normalizeDataList(response)
-      agents.value = isAdmin.value && targetUserId.value
-        ? items.filter((agent) => Number(agent.user_id) === targetUserId.value)
-        : items
+      if (isAdmin.value) {
+        const filterUserId = targetUserId.value || operatorUserId.value
+        agents.value = filterUserId
+          ? items.filter((agent) => Number(agent.user_id) === filterUserId)
+          : items
+      } else {
+        agents.value = items
+      }
       return agents.value
     } finally {
       loading.value.agents = false

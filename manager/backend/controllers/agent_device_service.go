@@ -29,6 +29,13 @@ func scopeFromContext(c *gin.Context) accessScope {
 	}
 }
 
+func resolveAgentOwnerUserID(scope accessScope, deviceUserID uint) uint {
+	if deviceUserID > 0 {
+		return deviceUserID
+	}
+	return scope.ActorUserID
+}
+
 func targetUserIDFromScope(scope accessScope, requested uint) (uint, error) {
 	if scope.IsAdmin {
 		if requested == 0 {
@@ -455,6 +462,25 @@ func (svc *DeviceService) ListByAgent(scope accessScope, agentID uint) ([]Device
 	return svc.enrichDevices(scope, devices)
 }
 
+func (svc *DeviceService) assertDeviceNameAvailable(deviceName string, excludeID uint) error {
+	deviceName = strings.TrimSpace(deviceName)
+	if deviceName == "" {
+		return nil
+	}
+	query := svc.DB.Model(&models.Device{}).Where("device_name = ?", deviceName)
+	if excludeID > 0 {
+		query = query.Where("id <> ?", excludeID)
+	}
+	var count int64
+	if err := query.Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return fmt.Errorf("设备已添加")
+	}
+	return nil
+}
+
 func (svc *DeviceService) Create(scope accessScope, payload DevicePayload) (*DeviceResponse, error) {
 	var targetUserID uint
 	if scope.IsAdmin {
@@ -480,18 +506,17 @@ func (svc *DeviceService) Create(scope accessScope, payload DevicePayload) (*Dev
 	if deviceName == "" {
 		return nil, fmt.Errorf("请填写设备标识")
 	}
-	if nickName == "" {
-		nickName = deviceName
+	if payload.AgentID == 0 {
+		return nil, fmt.Errorf("请选择关联智能体")
 	}
-	if payload.AgentID > 0 {
-		if err := svc.assertAgentOwnedByUser(payload.AgentID, targetUserID); err != nil {
-			return nil, err
-		}
+	agentOwnerID := resolveAgentOwnerUserID(scope, targetUserID)
+	if err := svc.assertAgentOwnedByUser(payload.AgentID, agentOwnerID); err != nil {
+		return nil, err
 	}
 	if deviceCode == "" && !scope.IsAdmin {
 		deviceCode = generateUniqueDeviceCode(svc.DB)
 	}
-	activated := true
+	activated := false
 	if payload.Activated != nil {
 		activated = *payload.Activated
 	}
@@ -499,6 +524,11 @@ func (svc *DeviceService) Create(scope accessScope, payload DevicePayload) (*Dev
 	var device models.Device
 	if scope.IsAdmin && deviceCode != "" {
 		if err := svc.DB.Where("device_code = ?", deviceCode).First(&device).Error; err == nil {
+			if deviceName != "" {
+				if err := svc.assertDeviceNameAvailable(deviceName, device.ID); err != nil {
+					return nil, err
+				}
+			}
 			device.UserID = targetUserID
 			device.NickName = nickName
 			device.AgentID = payload.AgentID
@@ -524,6 +554,10 @@ func (svc *DeviceService) Create(scope accessScope, payload DevicePayload) (*Dev
 		}
 	}
 
+	if err := svc.assertDeviceNameAvailable(deviceName, 0); err != nil {
+		return nil, err
+	}
+
 	device = models.Device{
 		UserID:     targetUserID,
 		NickName:   nickName,
@@ -533,7 +567,7 @@ func (svc *DeviceService) Create(scope accessScope, payload DevicePayload) (*Dev
 		Activated:  activated,
 	}
 	if err := svc.DB.Create(&device).Error; err != nil {
-		return nil, err
+		return nil, wrapDevicePersistenceError(err)
 	}
 	return svc.Get(scope, device.ID)
 }
@@ -575,7 +609,8 @@ func (svc *DeviceService) Update(scope accessScope, id uint, payload DevicePaylo
 		nextAgentID = payload.AgentID
 	}
 	if nextAgentID > 0 {
-		if err := svc.assertAgentOwnedByUser(nextAgentID, nextUserID); err != nil {
+		agentOwnerID := resolveAgentOwnerUserID(scope, nextUserID)
+		if err := svc.assertAgentOwnedByUser(nextAgentID, agentOwnerID); err != nil {
 			return nil, err
 		}
 	}
@@ -589,8 +624,14 @@ func (svc *DeviceService) Update(scope accessScope, id uint, payload DevicePaylo
 	device.NickName = nickName
 	device.AgentID = nextAgentID
 	if scope.IsAdmin {
+		nextDeviceName := strings.TrimSpace(payload.DeviceName)
+		if nextDeviceName != "" && nextDeviceName != strings.TrimSpace(device.DeviceName) {
+			if err := svc.assertDeviceNameAvailable(nextDeviceName, device.ID); err != nil {
+				return nil, err
+			}
+		}
 		device.DeviceCode = strings.TrimSpace(payload.DeviceCode)
-		device.DeviceName = strings.TrimSpace(payload.DeviceName)
+		device.DeviceName = nextDeviceName
 		if payload.Activated != nil {
 			device.Activated = *payload.Activated
 		}
@@ -599,7 +640,7 @@ func (svc *DeviceService) Update(scope accessScope, id uint, payload DevicePaylo
 		updates["activated"] = device.Activated
 	}
 	if err := updateDeviceColumns(svc.DB, device.ID, updates); err != nil {
-		return nil, err
+		return nil, wrapDevicePersistenceError(err)
 	}
 	return svc.Get(scope, device.ID)
 }

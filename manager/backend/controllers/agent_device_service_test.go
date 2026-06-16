@@ -200,6 +200,10 @@ func TestDeviceServiceBindingEnrichmentAndCrossUserRejection(t *testing.T) {
 func TestDeviceServiceAdminCreateWithoutUserRequiresDeviceName(t *testing.T) {
 	db := setupAgentDeviceServiceTestDB(t)
 	admin := createServiceTestUser(t, db, "device-admin", "admin")
+	agent := models.Agent{UserID: admin.ID, Name: "admin-agent", Nickname: "admin-agent"}
+	if err := db.Create(&agent).Error; err != nil {
+		t.Fatalf("create admin agent: %v", err)
+	}
 	deviceSvc := NewDeviceService(db)
 	scope := accessScope{ActorUserID: admin.ID, IsAdmin: true}
 
@@ -207,9 +211,16 @@ func TestDeviceServiceAdminCreateWithoutUserRequiresDeviceName(t *testing.T) {
 		t.Fatalf("create without device name error = %v, want device name required", err)
 	}
 
+	if _, err := deviceSvc.Create(scope, DevicePayload{
+		DeviceName: "SN-PRE-REGISTER-002",
+		NickName:   "预登记设备",
+	}); err == nil || !strings.Contains(err.Error(), "智能体") {
+		t.Fatalf("create without agent error = %v, want agent required", err)
+	}
+
 	created, err := deviceSvc.Create(scope, DevicePayload{
 		DeviceName: "SN-PRE-REGISTER-001",
-		NickName:   "预登记设备",
+		AgentID:    agent.ID,
 	})
 	if err != nil {
 		t.Fatalf("admin pre-register device: %v", err)
@@ -217,7 +228,43 @@ func TestDeviceServiceAdminCreateWithoutUserRequiresDeviceName(t *testing.T) {
 	if created.UserID != 0 {
 		t.Fatalf("pre-registered device user_id = %d, want 0", created.UserID)
 	}
+	if created.NickName != "" {
+		t.Fatalf("pre-registered device nick_name = %q, want empty", created.NickName)
+	}
+	if created.AgentID != agent.ID {
+		t.Fatalf("pre-registered device agent_id = %d, want %d", created.AgentID, agent.ID)
+	}
+	if created.Activated {
+		t.Fatalf("pre-registered device activated = true, want false by default")
+	}
 	if created.DeviceName != "SN-PRE-REGISTER-001" {
 		t.Fatalf("device_name = %q, want SN-PRE-REGISTER-001", created.DeviceName)
+	}
+}
+
+func TestDeviceServiceCreateDuplicateDeviceName(t *testing.T) {
+	db := setupAgentDeviceServiceTestDB(t)
+	admin := createServiceTestUser(t, db, "dup-device-admin", "admin")
+	agent := models.Agent{UserID: admin.ID, Name: "admin-agent", Nickname: "admin-agent"}
+	if err := db.Create(&agent).Error; err != nil {
+		t.Fatalf("create admin agent: %v", err)
+	}
+	deviceSvc := NewDeviceService(db)
+	scope := accessScope{ActorUserID: admin.ID, IsAdmin: true}
+
+	_, err := deviceSvc.Create(scope, DevicePayload{
+		DeviceName: "SN-DUP-001",
+		AgentID:    agent.ID,
+	})
+	if err != nil {
+		t.Fatalf("create first device: %v", err)
+	}
+
+	_, err = deviceSvc.Create(scope, DevicePayload{
+		DeviceName: "SN-DUP-001",
+		AgentID:    agent.ID,
+	})
+	if err == nil || !strings.Contains(err.Error(), "设备已添加") {
+		t.Fatalf("duplicate create error = %v, want 设备已添加", err)
 	}
 }

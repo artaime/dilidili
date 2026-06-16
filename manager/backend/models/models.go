@@ -9,20 +9,20 @@ import (
 
 // 用户模型
 type User struct {
-	ID        uint      `json:"id" gorm:"primarykey"`
-	Username  string    `json:"username" gorm:"type:varchar(50);uniqueIndex:idx_users_username;not null"`
-	Password  string    `json:"-" gorm:"type:varchar(255);not null"`
-	Email     string    `json:"email" gorm:"type:varchar(100);uniqueIndex:idx_users_email"`
-	Role      string    `json:"role" gorm:"type:varchar(20);not null;default:'user'"` // admin, user
-	WxOpenid  *string   `json:"wx_openid,omitempty" gorm:"type:varchar(64);uniqueIndex:idx_users_wx_openid"`
-	WxUnionid *string   `json:"wx_unionid,omitempty" gorm:"type:varchar(64)"`
-	Nickname   string `json:"nickname,omitempty" gorm:"type:varchar(100)"`
-	AvatarURL  string `json:"avatar_url,omitempty" gorm:"type:varchar(512)"`
-	Phone      string `json:"phone,omitempty" gorm:"type:varchar(20)"`
-	FamilyRole string `json:"family_role,omitempty" gorm:"type:varchar(20);default:'其他'"` // 爸爸, 妈妈, 爷爷, 奶奶, 外公, 外婆, 其他
-	Source     string `json:"source,omitempty" gorm:"type:varchar(20);default:'web'"`       // web, miniprogram
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         uint      `json:"id" gorm:"primarykey"`
+	Username   string    `json:"username" gorm:"type:varchar(50);uniqueIndex:idx_users_username;not null"`
+	Password   string    `json:"-" gorm:"type:varchar(255);not null"`
+	Email      string    `json:"email" gorm:"type:varchar(100);uniqueIndex:idx_users_email"`
+	Role       string    `json:"role" gorm:"type:varchar(20);not null;default:'user'"` // admin, user
+	WxOpenid   *string   `json:"wx_openid,omitempty" gorm:"type:varchar(64);uniqueIndex:idx_users_wx_openid"`
+	WxUnionid  *string   `json:"wx_unionid,omitempty" gorm:"type:varchar(64)"`
+	Nickname   string    `json:"nickname,omitempty" gorm:"type:varchar(100)"`
+	AvatarURL  string    `json:"avatar_url,omitempty" gorm:"type:varchar(512)"`
+	Phone      string    `json:"phone,omitempty" gorm:"type:varchar(20)"`
+	FamilyRole string    `json:"family_role,omitempty" gorm:"type:varchar(20);default:'其他'"` // 爸爸, 妈妈, 爷爷, 奶奶, 外公, 外婆, 其他
+	Source     string    `json:"source,omitempty" gorm:"type:varchar(20);default:'web'"`     // web, miniprogram
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // APIToken 对外OpenAPI访问令牌（仅保存哈希，不保存明文）
@@ -46,8 +46,8 @@ type Device struct {
 	AgentID      uint       `json:"agent_id" gorm:"not null;default:0"`                                       // 智能体ID，一台设备只能属于一个智能体
 	RoleID       *uint      `json:"role_id" gorm:"index"`                                                     // 角色ID（可选，覆盖智能体配置）
 	NickName     string     `json:"nick_name" gorm:"type:varchar(100)"`                                       // 设备昵称，用户可修改
-	DeviceCode   string     `json:"device_code" gorm:"type:varchar(100);uniqueIndex:idx_devices_device_name_code,priority:2"` // 6位激活码
-	DeviceName   string     `json:"device_name" gorm:"type:varchar(100);uniqueIndex:idx_devices_device_name_code,priority:1"` // 设备 SN / Device-ID，设备端上报使用
+	DeviceCode   string     `json:"device_code" gorm:"type:varchar(100);"`                                    // 6位激活码
+	DeviceName   string     `json:"device_name" gorm:"type:varchar(100);uniqueIndex:idx_devices_device_name"` // 设备 SN / Device-ID，设备端上报使用
 	Challenge    string     `json:"challenge" gorm:"type:varchar(128)"`                                       // 激活挑战码
 	PreSecretKey string     `json:"pre_secret_key" gorm:"type:varchar(128)"`                                  // 预激活密钥
 	Activated    bool       `json:"activated" gorm:"default:false"`                                           // 设备是否已激活

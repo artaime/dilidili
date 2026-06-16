@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"strings"
 
 	"dili/manager/backend/models"
 
@@ -17,7 +18,27 @@ func updateDeviceColumns(db *gorm.DB, deviceID uint, updates map[string]interfac
 		return nil
 	}
 
-	return db.Model(&models.Device{}).Where("id = ?", deviceID).Updates(updates).Error
+	return wrapDevicePersistenceError(db.Model(&models.Device{}).Where("id = ?", deviceID).Updates(updates).Error)
+}
+
+func isDuplicateDeviceNameError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "duplicate") ||
+		strings.Contains(msg, "unique constraint") ||
+		strings.Contains(msg, "idx_devices_device_name")
+}
+
+func wrapDevicePersistenceError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if isDuplicateDeviceNameError(err) {
+		return errors.New("设备已添加")
+	}
+	return err
 }
 
 func countDevicesByAgentID(db *gorm.DB, agentID uint) (int64, error) {

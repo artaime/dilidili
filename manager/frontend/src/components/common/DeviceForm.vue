@@ -86,12 +86,9 @@
             v-model="form.agent_id"
             placeholder="请选择智能体"
             style="width: 100%"
-            clearable
             filterable
-            :disabled="isAdmin && !form.user_id"
             :loading="loading.agents"
           >
-            <el-option label="不关联智能体" :value="0" />
             <el-option
               v-for="agent in displayAgents"
               :key="agent.id"
@@ -111,6 +108,7 @@ import {
   buildDevicePayload,
   useAgentFormOptions
 } from '../../composables/useAgentFormOptions'
+import { useAuthStore } from '../../stores/auth'
 
 const props = defineProps({
   modelValue: {
@@ -150,8 +148,10 @@ const form = computed({
   set: (value) => emit('update:modelValue', value)
 })
 
+const authStore = useAuthStore()
 const formRef = ref(null)
 const targetUserId = computed(() => props.isAdmin ? Number(form.value.user_id || 0) : 0)
+const operatorUserId = computed(() => Number(authStore.user?.id || 0))
 const isBindMode = computed(() => props.mode === 'bind')
 const hasFixedAgent = computed(() => props.fixedAgentId !== null && props.fixedAgentId !== undefined && props.fixedAgentId !== '')
 
@@ -163,15 +163,16 @@ const {
   loadAgents
 } = useAgentFormOptions({
   isAdmin: computed(() => props.isAdmin),
-  targetUserId
+  targetUserId,
+  operatorUserId
 })
 
 const displayAgents = computed(() => {
   const source = props.agents.length ? props.agents : agents.value
-  if (props.isAdmin && targetUserId.value) {
-    return source.filter((agent) => Number(agent.user_id) === targetUserId.value)
-  }
-  return source
+  if (!props.isAdmin) return source
+  const filterUserId = targetUserId.value || operatorUserId.value
+  if (!filterUserId) return source
+  return source.filter((agent) => Number(agent.user_id) === filterUserId)
 })
 
 const agentLabel = (agent) => {
@@ -213,10 +214,25 @@ const validateDeviceName = (_, value, callback) => {
   callback()
 }
 
+const validateAgentId = (_, value, callback) => {
+  const agentId = Number(value || 0)
+  if (isBindMode.value && !hasFixedAgent.value) {
+    if (!agentId) {
+      callback(new Error('请选择目标智能体'))
+      return
+    }
+    callback()
+    return
+  }
+  if (!isBindMode.value && props.mode === 'create' && !agentId) {
+    callback(new Error('请选择关联智能体'))
+    return
+  }
+  callback()
+}
+
 const rules = computed(() => ({
-  agent_id: isBindMode.value && !hasFixedAgent.value
-    ? [{ required: true, message: '请选择目标智能体', trigger: 'change' }]
-    : [],
+  agent_id: [{ validator: validateAgentId, trigger: 'change' }],
   identifier: [{ validator: validateIdentifier, trigger: 'blur' }],
   nick_name: [{ max: 50, message: '设备昵称最多 50 个字符', trigger: 'blur' }],
   device_name: [{ validator: validateDeviceName, trigger: 'blur' }]
@@ -233,7 +249,7 @@ watch(
   () => form.value.user_id,
   async (next, prev) => {
     if (!props.isAdmin || next === prev) return
-    form.value.agent_id = 0
+    form.value.agent_id = null
     await loadAgents().catch(() => [])
   }
 )

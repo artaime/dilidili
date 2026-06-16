@@ -15,7 +15,9 @@
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column label="设备昵称" min-width="170">
         <template #default="{ row }">
-          <span class="device-nick-name">{{ getDeviceDisplayName(row) }}</span>
+          <span :class="['device-nick-name', { 'is-empty': !getDeviceNickName(row) }]">
+            {{ formatDeviceNickName(row) }}
+          </span>
         </template>
       </el-table-column>
       <el-table-column prop="device_code" label="激活码" width="150" />
@@ -133,6 +135,7 @@ import { Plus, Refresh } from '@element-plus/icons-vue'
 import api from '../../utils/api'
 import DeviceForm from '../../components/common/DeviceForm.vue'
 import { createDefaultDeviceForm, deviceToForm } from '../../composables/useAgentFormOptions'
+import { formatDeviceNickName, getDeviceNickName, getDeviceReferenceLabel } from '../../utils/iotDevice'
 
 const devices = ref([])
 const loading = ref(false)
@@ -164,12 +167,6 @@ const loadDevices = async () => {
   }
 }
 
-const getDeviceDisplayName = (device) => {
-  const nickName = String(device?.nick_name || '').trim()
-  if (nickName) return nickName
-  return String(device?.device_name || '').trim() || '未命名设备'
-}
-
 const openAddDialog = () => {
   editingDevice.value = null
   deviceForm.value = createDefaultDeviceForm({ isAdmin: true })
@@ -192,10 +189,10 @@ const saveDevice = async () => {
   try {
     const payload = deviceFormRef.value.buildPayload()
     if (editingDevice.value) {
-      await api.put(`/admin/devices/${editingDevice.value.id}`, payload)
+      await api.put(`/admin/devices/${editingDevice.value.id}`, payload, { silentError: true })
       ElMessage.success('设备更新成功')
     } else {
-      const response = await api.post('/admin/devices', payload)
+      const response = await api.post('/admin/devices', payload, { silentError: true })
       // 根据后端返回的消息显示不同的提示
       const message = response.data.message || '设备添加成功'
       ElMessage.success(message)
@@ -215,7 +212,7 @@ const saveDevice = async () => {
 const deleteDevice = async (device) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除设备 "${getDeviceDisplayName(device)}" 吗？`,
+      `确定要删除设备 "${getDeviceReferenceLabel(device)}" 吗？`,
       '确认删除',
       {
         confirmButtonText: '确定',
@@ -439,6 +436,11 @@ onMounted(() => {
 .device-nick-name {
   font-weight: 700;
   color: var(--apple-text, #1d1d1f);
+}
+
+.device-nick-name.is-empty {
+  font-weight: 500;
+  color: #909399;
 }
 
 .device-id-text {

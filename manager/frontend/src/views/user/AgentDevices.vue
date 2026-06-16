@@ -71,10 +71,12 @@
 	                  v-else
 	                  type="button"
 	                  class="device-name-button"
-	                  :title="`点击修改设备昵称：${getDeviceDisplayName(device)}`"
+	                  :title="`点击修改设备昵称：${formatDeviceNickName(device)}`"
 	                  @click="startDeviceNameEdit(device)"
 	                >
-	                  <span class="device-name">{{ getDeviceDisplayName(device) }}</span>
+	                  <span :class="['device-name', { 'is-empty': !String(device.nick_name || '').trim() }]">
+                    {{ formatDeviceNickName(device) }}
+                  </span>
 	                </button>
 	                <div class="device-name-actions">
 	                  <template v-if="editingDeviceId === device.id">
@@ -337,6 +339,11 @@ import api from '../../utils/api'
 import DeviceForm from '../../components/common/DeviceForm.vue'
 import MessageInjectDialog from '../../components/user/MessageInjectDialog.vue'
 import { createDefaultDeviceForm } from '../../composables/useAgentFormOptions'
+import {
+  formatDeviceNickName,
+  getDeviceReferenceLabel,
+  getDeviceSN
+} from '../../utils/iotDevice'
 
 const router = useRouter()
 const route = useRoute()
@@ -483,20 +490,14 @@ const getDeviceAgentName = (device) => {
   return device.agent_name || agentNameMap.value.get(String(device.agent_id)) || `智能体 #${device.agent_id}`
 }
 
-const getDeviceDisplayName = (device) => {
-  const nickName = String(device?.nick_name || '').trim()
-  if (nickName) return nickName
-  return String(device?.device_name || '').trim() || '未命名设备'
-}
-
 const getDeviceIdentityText = (device) => {
-  const deviceId = String(device?.device_name || '').trim() || '-'
+  const deviceId = getDeviceSN(device) || '-'
   return `设备ID: ${deviceId}`
 }
 
 const startDeviceNameEdit = (device) => {
   editingDeviceId.value = device.id
-  editingDeviceName.value = String(device.nick_name || '').trim() || getDeviceDisplayName(device)
+  editingDeviceName.value = String(device.nick_name || '').trim()
   nextTick(() => {
     deviceNameInputRef.value?.focus?.()
   })
@@ -784,7 +785,7 @@ const handleDeleteDevice = async (device) => {
 
 	  try {
 	    await ElMessageBox.confirm(
-	      `确定要从系统中删除「${getDeviceDisplayName(device)}」吗？删除后设备需要重新激活，才能再次进入系统。`,
+	      `确定要从系统中删除「${getDeviceReferenceLabel(device)}」吗？删除后设备需要重新激活，才能再次进入系统。`,
 	      '确认删除设备',
       {
         confirmButtonText: '删除',
@@ -976,6 +977,11 @@ watch(
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.device-name.is-empty {
+  font-weight: 500;
+  color: #909399;
 }
 
 .device-name-button {

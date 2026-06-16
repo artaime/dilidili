@@ -25,17 +25,17 @@
           <el-option
             v-for="device in devices"
             :key="device.id || device.device_code"
-            :label="getDeviceOptionLabel(device)"
+            :label="formatDeviceOptionLabel(device)"
             :value="device.device_name || ''"
           >
             <div class="device-option">
               <div class="device-option-header">
-                <span class="device-name">{{ getDeviceNickName(device) }}</span>
+                <span class="device-name">{{ formatDeviceNickName(device) }}</span>
                 <el-tag :type="isDeviceOnline(device.last_active_at) ? 'success' : 'danger'" size="small">
                   {{ isDeviceOnline(device.last_active_at) ? '在线' : '离线' }}
                 </el-tag>
               </div>
-              <div class="device-code">设备ID: {{ getDeviceIdText(device) }}</div>
+              <div class="device-code">设备ID: {{ getDeviceSN(device) || '-' }}</div>
               <div v-if="device.device_code" class="device-code">激活码: {{ device.device_code }}</div>
               <div class="device-agent">智能体: {{ device.agent_name || '未绑定' }}</div>
             </div>
@@ -104,6 +104,11 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '../../utils/api'
+import {
+  formatDeviceNickName,
+  formatDeviceOptionLabel,
+  getDeviceSN
+} from '../../utils/iotDevice'
 
 const props = defineProps({
   modelValue: {
@@ -170,20 +175,6 @@ const isDeviceOnline = (lastActiveAt) => {
   if (!lastActiveAt) return false
   const lastActive = new Date(lastActiveAt)
   return (Date.now() - lastActive.getTime()) < 5 * 60 * 1000
-}
-
-const getDeviceNickName = (device) => {
-  const nickName = String(device?.nick_name || '').trim()
-  if (nickName) return nickName
-  return String(device?.device_name || '').trim() || '未命名设备'
-}
-
-const getDeviceIdText = (device) => String(device?.device_name || '').trim() || '-'
-
-const getDeviceOptionLabel = (device) => {
-  const nickName = getDeviceNickName(device)
-  const deviceId = getDeviceIdText(device)
-  return `${nickName} (${deviceId})`
 }
 
 const resetForm = () => {
