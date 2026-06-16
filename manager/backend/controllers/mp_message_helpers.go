@@ -6,7 +6,7 @@ import (
 	"time"
 	"unicode"
 
-	"xiaozhi/manager/backend/models"
+	"dili/manager/backend/models"
 )
 
 var allowedFamilyRoles = map[string]struct{}{

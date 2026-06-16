@@ -2,7 +2,7 @@ package storage
 
 import (
 	"context"
-	"xiaozhi/manager/backend/models"
+	"dili/manager/backend/models"
 )
 
 // StorageAdapter 存储适配器，用于桥接接口差异

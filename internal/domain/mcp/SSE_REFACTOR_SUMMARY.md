@@ -104,7 +104,7 @@ sseTransport, err := transport.NewSSE(
 initRequest := MCPInitRequest{
     ProtocolVersion: "2024-11-05",
     ClientInfo: MCPImplementation{
-        Name:    "xiaozhi-esp32-server",
+        Name:    "dili-esp32-server",
         Version: "1.0.0",
     },
 }
@@ -125,7 +125,7 @@ initRequest := mcp.InitializeRequest{
     Params: mcp.InitializeParams{
         ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
         ClientInfo: mcp.Implementation{
-            Name:    "xiaozhi-esp32-server",
+            Name:    "dili-esp32-server",
             Version: "1.0.0",
         },
         Capabilities: mcp.ClientCapabilities{
@@ -268,7 +268,7 @@ if conn.client != nil {
 === RUN   TestMCPTool_InvokableRun_NewTool
 --- PASS: TestMCPTool_InvokableRun_NewTool (0.00s)
 
-ok      xiaozhi-esp32-server-golang/internal/domain/mcp 0.578s
+ok      dili-esp32-server-golang/internal/domain/mcp 0.578s
 ```
 
 **总计**: 12个测试用例全部通过 ✨

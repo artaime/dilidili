@@ -6,7 +6,7 @@ import (
 
 	"github.com/bytedance/sonic"
 
-	"xiaozhi-esp32-server-golang/internal/domain/asr/doubao/common"
+	"dili-esp32-server-golang/internal/domain/asr/doubao/common"
 )
 
 type UserMeta struct {

@@ -3,9 +3,9 @@ package eino_llm
 import (
 	"bytes"
 	"context"
+	log "dili-esp32-server-golang/logger"
 	"encoding/base64"
 	"fmt"
-	log "xiaozhi-esp32-server-golang/logger"
 
 	"github.com/cloudwego/eino/schema"
 )

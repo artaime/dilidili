@@ -41,7 +41,7 @@ def public_hello(client):
         print("发布消息失败")
 
 def main():
-    broker = "mqtt.xiaozhi.me"
+    broker = "mqtt.dili.me"
     port = 8883
     client_id = "GID_test@@@02_4A_7D_E3_89_BF@@@e3b0c442-98fc-4e1a-8c3d-6a5b6a5b6a5b"
     username = "eyJpcCI6IjEuMjAyLjE5My4xOTQifQ=="

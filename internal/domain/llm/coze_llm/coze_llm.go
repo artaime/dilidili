@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	llm_common "xiaozhi-esp32-server-golang/internal/domain/llm/common"
-	log "xiaozhi-esp32-server-golang/logger"
+	llm_common "dili-esp32-server-golang/internal/domain/llm/common"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/cloudwego/eino/schema"
 	sse "github.com/tmaxmax/go-sse"
@@ -23,7 +23,7 @@ import (
 const (
 	defaultCozeBaseURL  = "https://api.coze.com"
 	defaultConnectorID  = "1024"
-	defaultUserPrefix   = "xiaozhi"
+	defaultUserPrefix   = "dili"
 	llmExtraErrorKey    = "error"
 	streamCreatePath    = "/v3/chat"
 	maxIdleConns        = 200

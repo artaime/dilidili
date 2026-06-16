@@ -1,11 +1,11 @@
 package controllers
 
 import (
+	"dili/manager/backend/middleware"
+	"dili/manager/backend/models"
 	"encoding/json"
 	"log"
 	"net/http"
-	"xiaozhi/manager/backend/middleware"
-	"xiaozhi/manager/backend/models"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -146,7 +146,7 @@ func (ac *AuthController) Login(c *gin.Context) {
 			"user": gin.H{
 				"id":       1,
 				"username": "admin",
-				"email":    "admin@xiaozhi.com",
+				"email":    "admin@dili.com",
 				"role":     "admin",
 			},
 		})

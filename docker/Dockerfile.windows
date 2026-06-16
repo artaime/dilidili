@@ -75,13 +75,13 @@ ENV CGO_LDFLAGS="-L/opt/onnxruntime-win/lib"
 RUN go mod tidy \
     && go build -v -tags "nolibopusfile asr_server manager embed_ui" \
        -ldflags "-s -w" \
-       -o xiaozhi_server.exe ./cmd/server
+       -o dili_server.exe ./cmd/server
 
-RUN upx --lzma xiaozhi_server.exe || true
+RUN upx --lzma dili_server.exe || true
 
-RUN PACK_DIR="/out/windows-amd64/xiaozhi-server-windows-amd64" \
+RUN PACK_DIR="/out/windows-amd64/dili-server-windows-amd64" \
     && mkdir -p "$PACK_DIR/data" "$PACK_DIR/logs" \
-    && cp xiaozhi_server.exe "$PACK_DIR/" \
+    && cp dili_server.exe "$PACK_DIR/" \
     && cp build/common/main_config.yaml build/common/manager.json build/common/asr_server.json "$PACK_DIR/" \
     && cp -r build/common/models "$PACK_DIR/" \
     && cp -r build/common/data/* "$PACK_DIR/data/" \

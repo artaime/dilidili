@@ -27,7 +27,7 @@ flowchart TD
         B["云端MCP Server\n（SSE服务/工具注册）"]
     end
     subgraph 业务服务/大模型
-        C["WebSocket Server\n/xiaozhi/mcp/{deviceId}"]
+        C["WebSocket Server\n/dili/mcp/{deviceId}"]
     end
     subgraph 端侧
         D["设备/IoT Client"]
@@ -56,7 +56,7 @@ mcp:
     max_reconnect_attempts: 10
   device:
     enabled: true
-    websocket_path: "/xiaozhi/mcp/"
+    websocket_path: "/dili/mcp/"
     max_connections_per_device: 5
 ```
 
@@ -74,7 +74,7 @@ mcp:
 ## 5. API接口
 ### WebSocket端点
 - 设备MCP连接：
-  - `ws://<host>:<port>/xiaozhi/mcp/{deviceId}`
+  - `ws://<host>:<port>/dili/mcp/{deviceId}`
   - 连接后服务器发送初始化消息，客户端响应工具列表，建立双向通信
 - 消息格式示例：
 ```json
@@ -88,7 +88,7 @@ mcp:
 
 ### REST接口
 - 获取设备工具列表：
-  - `GET /xiaozhi/api/mcp/tools/{deviceId}`
+  - `GET /dili/api/mcp/tools/{deviceId}`
   - 响应示例：
 ```json
 {
@@ -122,7 +122,7 @@ for name, tool := range tools {
 
 ### 设备端 WebSocket 连接（JS）
 ```javascript
-const ws = new WebSocket('ws://localhost:8989/xiaozhi/mcp/device123');
+const ws = new WebSocket('ws://localhost:8989/dili/mcp/device123');
 ws.onopen = function() { console.log('MCP连接已建立'); };
 ws.onmessage = function(event) {
     const message = JSON.parse(event.data);
@@ -163,14 +163,14 @@ ws.onmessage = function(event) {
 端侧MCP通过WebSocket信令通道与服务器建立连接，实现设备级工具注册、调用和会话管理，适用于边缘设备、IoT场景。
 
 ### 典型流程
-1. 设备通过 `ws://<host>:<port>/xiaozhi/mcp/{deviceId}` 建立WebSocket连接。
+1. 设备通过 `ws://<host>:<port>/dili/mcp/{deviceId}` 建立WebSocket连接。
 2. 服务器收到连接后，创建/获取对应的设备MCP会话（DeviceMcpSession），并初始化MCP客户端实例。
 3. 服务器通过信令通道下发初始化消息，设备端响应并可同步工具列表。
 4. 双方可通过JSON-RPC协议进行工具调用、通知、心跳等交互。
 5. 连接断开或超时，自动清理会话和资源。
 
 ### 主要接口与消息格式
-- 连接端点：`ws://<host>:<port>/xiaozhi/mcp/{deviceId}`
+- 连接端点：`ws://<host>:<port>/dili/mcp/{deviceId}`
 - 初始化消息：
 ```json
 {

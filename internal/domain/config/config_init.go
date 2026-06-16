@@ -2,12 +2,12 @@ package user_config
 
 import (
 	"context"
+	log "dili-esp32-server-golang/logger"
 	"fmt"
-	log "xiaozhi-esp32-server-golang/logger"
 
-	"xiaozhi-esp32-server-golang/internal/domain/config/manager"
-	"xiaozhi-esp32-server-golang/internal/domain/config/memory"
-	redis_config "xiaozhi-esp32-server-golang/internal/domain/config/redis"
+	"dili-esp32-server-golang/internal/domain/config/manager"
+	"dili-esp32-server-golang/internal/domain/config/memory"
+	redis_config "dili-esp32-server-golang/internal/domain/config/redis"
 
 	"github.com/spf13/viper"
 )

@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	log "xiaozhi-esp32-server-golang/logger"
-	mbconfig "xiaozhi/manager/backend/config"
-	"xiaozhi/manager/backend/database"
-	"xiaozhi/manager/backend/router"
+	log "dili-esp32-server-golang/logger"
+	mbconfig "dili/manager/backend/config"
+	"dili/manager/backend/database"
+	"dili/manager/backend/router"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"

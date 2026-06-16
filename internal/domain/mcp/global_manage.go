@@ -17,7 +17,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/spf13/viper"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 )
 
 const (
@@ -296,7 +296,7 @@ func (conn *MCPServerConnection) connect() (retErr error) {
 		Params: mcp.InitializeParams{
 			ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
 			ClientInfo: mcp.Implementation{
-				Name:    "xiaozhi-esp32-server",
+				Name:    "dili-esp32-server",
 				Version: "1.0.0",
 			},
 			Capabilities: mcp.ClientCapabilities{

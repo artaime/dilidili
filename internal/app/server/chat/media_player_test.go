@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/play_music"
+	"dili-esp32-server-golang/internal/domain/play_music"
 )
 
 func TestDeviceMediaRuntimePlayAgentPlaylistKeepsCurrentIndexWhenAlreadyBound(t *testing.T) {

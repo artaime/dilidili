@@ -10,10 +10,10 @@
       "port": 3306,
       "username": "root",
       "password": "mysql",
-      "database": "xiaozhi_admin_test"
+      "database": "dili_admin_test"
     },
     "sqlite": {
-      "file_path": "./data/xiaozhi.db"
+      "file_path": "./data/dili.db"
     }
   },
   "jwt": {

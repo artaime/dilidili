@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 )
 
 const localMcpMusicControlToolName = "control_music_playback"

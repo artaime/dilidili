@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"xiaozhi/manager/backend/models"
-	mcpmarket "xiaozhi/manager/backend/services/mcp_market"
+	"dili/manager/backend/models"
+	mcpmarket "dili/manager/backend/services/mcp_market"
 
 	"gorm.io/gorm"
 )

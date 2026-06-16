@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/tts"
+	"dili-esp32-server-golang/internal/domain/tts"
 
 	"github.com/go-audio/audio"
 	"github.com/go-audio/wav"
@@ -148,7 +148,7 @@ func main() {
 	metricsJSONL := flag.String("metrics_jsonl", "", "指标输出文件(JSONL)")
 	flag.Parse()
 
-	fmt.Printf("运行小智客户端\n服务器: %s\n客户端数量: %d\n发送内容: %s\n", *serverAddr, *clientCount, *chatText)
+	fmt.Printf("运行狄哩客户端\n服务器: %s\n客户端数量: %d\n发送内容: %s\n", *serverAddr, *clientCount, *chatText)
 
 	metricsWriter, err := NewMetricsWriter(*metricsJSONL)
 	if err != nil {

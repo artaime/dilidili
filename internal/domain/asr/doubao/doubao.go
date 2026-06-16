@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/asr/doubao/client"
-	"xiaozhi-esp32-server-golang/internal/domain/asr/doubao/request"
-	"xiaozhi-esp32-server-golang/internal/domain/asr/doubao/response"
-	"xiaozhi-esp32-server-golang/internal/domain/asr/types"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/asr/doubao/client"
+	"dili-esp32-server-golang/internal/domain/asr/doubao/request"
+	"dili-esp32-server-golang/internal/domain/asr/doubao/response"
+	"dili-esp32-server-golang/internal/domain/asr/types"
+	log "dili-esp32-server-golang/logger"
 )
 
 func shortDebugID(id string) string {

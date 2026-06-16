@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	types_conn "xiaozhi-esp32-server-golang/internal/app/server/types"
-	data_audio "xiaozhi-esp32-server-golang/internal/data/audio"
-	data_client "xiaozhi-esp32-server-golang/internal/data/client"
-	msgdata "xiaozhi-esp32-server-golang/internal/data/msg"
-	"xiaozhi-esp32-server-golang/internal/util"
+	types_conn "dili-esp32-server-golang/internal/app/server/types"
+	data_audio "dili-esp32-server-golang/internal/data/audio"
+	data_client "dili-esp32-server-golang/internal/data/client"
+	msgdata "dili-esp32-server-golang/internal/data/msg"
+	"dili-esp32-server-golang/internal/util"
 
 	"github.com/spf13/viper"
 )
@@ -260,7 +260,7 @@ func TestShouldInterruptOutputOnListenStartPreservesWelcomeForRealtime(t *testin
 func TestHandleListenDetectSilentlySkipsWakeupWhenAutoListenActiveAfterWelcome(t *testing.T) {
 	session := newDetectDebounceTestSession(t)
 	setViperValueForTest(t, "enable_greeting", true)
-	setViperValueForTest(t, "wakeup_words", []string{"你好小智"})
+	setViperValueForTest(t, "wakeup_words", []string{"你好狄哩"})
 	session.clientState.IsWelcomeSpeaking = true
 	session.clientState.ListenMode = "auto"
 	session.clientState.SetListenPhase(data_client.ListenPhaseListening)
@@ -268,7 +268,7 @@ func TestHandleListenDetectSilentlySkipsWakeupWhenAutoListenActiveAfterWelcome(t
 	if err := session.HandleListenDetect(&data_client.ClientMessage{
 		Type:     msgdata.MessageTypeListen,
 		DeviceID: session.clientState.DeviceID,
-		Text:     "你好小智",
+		Text:     "你好狄哩",
 	}); err != nil {
 		t.Fatalf("HandleListenDetect returned error: %v", err)
 	}
@@ -284,7 +284,7 @@ func TestHandleListenDetectSilentlySkipsWakeupWhenAutoListenActiveAfterWelcome(t
 func TestHandleListenDetectWelcomedWakeupSchedulesLLMWhenAutoListenIdle(t *testing.T) {
 	session := newDetectDebounceTestSession(t)
 	setViperValueForTest(t, "enable_greeting", true)
-	setViperValueForTest(t, "wakeup_words", []string{"你好小智"})
+	setViperValueForTest(t, "wakeup_words", []string{"你好狄哩"})
 	session.clientState.IsWelcomeSpeaking = true
 	session.clientState.ListenMode = "auto"
 	session.clientState.SetListenPhase(data_client.ListenPhaseIdle)
@@ -292,7 +292,7 @@ func TestHandleListenDetectWelcomedWakeupSchedulesLLMWhenAutoListenIdle(t *testi
 	if err := session.HandleListenDetect(&data_client.ClientMessage{
 		Type:     msgdata.MessageTypeListen,
 		DeviceID: session.clientState.DeviceID,
-		Text:     "你好小智",
+		Text:     "你好狄哩",
 	}); err != nil {
 		t.Fatalf("HandleListenDetect returned error: %v", err)
 	}
@@ -301,7 +301,7 @@ func TestHandleListenDetectWelcomedWakeupSchedulesLLMWhenAutoListenIdle(t *testi
 	if err != nil {
 		t.Fatalf("expected welcomed wake detect outside active auto listen to enter llm debounce path, got %v", err)
 	}
-	if item.text != "你好小智" {
+	if item.text != "你好狄哩" {
 		t.Fatalf("expected wake detect text to be preserved, got %q", item.text)
 	}
 }

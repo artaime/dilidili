@@ -10,14 +10,15 @@ import (
 	"sync/atomic"
 	"time"
 
+	"dili-esp32-server-golang/constants"
+	log "dili-esp32-server-golang/logger"
+
 	"github.com/google/uuid"
-	"xiaozhi-esp32-server-golang/constants"
-	log "xiaozhi-esp32-server-golang/logger"
 
 	"github.com/gorilla/websocket"
 
-	"xiaozhi-esp32-server-golang/internal/data/audio"
-	"xiaozhi-esp32-server-golang/internal/domain/asr/types"
+	"dili-esp32-server-golang/internal/data/audio"
+	"dili-esp32-server-golang/internal/domain/asr/types"
 )
 
 // FunasrConfig 配置结构体

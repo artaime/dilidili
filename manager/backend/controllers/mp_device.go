@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"xiaozhi/manager/backend/models"
+	"dili/manager/backend/models"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"

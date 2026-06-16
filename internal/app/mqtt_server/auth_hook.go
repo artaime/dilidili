@@ -6,8 +6,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 
-	"xiaozhi-esp32-server-golang/internal/util"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/util"
+	log "dili-esp32-server-golang/logger"
 
 	mqttServer "github.com/mochi-mqtt/server/v2"
 	"github.com/mochi-mqtt/server/v2/packets"
@@ -100,7 +100,7 @@ func (h *AuthHook) validateWithAes(username, password string) bool {
 
 // checkAesPassword 校验 password 是否为 AES-ECB 加密后 base64(username)
 func checkAesPassword(username, password string) bool {
-	key := []byte("xiaozhi_aes_key_1") // 16字节密钥，实际建议配置
+	key := []byte("dili_aes_key_1") // 16字节密钥，实际建议配置
 	ciphertext, err := aesEncryptECB([]byte(username), key)
 	if err != nil {
 		return false

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/util"
+	"dili-esp32-server-golang/internal/util"
 )
 
 func TestOpenAITTS(t *testing.T) {

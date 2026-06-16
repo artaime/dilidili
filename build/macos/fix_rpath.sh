@@ -4,11 +4,11 @@ set -euo pipefail
 
 # 用于 macOS 发布包：将开发机源码绝对路径 rpath 改为相对可执行文件路径。
 # 适用目录结构：
-#   ./xiaozhi_server
+#   ./dili_server
 #   ./ten-vad/lib/macOS/ten_vad.framework
 
 if [[ $# -ne 1 ]]; then
-  echo "用法: $0 <xiaozhi_server二进制路径>" >&2
+  echo "用法: $0 <dili_server二进制路径>" >&2
   exit 1
 fi
 

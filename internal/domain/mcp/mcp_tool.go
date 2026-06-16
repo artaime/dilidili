@@ -2,9 +2,9 @@ package mcp
 
 import (
 	"context"
+	log "dili-esp32-server-golang/logger"
 	"encoding/json"
 	"fmt"
-	log "xiaozhi-esp32-server-golang/logger"
 
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"

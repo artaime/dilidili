@@ -1,4 +1,4 @@
-# XiaoZhi local dev environment (Windows PowerShell)
+# DILI local dev environment (Windows PowerShell)
 #
 # Load into the current PowerShell session (env changes persist):
 #   . .\scripts\dev-env.ps1
@@ -9,7 +9,7 @@
 # Or explicitly invoke PowerShell:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev-go.ps1 run .\cmd\server -c config\config.yaml
 #
-# ONNX path can also be set via env: $env:XIAOZHI_ONNX_ROOT = "..."
+# ONNX path can also be set via env: $env:DILI_ONNX_ROOT = "..."
 
 param(
     [switch]$FullBuild,
@@ -17,7 +17,7 @@ param(
     [switch]$ForceImport,
     [string]$MingwRoot = "C:\msys64\mingw64",
     [string]$Toolchain = "go1.24.11",
-    [string]$OnnxRoot = $env:XIAOZHI_ONNX_ROOT
+    [string]$OnnxRoot = $env:DILI_ONNX_ROOT
 )
 
 $ErrorActionPreference = "Stop"
@@ -90,7 +90,7 @@ function Test-DevEnv {
     }
 
     if ($FullBuild -and -not (Test-Directory $OnnxRoot)) {
-        Write-DevWarn "FullBuild enabled but ONNX Runtime path missing. Set -OnnxRoot or `$env:XIAOZHI_ONNX_ROOT."
+        Write-DevWarn "FullBuild enabled but ONNX Runtime path missing. Set -OnnxRoot or `$env:DILI_ONNX_ROOT."
     } elseif (Test-Directory $OnnxRoot) {
         Write-DevInfo "onnxruntime: $OnnxRoot"
     }
@@ -109,7 +109,7 @@ function Initialize-DevEnv {
     Remove-Item Env:GOROOT -ErrorAction SilentlyContinue
     $env:GOTOOLCHAIN = $Toolchain
     $env:CGO_ENABLED = "1"
-    $env:XIAOZHI_REPO_ROOT = $repoRoot
+    $env:DILI_REPO_ROOT = $repoRoot
 
     $mingwBin = Join-Path $MingwRoot "bin"
     if (Ensure-PathContains $mingwBin) {
@@ -153,11 +153,11 @@ function Initialize-DevEnv {
     }
 
     if ($FullBuild) {
-        Remove-Item Env:XIAOZHI_GO_TAGS -ErrorAction SilentlyContinue
+        Remove-Item Env:DILI_GO_TAGS -ErrorAction SilentlyContinue
         Write-DevInfo "FullBuild mode: no default -tags"
     } else {
-        $env:XIAOZHI_GO_TAGS = "nolibopusfile"
-        Write-DevInfo "dev build tags: $($env:XIAOZHI_GO_TAGS)"
+        $env:DILI_GO_TAGS = "nolibopusfile"
+        Write-DevInfo "dev build tags: $($env:DILI_GO_TAGS)"
     }
 }
 
@@ -173,8 +173,8 @@ function dev-go {
         $rest = $args[1..($args.Count - 1)]
     }
 
-    if ($env:XIAOZHI_GO_TAGS) {
-        & go $cmd -tags $env:XIAOZHI_GO_TAGS @rest
+    if ($env:DILI_GO_TAGS) {
+        & go $cmd -tags $env:DILI_GO_TAGS @rest
     } else {
         & go @args
     }

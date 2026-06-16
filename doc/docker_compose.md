@@ -50,12 +50,12 @@ docker compose up -d
 
 ## 服务架构
 
-### 1. MySQL 数据库服务 (xiaozhi-mysql)
+### 1. MySQL 数据库服务 (dili-mysql)
 
 **配置信息：**
 - 镜像：`docker.jsdelivr.fyi/mysql:8.0`
 - 端口映射：`23306:3306`
-- 数据库名：`xiaozhi_admin`
+- 数据库名：`dili_admin`
 - 用户名：`root`
 - 密码：`password`
 
@@ -64,10 +64,10 @@ docker compose up -d
 - 配置健康检查
 - 数据持久化
 
-### 2. 主程序服务 (xiaozhi-main-server)
+### 2. 主程序服务 (dili-main-server)
 
 **配置信息：**
-- 镜像：`docker.jsdelivr.fyi/hackers365/xiaozhi_server:0.5`
+- 镜像：`docker.jsdelivr.fyi/hackers365/dili_server:0.5`
 - 端口映射：
   - `8989:8989` - WebSocket 服务
   - `2882:2883` - MQTT 服务
@@ -85,10 +85,10 @@ docker compose up -d
 - Docker 镜像已包含 ten_vad 库（`/workspace/lib/ten-vad/`）
 - 运行时库路径已通过 `LD_LIBRARY_PATH` 自动配置
 
-### 3. 后端管理服务 (xiaozhi-backend)
+### 3. 后端管理服务 (dili-backend)
 
 **配置信息：**
-- 镜像：`docker.jsdelivr.fyi/hackers365/xiaozhi_manager_backend:0.5`
+- 镜像：`docker.jsdelivr.fyi/hackers365/dili_manager_backend:0.5`
 - 端口映射：`8081:8080`
 
 **功能：**
@@ -99,10 +99,10 @@ docker compose up -d
 - 通过卷挂载导入自定义配置文件
 - 配置文件路径：`../../manager/backend/config:/root/config`
 
-### 4. 前端管理服务 (xiaozhi-frontend)
+### 4. 前端管理服务 (dili-frontend)
 
 **配置信息：**
-- 镜像：`docker.jsdelivr.fyi/hackers365/xiaozhi_manager_frontend:0.5`
+- 镜像：`docker.jsdelivr.fyi/hackers365/dili_manager_frontend:0.5`
 - 端口映射：`8080:80`
 
 **功能：**
@@ -125,7 +125,7 @@ docker compose version
 确保以下目录与文件存在：
 
 ```
-xiaozhi-esp32-server-golang/
+dili-esp32-server-golang/
 ├─ docker/docker-composer/
 │  └─ docker-compose.yml
 ├─ config/
@@ -188,7 +188,7 @@ docker compose up -d
 
 ## 网络配置
 
-项目使用自定义网络 `xiaozhi-network`：
+项目使用自定义网络 `dili-network`：
 
 - MySQL：`mysql:3306`
 - 后端：`backend:8080`
@@ -233,7 +233,7 @@ docker compose restart backend
 
 **位置：**
 ```
-xiaozhi-esp32-server-golang/config/
+dili-esp32-server-golang/config/
 ├─ config.yaml
 ├─ config.json
 ├─ mqtt_config.json
@@ -254,7 +254,7 @@ docker compose restart main-server
 
 **位置：**
 ```
-xiaozhi-esp32-server-golang/manager/backend/config/
+dili-esp32-server-golang/manager/backend/config/
 ├─ config.yaml
 └─ (其他配置文件)
 ```
@@ -320,7 +320,7 @@ docker compose exec mysql mysql -u root -ppassword
 cd docker/docker-composer/
 
 docker network ls
-docker network inspect xiaozhi-network
+docker network inspect dili-network
 
 docker compose exec main-server ping mysql
 ```
@@ -351,4 +351,4 @@ docker compose exec main-server ping mysql
 
 ### 配置 ESP32 设备
 
-参考 [ESP32端接入指南](esp32_xiaozhi_backend_guide.md) 完成设备接入。
+参考 [ESP32端接入指南](esp32_dili_backend_guide.md) 完成设备接入。

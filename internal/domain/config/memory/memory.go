@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"xiaozhi-esp32-server-golang/internal/domain/config/types"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/config/types"
+	log "dili-esp32-server-golang/logger"
 )
 
 // MemoryUserConfigProvider 内存用户配置提供者

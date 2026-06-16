@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"xiaozhi-esp32-server-golang/constants"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/openai"
+	"dili-esp32-server-golang/constants"
+	"dili-esp32-server-golang/internal/domain/tts/openai"
 )
 
 type fakeStreamProvider struct {

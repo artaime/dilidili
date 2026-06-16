@@ -19,8 +19,8 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/google/uuid"
 
-	"xiaozhi-esp32-server-golang/constants"
-	"xiaozhi-esp32-server-golang/internal/domain/tts"
+	"dili-esp32-server-golang/constants"
+	"dili-esp32-server-golang/internal/domain/tts"
 )
 
 var sendAudioEndTs int64

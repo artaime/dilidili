@@ -21,8 +21,8 @@
 | 项     | manager/backend 做法 |
 |--------|----------------------|
 | 目录   | 主仓库下 `manager/backend/` |
-| 模块名 | `xiaozhi/manager/backend`（backend 内 go.mod） |
-| 主仓引用 | `replace xiaozhi/manager/backend => ./manager/backend` |
+| 模块名 | `dili/manager/backend`（backend 内 go.mod） |
+| 主仓引用 | `replace dili/manager/backend => ./manager/backend` |
 | 独立运行 | `manager/backend/main.go`：LoadWithPath → database.Init → router.Setup → r.Run() |
 | 主程序内嵌 | `cmd/server/manager_http.go`：同套 config/database/router，自己起 `http.Server` 在另一端口 |
 
@@ -33,13 +33,13 @@
 - **asr_server 须先有独立 Git 仓库**（若当前在 monorepo 里，可先拆成独立 repo，或使用现有 asr_server 仓库的 URL）。
 - **在主仓中添加 submodule**（在主仓根目录执行，且 `asr_server` 目录尚不存在）：
   ```bash
-  cd xiaozhi-esp32-server-golang
+  cd dili-esp32-server-golang
   git submodule add <asr_server 仓库 URL> asr_server
   ```
   完成后主仓会多出：
   - 目录 `asr_server/`（内容为 asr_server 仓库当前检出的一次提交）
   - 文件 `.gitmodules`，以及 `git submodule status` 可看到的子模块记录
-- **目录路径**：主仓内为 `xiaozhi-esp32-server-golang/asr_server/`，与“拷贝方式”一致，主仓 go 代码和 go.mod 的 `replace` 都指向 `./asr_server`。
+- **目录路径**：主仓内为 `dili-esp32-server-golang/asr_server/`，与“拷贝方式”一致，主仓 go 代码和 go.mod 的 `replace` 都指向 `./asr_server`。
 - **模块名**：保持 asr_server 现有模块名 **`voice_server`**（便于其作为独立仓库时直接 `go build`，无需改 import）。
 - **主仓 go.mod**：增加一行：
   - `replace voice_server => ./asr_server`
@@ -53,7 +53,7 @@ git clone --recurse-submodules <主仓 URL>
 
 # 或先克隆再初始化子模块
 git clone <主仓 URL>
-cd xiaozhi-esp32-server-golang
+cd dili-esp32-server-golang
 git submodule update --init --recursive
 ```
 
@@ -84,9 +84,9 @@ git submodule update --init --recursive
 | 位置 | 改动 |
 |------|------|
 | 主仓根 | 执行 `git submodule add <asr_server 仓库 URL> asr_server`，得到 `asr_server/` 目录及 `.gitmodules`（asr_server 需先有独立 Git 仓库） |
-| `xiaozhi-esp32-server-golang/go.mod` | 增加 `replace voice_server => ./asr_server`；若主仓代码要 import voice_server，再在 `require` 中加 `voice_server`（或由 `go mod tidy` 自动补） |
-| `xiaozhi-esp32-server-golang/cmd/server/main.go` | 解析 `-asr-enable`、`-asr-config`；若 enable，在 `Run()` 前调用 `StartAsrServerHTTP(configPath)`；在 `<-quit` 后调用 `StopAsrServerHTTP()` |
-| 新增 `xiaozhi-esp32-server-golang/cmd/server/asr_server_http.go` | 实现 `StartAsrServerHTTP(configPath string)`、`StopAsrServerHTTP()`，内部使用 `voice_server/config`、`voice_server/internal/bootstrap`、`voice_server/internal/router`，与 manager_http 模式一致 |
+| `dili-esp32-server-golang/go.mod` | 增加 `replace voice_server => ./asr_server`；若主仓代码要 import voice_server，再在 `require` 中加 `voice_server`（或由 `go mod tidy` 自动补） |
+| `dili-esp32-server-golang/cmd/server/main.go` | 解析 `-asr-enable`、`-asr-config`；若 enable，在 `Run()` 前调用 `StartAsrServerHTTP(configPath)`；在 `<-quit` 后调用 `StopAsrServerHTTP()` |
+| 新增 `dili-esp32-server-golang/cmd/server/asr_server_http.go` | 实现 `StartAsrServerHTTP(configPath string)`、`StopAsrServerHTTP()`，内部使用 `voice_server/config`、`voice_server/internal/bootstrap`、`voice_server/internal/router`，与 manager_http 模式一致 |
 
 ### 5. asr_server 侧需要配合的暴露
 
@@ -103,7 +103,7 @@ git submodule update --init --recursive
 
 ### 7. 与 manager/backend 的差异说明
 
-- manager/backend 模块名是 `xiaozhi/manager/backend`，asr_server 保持 `voice_server`，这样 asr_server 作为独立仓库时无需改 import。
+- manager/backend 模块名是 `dili/manager/backend`，asr_server 保持 `voice_server`，这样 asr_server 作为独立仓库时无需改 import。
 - 主仓用 `replace voice_server => ./asr_server` 即可，无需改 asr_server 内部包路径。
 - 主程序“初始化”方式一致：不调 asr_server 的 `main()`，只复用 config + bootstrap + router，在主进程内起一个带独立端口的 HTTP 服务。
 
@@ -114,7 +114,7 @@ git submodule update --init --recursive
 - **主程序初始化**：主仓新增 `asr_server_http.go`，按配置在进程内启动 asr_server 的 HTTP 服务（独立端口），逻辑与 `manager_http.go` 对齐。
 
 **构建说明**：asr_server 依赖 sherpa-onnx（CGO），主仓通过**构建标签**将内嵌设为可选：
-- **默认构建**（不启用内嵌 asr_server）：`go build -o xiaozhi_server ./cmd/server`，此时 `-asr-enable` 会打出“未编译进本二进制”的提示。
-- **启用内嵌 asr_server**：`go build -tags asr_server -o xiaozhi_server ./cmd/server`，需本机具备 CGO 及 sherpa-onnx 所需环境。
+- **默认构建**（不启用内嵌 asr_server）：`go build -o dili_server ./cmd/server`，此时 `-asr-enable` 会打出“未编译进本二进制”的提示。
+- **启用内嵌 asr_server**：`go build -tags asr_server -o dili_server ./cmd/server`，需本机具备 CGO 及 sherpa-onnx 所需环境。
 
 如确认按此方案实施，可再细化：asr_server 内 `Shutdown(deps)` 的职责列表、默认端口与配置路径、以及主仓 `main.go` 的参数命名与默认值。

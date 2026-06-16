@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/vad/inter"
+	"dili-esp32-server-golang/internal/domain/vad/inter"
 
 	"github.com/hackers365/go-webrtcvad"
 )

@@ -1,4 +1,4 @@
-module xiaozhi/manager/backend
+module dili/manager/backend
 
 go 1.24.0
 
@@ -21,7 +21,7 @@ require (
 )
 
 // Local dependency
-replace xiaozhi-esp32-server-golang => ../..
+replace dili-esp32-server-golang => ../..
 
 require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect

@@ -2,7 +2,7 @@
 
 ## 1. 目标
 
-基于 `XIAOZHI_OPENCLAW_PROTOCOL.md`，在 `xiaozhi-esp32-server-golang` 中实现 OpenClaw 集成，要求如下：
+基于 `DILI_OPENCLAW_PROTOCOL.md`，在 `dili-esp32-server-golang` 中实现 OpenClaw 集成，要求如下：
 
 1. 控制台不新增独立 OpenClaw 配置页面。
 2. OpenClaw endpoint 生成方式与 MCP endpoint 一致（按智能体生成，token 内含 `user_id`、`agent_id`）。
@@ -176,12 +176,12 @@ OpenClaw OpenClawConfig `json:"openclaw"`
 
 ## 8. 安装步骤（含配置channel）
 
-1. 安装 xiaozhi OpenClaw 插件：
-   `openclaw plugins install @xiaozhi_openclaw/xiaozhi`
+1. 安装 dili OpenClaw 插件：
+   `openclaw plugins install @dili_openclaw/dili`
 2. 在控制台打开智能体 OpenClaw 配置，复制该智能体的 OpenClaw 接入点（`ws(s)://.../ws/openclaw?token=...`）。
 3. 在 OpenClaw 会话中执行“配置channel”：
    - 将上一步接入点直接发给 OpenClaw
-   - 明确告诉它：`配置xiaozhi渠道插件`
+   - 明确告诉它：`配置dili渠道插件`
 4. 配置完成后，使用测试会话发送一条消息，确认能收到 OpenClaw 回复。
 
 ## 9. 验证清单

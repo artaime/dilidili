@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"xiaozhi-esp32-server-golang/constants"
-	"xiaozhi-esp32-server-golang/internal/domain/asr/types"
+	"dili-esp32-server-golang/constants"
+	"dili-esp32-server-golang/internal/domain/asr/types"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"

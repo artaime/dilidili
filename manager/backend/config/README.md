@@ -20,7 +20,7 @@
     "port": "3306",        // 数据库端口
     "username": "root",    // 数据库用户名
     "password": "password", // 数据库密码
-    "database": "xiaozhi_admin" // 数据库名称
+    "database": "dili_admin" // 数据库名称
   },
   "jwt": {
     "secret": "your_secret_key", // JWT签名密钥

@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/audio"
-	"xiaozhi-esp32-server-golang/internal/domain/tts"
-	"xiaozhi-esp32-server-golang/internal/util"
+	"dili-esp32-server-golang/internal/domain/audio"
+	"dili-esp32-server-golang/internal/domain/tts"
+	"dili-esp32-server-golang/internal/util"
 
 	"github.com/gorilla/websocket"
 )
@@ -24,7 +24,7 @@ var detectStartTs int64
 var waitInput = make(chan struct{}, 1)
 var status = "idle"
 
-const defaultDetectText = "你好小智"
+const defaultDetectText = "你好狄哩"
 
 // 消息类型常量
 const (
@@ -198,7 +198,7 @@ func main() {
 
 	flag.Parse()
 
-	fmt.Printf("运行小智客户端\n服务器: %s\n设备ID: %s\n音频文件: %s\n",
+	fmt.Printf("运行狄哩客户端\n服务器: %s\n设备ID: %s\n音频文件: %s\n",
 		*serverAddr, *deviceID, *audioFile)
 
 	speectText = *text
@@ -241,7 +241,7 @@ func main() {
 var OpusData [][]byte
 var firstRecvFrame bool
 
-// runClient 运行小智客户端
+// runClient 运行狄哩客户端
 func runClient(serverAddr, deviceID, audioFile string, testCase *protocolTestCase) error {
 	OpusData = [][]byte{}
 	// 构建WebSocket URL

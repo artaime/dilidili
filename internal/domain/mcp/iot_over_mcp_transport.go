@@ -10,7 +10,7 @@ import (
 	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/mark3labs/mcp-go/mcp"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 )
 
 /**

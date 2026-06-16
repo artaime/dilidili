@@ -1,11 +1,11 @@
 package main
 
 import (
+	"dili/manager/backend/config"
+	"dili/manager/backend/database"
+	"dili/manager/backend/router"
 	"flag"
 	"log"
-	"xiaozhi/manager/backend/config"
-	"xiaozhi/manager/backend/database"
-	"xiaozhi/manager/backend/router"
 
 	"github.com/gin-gonic/gin"
 )

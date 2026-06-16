@@ -77,7 +77,7 @@ RUN ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime || true
 #RUN chmod +x /usr/local/bin/start-service.sh
 
 #COPY . .
-#RUN go build -o /workspace/xiaozhi_server /workspace/xiaozhi/cmd/server/  # 编译生成二进制文件
+#RUN go build -o /workspace/dili_server /workspace/dili/cmd/server/  # 编译生成二进制文件
 
 # 创建启动脚本
 RUN echo '#!/bin/bash' > /start.sh && \

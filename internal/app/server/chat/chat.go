@@ -12,22 +12,22 @@ import (
 
 	"github.com/spf13/viper"
 
-	"xiaozhi-esp32-server-golang/constants"
-	"xiaozhi-esp32-server-golang/internal/app/server/auth"
-	"xiaozhi-esp32-server-golang/internal/app/server/chat/plugins"
-	types_conn "xiaozhi-esp32-server-golang/internal/app/server/types"
-	types_audio 	"xiaozhi-esp32-server-golang/internal/data/audio"
-	. "xiaozhi-esp32-server-golang/internal/data/client"
-	. "xiaozhi-esp32-server-golang/internal/data/msg"
-	parentmsg "xiaozhi-esp32-server-golang/internal/data/parentmessage"
-	chathooks "xiaozhi-esp32-server-golang/internal/domain/chat/hooks"
-	"xiaozhi-esp32-server-golang/internal/domain/chat/devicestate"
-	"xiaozhi-esp32-server-golang/internal/domain/chat/streamtransform"
-	userconfig "xiaozhi-esp32-server-golang/internal/domain/config"
-	"xiaozhi-esp32-server-golang/internal/domain/mcp"
-	"xiaozhi-esp32-server-golang/internal/domain/openclaw"
-	pkghooks "xiaozhi-esp32-server-golang/internal/pkg/hooks"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/constants"
+	"dili-esp32-server-golang/internal/app/server/auth"
+	"dili-esp32-server-golang/internal/app/server/chat/plugins"
+	types_conn "dili-esp32-server-golang/internal/app/server/types"
+	types_audio "dili-esp32-server-golang/internal/data/audio"
+	. "dili-esp32-server-golang/internal/data/client"
+	. "dili-esp32-server-golang/internal/data/msg"
+	parentmsg "dili-esp32-server-golang/internal/data/parentmessage"
+	"dili-esp32-server-golang/internal/domain/chat/devicestate"
+	chathooks "dili-esp32-server-golang/internal/domain/chat/hooks"
+	"dili-esp32-server-golang/internal/domain/chat/streamtransform"
+	userconfig "dili-esp32-server-golang/internal/domain/config"
+	"dili-esp32-server-golang/internal/domain/mcp"
+	"dili-esp32-server-golang/internal/domain/openclaw"
+	pkghooks "dili-esp32-server-golang/internal/pkg/hooks"
+	log "dili-esp32-server-golang/logger"
 )
 
 type ChatManager struct {
@@ -70,11 +70,11 @@ type ChatManager struct {
 	retainedSessionCleanupTarget *ChatSession
 	retainedSessionIdleTimeout   time.Duration
 
-	parentMessageClient      *parentmsg.Client
-	parentMessageMu          sync.Mutex
-	parentMessageState       *parentMessageFlowState
-	parentMessageNotifyOnce  atomic.Bool
-	parentMessageNotifyGen   atomic.Uint64
+	parentMessageClient          *parentmsg.Client
+	parentMessageMu              sync.Mutex
+	parentMessageState           *parentMessageFlowState
+	parentMessageNotifyOnce      atomic.Bool
+	parentMessageNotifyGen       atomic.Uint64
 	parentMessageUDPNotified     atomic.Bool
 	parentMessagePollerStarted   atomic.Bool
 	parentMessagePendingSnapshot map[uint]struct{}
@@ -296,7 +296,7 @@ func applyOutputAudioFormatForTTS(clientState *ClientState) {
 		Format:        types_audio.Format,
 	}
 	ttsType := clientState.DeviceConfig.Tts.Provider
-	if ttsType == constants.TtsTypeXiaozhi {
+	if ttsType == constants.TtsTypeDili {
 		clientState.OutputAudioFormat.SampleRate = 24000
 		clientState.OutputAudioFormat.FrameDuration = 20
 	}

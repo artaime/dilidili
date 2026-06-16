@@ -9,7 +9,7 @@
 ## 示例
 
 ```bash
-go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
+go run ./test/websocket_multi/dili_ws_client_multi.go \
   -server ws://127.0.0.1:8989/dili/v1/ \
   -count 100 \
   -audio_wav ./test/websocket_client/test.wav \
@@ -31,7 +31,7 @@ go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
 ### 1) 50 并发
 
 ```bash
-go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
+go run ./test/websocket_multi/dili_ws_client_multi.go \
   -server ws://127.0.0.1:8989/dili/v1/ \
   -count 50 \
   -audio_wav ./test/websocket_client/test.wav \
@@ -42,7 +42,7 @@ go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
 ### 2) 100 并发
 
 ```bash
-go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
+go run ./test/websocket_multi/dili_ws_client_multi.go \
   -server ws://127.0.0.1:8989/dili/v1/ \
   -count 100 \
   -audio_wav ./test/websocket_client/test.wav \
@@ -53,7 +53,7 @@ go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
 ### 3) 300 并发
 
 ```bash
-go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
+go run ./test/websocket_multi/dili_ws_client_multi.go \
   -server ws://127.0.0.1:8989/dili/v1/ \
   -count 300 \
   -audio_wav ./test/websocket_client/test.wav \
@@ -64,7 +64,7 @@ go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
 ### 4) 500 并发
 
 ```bash
-go run ./test/websocket_multi/xiaozhi_ws_client_multi.go \
+go run ./test/websocket_multi/dili_ws_client_multi.go \
   -server ws://127.0.0.1:8989/dili/v1/ \
   -count 500 \
   -audio_wav ./test/websocket_client/test.wav \

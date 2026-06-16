@@ -1,12 +1,12 @@
-# 🚀 xiaozhi-esp32-server-golang
+# 🚀 dili-esp32-server-golang
 
-> **Xiaozhi AI Backend for ESP32 Devices**
+> **Dili AI Backend for ESP32 Devices**
 
 ---
 
 ## 项目简介 | Project Overview
 
-xiaozhi-esp32-server-golang 是一款高性能、全流式的 AI 后端服务，专为物联网与智能语音场景设计。项目基于 Go 语言开发，集成了 ASR（自动语音识别）、LLM（大语言模型）、TTS（语音合成）等核心能力，支持大规模并发与多协议接入，助力智能终端与边缘设备的 AI 语音交互。
+dili-esp32-server-golang 是一款高性能、全流式的 AI 后端服务，专为物联网与智能语音场景设计。项目基于 Go 语言开发，集成了 ASR（自动语音识别）、LLM（大语言模型）、TTS（语音合成）等核心能力，支持大规模并发与多协议接入，助力智能终端与边缘设备的 AI 语音交互。
 
 ---
 
@@ -29,7 +29,7 @@ xiaozhi-esp32-server-golang 是一款高性能、全流式的 AI 后端服务，
 
 ---
 
-[deepwiki 架构分析](https://deepwiki.com/hackers365/xiaozhi-esp32-server-golang)
+[deepwiki 架构分析](https://deepwiki.com/hackers365/dili-esp32-server-golang)
 
 ## 🚀 快速开始 | Quick Start
 
@@ -37,7 +37,7 @@ xiaozhi-esp32-server-golang 是一款高性能、全流式的 AI 后端服务，
 
 下载对应平台的压缩包，解压后运行即可：
 
-- **Release 页面**：<https://github.com/hackers365/xiaozhi-esp32-server-golang/releases>
+- **Release 页面**：<https://github.com/hackers365/dili-esp32-server-golang/releases>
 - **使用教程**：[doc/quickstart_bundle_tutorial.md](doc/quickstart_bundle_tutorial.md)
 
 启动后访问 **http://<服务器IP或域名>:8080** 进入 Web 控制台进行配置。
@@ -79,10 +79,10 @@ sudo apt install -y libc++1 libc++abi1
 
 ```bash
 # 编译
-go build -o xiaozhi_server ./cmd/server/
+go build -o dili_server ./cmd/server/
 
 # 启动（配置文件详见 config/config.yaml）
-./xiaozhi_server -c config/config.yaml
+./dili_server -c config/config.yaml
 ```
 
 ---
@@ -114,7 +114,7 @@ go build -o xiaozhi_server ./cmd/server/
 - [设备/智能体维度 MCP 远程调用（Endpoint/Tools/Call）](doc/mcp_remote_call_agent_device.md)
 
 ### 设备接入
-- [ESP32 端接入指南](doc/esp32_xiaozhi_backend_guide.md)
+- [ESP32 端接入指南](doc/esp32_dili_backend_guide.md)
 - [OTA MQTT 授权说明](doc/ota_mqtt_auth.md)
 
 ---
@@ -177,4 +177,4 @@ MIT License
 
 ---
 
-> © 2024 xiaozhi-esp32-server-golang
+> © 2024 dili-esp32-server-golang

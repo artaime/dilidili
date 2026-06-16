@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	types_conn "xiaozhi-esp32-server-golang/internal/app/server/types"
-	types_audio "xiaozhi-esp32-server-golang/internal/data/audio"
-	. "xiaozhi-esp32-server-golang/internal/data/client"
-	. "xiaozhi-esp32-server-golang/internal/data/msg"
-	"xiaozhi-esp32-server-golang/internal/domain/speaker"
+	types_conn "dili-esp32-server-golang/internal/app/server/types"
+	types_audio "dili-esp32-server-golang/internal/data/audio"
+	. "dili-esp32-server-golang/internal/data/client"
+	. "dili-esp32-server-golang/internal/data/msg"
+	"dili-esp32-server-golang/internal/domain/speaker"
 )
 
 func newGoodbyeRetentionTestManager(t *testing.T, retainedTTL time.Duration) (*ChatManager, *sessionCloseTestConn, *ChatSession) {

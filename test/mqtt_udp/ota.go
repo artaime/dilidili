@@ -111,7 +111,7 @@ func GetDeviceConfig(deviceInfo *DeviceInfo, deviceID, clientID string, otaUrl s
 	req.Header.Set("Device-Id", deviceID)
 	req.Header.Set("Client-Id", clientID)
 	req.Header.Set("Activation-Version", "1")
-	req.Header.Set("User-Agent", "lc-esp32-s3/xiaozhi-1.6.0")
+	req.Header.Set("User-Agent", "lc-esp32-s3/dili-1.6.0")
 
 	//打印header
 	fmt.Println("header: ", req.Header)
@@ -158,7 +158,7 @@ func CreateDefaultDeviceInfo(uuid string, mac string, boardName string) *DeviceI
 	deviceInfo.ChipInfo.Cores = 2
 	deviceInfo.ChipInfo.Revision = 0
 	deviceInfo.ChipInfo.Features = 20
-	deviceInfo.Application.Name = "xiaozhi"
+	deviceInfo.Application.Name = "dili"
 	deviceInfo.Application.Version = "1.6.0"
 	deviceInfo.Application.CompileTime = "2025-4-16T12:00:00Z"
 	deviceInfo.Application.IDFVersion = "v5.3.2"

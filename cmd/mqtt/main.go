@@ -14,8 +14,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
-	mqtt_server "xiaozhi-esp32-server-golang/internal/app/mqtt_server"
-	log "xiaozhi-esp32-server-golang/logger"
+	mqtt_server "dili-esp32-server-golang/internal/app/mqtt_server"
+	log "dili-esp32-server-golang/logger"
 )
 
 // 初始化函数

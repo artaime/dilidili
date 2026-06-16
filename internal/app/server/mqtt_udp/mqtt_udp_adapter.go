@@ -10,12 +10,12 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 
-	"xiaozhi-esp32-server-golang/internal/app/server/types"
-	"xiaozhi-esp32-server-golang/internal/data/client"
-	. "xiaozhi-esp32-server-golang/internal/data/client"
-	msgdata "xiaozhi-esp32-server-golang/internal/data/msg"
-	. "xiaozhi-esp32-server-golang/logger"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/app/server/types"
+	"dili-esp32-server-golang/internal/data/client"
+	. "dili-esp32-server-golang/internal/data/client"
+	msgdata "dili-esp32-server-golang/internal/data/msg"
+	. "dili-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 )
 
 type MqttConfig struct {

@@ -10,7 +10,7 @@ import (
 	"time"
 	"unicode"
 
-	"xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/logger"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"

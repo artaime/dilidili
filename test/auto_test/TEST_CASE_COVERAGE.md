@@ -8,7 +8,7 @@
 
 主要入口文件：
 
-- `xiaozhi_websocket_client.go`
+- `dili_websocket_client.go`
 - `automation_suite.go`
 - `mqtt_udp_full_suite.go`
 - `ota_mqtt_udp_suite.go`

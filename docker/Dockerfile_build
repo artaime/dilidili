@@ -1,9 +1,9 @@
 # 使用官方 Ubuntu 镜像作为基础镜像
-FROM hackers365/xiaozhi_golang_build:0.1 AS builder
+FROM hackers365/dili_golang_build:0.1 AS builder
 
 WORKDIR /app
 COPY . .
-RUN go build -o /app/xiaozhi_server /app/cmd/server/  # 编译生成二进制文件
+RUN go build -o /app/dili_server /app/cmd/server/  # 编译生成二进制文件
 
 FROM ubuntu:22.04
 
@@ -28,7 +28,7 @@ ENV CGO_LDFLAGS="-L${ONNXRUNTIME_DIR}/lib -lonnxruntime"
 WORKDIR /workspace
 
 # 仅从构建阶段复制编译后的二进制文件（不携带源码和编译依赖）
-COPY --from=builder /app/xiaozhi_server /workspace/bin/xiaozhi_server
+COPY --from=builder /app/dili_server /workspace/bin/dili_server
 # 从构建阶段复制 lib 目录（包含 ten-vad 运行时库）
 COPY --from=builder /app/lib /workspace/lib
 
@@ -41,4 +41,4 @@ ENV LD_LIBRARY_PATH=/workspace/lib:/workspace/lib/ten-vad/lib/Linux/x64
 EXPOSE 8989 8990 1883 2883 8883
 
 # 启动命令
-CMD ["bin/xiaozhi_server", "-c", "config/config.yaml"]
+CMD ["bin/dili_server", "-c", "config/config.yaml"]

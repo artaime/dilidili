@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"xiaozhi/manager/backend/models"
-	mcpmarket "xiaozhi/manager/backend/services/mcp_market"
+	"dili/manager/backend/models"
+	mcpmarket "dili/manager/backend/services/mcp_market"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mark3labs/mcp-go/client"
@@ -626,7 +626,7 @@ func listImportedServiceTools(ctx context.Context, service models.MCPMarketServi
 		Params: mcp.InitializeParams{
 			ProtocolVersion: mcp.LATEST_PROTOCOL_VERSION,
 			ClientInfo: mcp.Implementation{
-				Name:    "xiaozhi-manager-backend",
+				Name:    "dili-manager-backend",
 				Version: "1.0.0",
 			},
 			Capabilities: mcp.ClientCapabilities{

@@ -2,12 +2,12 @@ package websocket
 
 import (
 	"context"
+	"dili-esp32-server-golang/internal/app/server/types"
+	log "dili-esp32-server-golang/logger"
 	"encoding/binary"
 	"errors"
 	"sync"
 	"time"
-	"xiaozhi-esp32-server-golang/internal/app/server/types"
-	log "xiaozhi-esp32-server-golang/logger"
 
 	"github.com/gorilla/websocket"
 )

@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	data_client "xiaozhi-esp32-server-golang/internal/data/client"
-	config_types "xiaozhi-esp32-server-golang/internal/domain/config/types"
-	llm_common "xiaozhi-esp32-server-golang/internal/domain/llm/common"
+	data_client "dili-esp32-server-golang/internal/data/client"
+	config_types "dili-esp32-server-golang/internal/domain/config/types"
+	llm_common "dili-esp32-server-golang/internal/domain/llm/common"
 
 	"github.com/cloudwego/eino/schema"
 	mcp_go "github.com/mark3labs/mcp-go/mcp"

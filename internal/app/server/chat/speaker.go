@@ -3,7 +3,7 @@ package chat
 import (
 	"context"
 
-	"xiaozhi-esp32-server-golang/internal/domain/speaker"
+	"dili-esp32-server-golang/internal/domain/speaker"
 )
 
 // SpeakerManager 声纹识别管理器（包装 SpeakerProvider）

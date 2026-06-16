@@ -5,9 +5,9 @@ package vad
 import (
 	"errors"
 
-	"xiaozhi-esp32-server-golang/constants"
-	"xiaozhi-esp32-server-golang/internal/domain/vad/inter"
-	"xiaozhi-esp32-server-golang/internal/domain/vad/ten_vad"
+	"dili-esp32-server-golang/constants"
+	"dili-esp32-server-golang/internal/domain/vad/inter"
+	"dili-esp32-server-golang/internal/domain/vad/ten_vad"
 )
 
 func AcquireVAD(provider string, config map[string]interface{}) (inter.VAD, error) {

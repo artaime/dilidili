@@ -323,7 +323,7 @@ import (
     "log"
     "time"
     
-    "xiaozhi-esp32-server-golang/internal/domain/config/manager"
+    "dili-esp32-server-golang/internal/domain/config/manager"
 )
 
 func main() {
@@ -360,7 +360,7 @@ func main() {
             
         case "/api/server/info":
             response := map[string]interface{}{
-                "server_name": "xiaozhi-client",
+                "server_name": "dili-client",
                 "version":     "1.0.0",
                 "uptime":      time.Now().Format(time.RFC3339),
             }

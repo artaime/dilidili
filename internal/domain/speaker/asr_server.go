@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 )
 
 // AsrServerProvider asr_server 声纹识别提供者

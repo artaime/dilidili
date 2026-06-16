@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	client "xiaozhi-esp32-server-golang/internal/data/client"
-	"xiaozhi-esp32-server-golang/internal/domain/play_music"
+	client "dili-esp32-server-golang/internal/data/client"
+	"dili-esp32-server-golang/internal/domain/play_music"
 )
 
 func TestDetectRealtimeMcpAudioControlAction(t *testing.T) {

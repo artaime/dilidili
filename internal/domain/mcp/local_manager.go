@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/bytedance/sonic"
 	"github.com/cloudwego/eino/components/tool"

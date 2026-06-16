@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	pkghooks "xiaozhi-esp32-server-golang/internal/pkg/hooks"
-	log "xiaozhi-esp32-server-golang/logger"
+	pkghooks "dili-esp32-server-golang/internal/pkg/hooks"
+	log "dili-esp32-server-golang/logger"
 )
 
 type SyncHandler func(Context, any) (any, bool, error)

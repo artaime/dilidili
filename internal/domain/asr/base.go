@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"xiaozhi-esp32-server-golang/constants"
-	"xiaozhi-esp32-server-golang/internal/domain/asr/doubao"
-	"xiaozhi-esp32-server-golang/internal/domain/asr/types"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/constants"
+	"dili-esp32-server-golang/internal/domain/asr/doubao"
+	"dili-esp32-server-golang/internal/domain/asr/types"
+	log "dili-esp32-server-golang/logger"
 )
 
 // Asr 语音识别接口

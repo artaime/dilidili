@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/llm"
-	"xiaozhi-esp32-server-golang/internal/pool"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/llm"
+	"dili-esp32-server-golang/internal/pool"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/cloudwego/eino/schema"
 )

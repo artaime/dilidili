@@ -32,7 +32,7 @@ internal/components/http/
 ### 创建 Manager 客户端
 
 ```go
-import "xiaozhi-esp32-server-golang/internal/components/http"
+import "dili-esp32-server-golang/internal/components/http"
 
 client := http.NewManagerClient(http.ManagerClientConfig{
     BaseURL:    "http://localhost:8080",

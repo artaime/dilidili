@@ -4,17 +4,17 @@ services:
   # MySQL数据库服务
   mysql:
     image: docker.jsdelivr.fyi/mysql:8.0
-    container_name: xiaozhi-mysql
+    container_name: dili-mysql
     environment:
       MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: xiaozhi_admin
+      MYSQL_DATABASE: dili_admin
     ports:
       - "23306:3306"        #可以不进行映射
     volumes:
       - mysql_data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password --skip-ssl
     networks:
-      - xiaozhi-network
+      - dili-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword"]
@@ -28,7 +28,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.main
-    container_name: xiaozhi-main-server
+    container_name: dili-main-server
     ports:
       - "18989:8989"
       - "12883:2883"
@@ -40,13 +40,13 @@ services:
       - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=password
-      - DB_NAME=xiaozhi_admin
+      - DB_NAME=dili_admin
       - BACKEND_URL=http://backend:8080
     volumes:
       - ../config:/workspace/config
       - ../logs:/workspace/logs
     networks:
-      - xiaozhi-network
+      - dili-network
     restart: unless-stopped
 
   # 后端管理服务
@@ -54,7 +54,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
-    container_name: xiaozhi-backend
+    container_name: dili-backend
     ports:
       - "28080:8080"
     depends_on:
@@ -65,11 +65,11 @@ services:
       - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=password
-      - DB_NAME=xiaozhi_admin
+      - DB_NAME=dili_admin
     volumes:
       - ../manager/backend/config:/root/config
     networks:
-      - xiaozhi-network
+      - dili-network
     restart: unless-stopped
 
   # 前端管理服务
@@ -77,18 +77,18 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend
-    container_name: xiaozhi-frontend
+    container_name: dili-frontend
     ports:
       - "18080:80"
     depends_on:
       - backend
     networks:
-      - xiaozhi-network
+      - dili-network
     restart: unless-stopped
 
 volumes:
   mysql_data:
 
 networks:
-  xiaozhi-network:
+  dili-network:
     driver: bridge

@@ -13,7 +13,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	. "xiaozhi-esp32-server-golang/internal/domain/mcp"
+	. "dili-esp32-server-golang/internal/domain/mcp"
 )
 
 // ExampleMCPInteractive 交互式演示如何使用MCP Host
@@ -142,7 +142,7 @@ func setupMCPConfig() {
 
 	// 设置设备MCP配置
 	viper.Set("mcp.device.enabled", true)
-	viper.Set("mcp.device.websocket_path", "/xiaozhi/mcp/")
+	viper.Set("mcp.device.websocket_path", "/dili/mcp/")
 	viper.Set("mcp.device.max_connections_per_device", 5)
 
 	fmt.Println("   ✓ MCP配置已设置")
@@ -260,7 +260,7 @@ func ExampleWebSocketClient() {
 	fmt.Print(`
 JavaScript客户端示例:
 
-const ws = new WebSocket('ws://localhost:8989/xiaozhi/mcp/device123');
+const ws = new WebSocket('ws://localhost:8989/dili/mcp/device123');
 
 ws.onopen = function() {
     console.log('MCP连接已建立');

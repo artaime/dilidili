@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"xiaozhi-esp32-server-golang/internal/data/audio"
+	"dili-esp32-server-golang/internal/data/audio"
 )
 
 func TestNewQwenTTSProviderDefaultsAndSetVoice(t *testing.T) {

@@ -2,7 +2,7 @@ package storage
 
 import (
 	"context"
-	"xiaozhi/manager/backend/models"
+	"dili/manager/backend/models"
 )
 
 // ConfigAdapter 配置适配器

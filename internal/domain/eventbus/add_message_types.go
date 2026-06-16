@@ -1,8 +1,8 @@
 package eventbus
 
 import (
+	. "dili-esp32-server-golang/internal/data/client"
 	"time"
-	. "xiaozhi-esp32-server-golang/internal/data/client"
 
 	"github.com/cloudwego/eino/schema"
 )

@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/eventbus"
-	"xiaozhi-esp32-server-golang/internal/domain/play_music"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/eventbus"
+	"dili-esp32-server-golang/internal/domain/play_music"
+	log "dili-esp32-server-golang/logger"
 )
 
 type realtimeMusicControlRule struct {

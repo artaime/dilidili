@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/viper"
 
-	"xiaozhi-esp32-server-golang/internal/domain/llm"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/llm"
+	log "dili-esp32-server-golang/logger"
 )
 
 func HandleVllm(deviceId string, file []byte, text string) (string, error) {

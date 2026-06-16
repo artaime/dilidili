@@ -27,7 +27,7 @@
 
 ```mermaid
 flowchart LR
-    Device["ESP32 设备 / WebSocket-MQTT-UDP 客户端"] --> Main["主程序 xiaozhi_server<br/>cmd/server"]
+    Device["ESP32 设备 / WebSocket-MQTT-UDP 客户端"] --> Main["主程序 dili_server<br/>cmd/server"]
     Browser["浏览器"] --> Frontend["控制台前端<br/>manager/frontend"]
     Frontend --> Backend["控制台后端<br/>manager/backend"]
     Main <-->|配置拉取 / 历史记录 / 内部接口| Backend
@@ -139,7 +139,7 @@ voice_identify:
 
 ```bash
 go mod tidy
-go build -o xiaozhi_server ./cmd/server
+go build -o dili_server ./cmd/server
 ```
 
 Windows PowerShell 本地编译启用 Silero VAD 时，需要先让 CGO 找到 ONNX Runtime 头文件和 import library：
@@ -150,13 +150,13 @@ $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
 $env:C_INCLUDE_PATH = "E:\onnxruntime-win-x64-1.21.0\include"
 $env:LIBRARY_PATH = "E:\onnxruntime-win-x64-1.21.0\lib"
 go mod tidy
-go build -o xiaozhi_server.exe ./cmd/server
+go build -o dili_server.exe ./cmd/server
 ```
 
 ### 启动
 
 ```bash
-./xiaozhi_server -c config/config.yaml
+./dili_server -c config/config.yaml
 ```
 
 ### 部署建议
@@ -343,7 +343,7 @@ cd asr_server
 - `asr_server`
 - `embed_ui`
 
-因此，最终产物里的 `xiaozhi_server` 实际上是“主程序 + 控制台后端 + 声纹服务 + 已嵌入的控制台前端”。
+因此，最终产物里的 `dili_server` 实际上是“主程序 + 控制台后端 + 声纹服务 + 已嵌入的控制台前端”。
 
 ### 5.1 前端先构建
 
@@ -366,7 +366,7 @@ cp -r dist/* ../backend/static/dist/
 
 ```bash
 go mod tidy
-go build -tags "nolibopusfile asr_server manager embed_ui" -ldflags "-s -w" -o xiaozhi_server ./cmd/server
+go build -tags "nolibopusfile asr_server manager embed_ui" -ldflags "-s -w" -o dili_server ./cmd/server
 ```
 
 ### 5.3 启动 AIO 包
@@ -382,7 +382,7 @@ CI 打包时会把以下文件一起放到发布目录：
 本地手动运行时可参考：
 
 ```bash
-./xiaozhi_server \
+./dili_server \
   -c main_config.yaml \
   -manager-config manager.json \
   -asr-config asr_server.json
@@ -465,6 +465,6 @@ http://<服务器IP或域名>:8080
 请记住：
 
 - 分离部署：四个服务分别构建、分别运行
-- AIO 打包：前端、后端、声纹服务被一起编进 `xiaozhi_server`
+- AIO 打包：前端、后端、声纹服务被一起编进 `dili_server`
 
 先确定目标形态，再决定构建命令和配置文件。

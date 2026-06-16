@@ -192,7 +192,7 @@ const openClawChatTestForm = ref({ message: '' })
 
 const safeScope = computed(() => (props.scope === 'admin' ? 'admin' : 'user'))
 const agentPath = computed(() => `/${safeScope.value}/agents/${props.agentId}`)
-const openClawDocURL = 'https://github.com/hackers365/xiaozhi-esp32-server-golang/blob/main/doc/openclaw_integration.md'
+const openClawDocURL = 'https://github.com/hackers365/dili-esp32-server-golang/blob/main/doc/openclaw_integration.md'
 
 const mcpStatusText = computed(() => {
   const status = String(mcpEndpointData.value.status || '').toLowerCase()

@@ -3,10 +3,10 @@
     <aside class="sidebar-shell">
       <div class="sidebar-card apple-surface">
         <div class="brand-panel">
-          <img class="brand-mark" :src="appLogo" alt="小智管理系统" />
+          <img class="brand-mark" :src="appLogo" alt="狄哩管理系统" />
           <div class="brand-copy">
             <p class="brand-eyebrow">Control Center</p>
-            <h3>小智管理系统</h3>
+            <h3>狄哩管理系统</h3>
             <p>{{ authStore.isAdmin ? 'AI 服务与设备管理台' : '设备与智能体工作台' }}</p>
           </div>
         </div>

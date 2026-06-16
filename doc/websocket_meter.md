@@ -1,7 +1,7 @@
 ### 压测
 
 ```
-root@hackers365-System-Product-Name:~# docker run -itd --name websocket_meter docker.jsdelivr.fyi/hackers365/xiaozhi_websocket_client                      
+root@hackers365-System-Product-Name:~# docker run -itd --name websocket_meter docker.jsdelivr.fyi/hackers365/dili_websocket_client                      
 87311584e5fef592f32e0b7d7062d9053e956d5e0d50edb220370ff37d2293ac
 root@hackers365-System-Product-Name:~# 
 root@hackers365-System-Product-Name:~# docker exec -it websocket_meter /bin/bash                                                      
@@ -17,7 +17,7 @@ Usage of ./ws_multi:
   -text string
         聊天内容, 多句以逗号分隔会依次发送 (default "你好")
 root@87311584e5fe:/workspace# ./ws_multi -count 1 -server wss://joeyzhou.chat/ws/dili/v1/ -text "你好,在干什么,一起出去玩吧" 
-运行小智客户端
+运行狄哩客户端
 服务器: wss://joeyzhou.chat/ws/dili/v1/
 客户端数量: 1
 发送内容: 你好,在干什么,一起出去玩吧

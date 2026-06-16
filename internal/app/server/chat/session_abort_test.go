@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	client "xiaozhi-esp32-server-golang/internal/data/client"
-	msgdata "xiaozhi-esp32-server-golang/internal/data/msg"
-	"xiaozhi-esp32-server-golang/internal/util"
+	client "dili-esp32-server-golang/internal/data/client"
+	msgdata "dili-esp32-server-golang/internal/data/msg"
+	"dili-esp32-server-golang/internal/util"
 )
 
 func TestHandleAbortMessageRealtimeKeepsSessionContext(t *testing.T) {

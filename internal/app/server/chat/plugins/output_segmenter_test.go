@@ -3,8 +3,9 @@ package plugins
 import (
 	"testing"
 
+	"dili-esp32-server-golang/internal/domain/chat/streamtransform"
+
 	"github.com/cloudwego/eino/schema"
-	"xiaozhi-esp32-server-golang/internal/domain/chat/streamtransform"
 )
 
 func TestOutputSegmenterFlushesOnEnd(t *testing.T) {

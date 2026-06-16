@@ -1,12 +1,12 @@
 package router
 
 import (
+	"dili/manager/backend/config"
+	"dili/manager/backend/controllers"
+	"dili/manager/backend/middleware"
+	"dili/manager/backend/static"
 	"io/fs"
 	"net/http"
-	"xiaozhi/manager/backend/config"
-	"xiaozhi/manager/backend/controllers"
-	"xiaozhi/manager/backend/middleware"
-	"xiaozhi/manager/backend/static"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"

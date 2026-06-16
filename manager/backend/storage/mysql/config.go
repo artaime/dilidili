@@ -1,8 +1,8 @@
 package mysql
 
 import (
+	"dili/manager/backend/config"
 	"fmt"
-	"xiaozhi/manager/backend/config"
 )
 
 // Config MySQL配置

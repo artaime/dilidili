@@ -4,8 +4,8 @@
 
 ### 名词解析
 
-- **xiaozhi-mqtt-gateway:** 虾哥官方 mqtt udp bridge项目，实现了MQTT和UDP协议到WebSocket的转换。该服务允许设备通过MQTT协议进行控制消息传输，同时通过UDP协议高效传输音频数据，并将这些数据桥接到WebSocket服务。[xiaozhi-mqtt-gateway](https://github.com/78/xiaozhi-mqtt-gateway) 
-- **xiaozhi-esp32-server-golang:** 本项目
+- **dili-mqtt-gateway:** 虾哥官方 mqtt udp bridge项目，实现了MQTT和UDP协议到WebSocket的转换。该服务允许设备通过MQTT协议进行控制消息传输，同时通过UDP协议高效传输音频数据，并将这些数据桥接到WebSocket服务。[dili-mqtt-gateway](https://github.com/78/dili-mqtt-gateway) 
+- **dili-esp32-server-golang:** 本项目
 
 ### 整体架构
 
@@ -14,11 +14,11 @@ flowchart TD
     subgraph Device
         A["IoT Device"]
     end
-    subgraph MQTT_UDP_Gateway["xiaozhi-mqtt-gateway"]
+    subgraph MQTT_UDP_Gateway["dili-mqtt-gateway"]
         B["MQTT Server"]
         C["UDP Server"]
     end
-    subgraph Backend["xiaozhi-esp32-server-golang (WebSocket 后端)"]
+    subgraph Backend["dili-esp32-server-golang (WebSocket 后端)"]
         D["WebSocket Server"]
     end
     A -- "信令 (MQTT)" --> B
@@ -37,8 +37,8 @@ flowchart TD
 ---
 1. 克隆仓库
 ```
-git clone 'https://github.com/78/xiaozhi-mqtt-gateway'
-cd xiaozhi-mqtt-gateway
+git clone 'https://github.com/78/dili-mqtt-gateway'
+cd dili-mqtt-gateway
 ```
 2. 安装依赖
 ```
@@ -53,16 +53,16 @@ cp config/mqtt.json.example config/mqtt.json
 
 ### 配置说明
 配置文件 config/mqtt.json 需要包含以下内容:
-- `chat_servers`：填写 小智golang服务器ip和端口，***path必须为/xiaozhi/mqtt_udp/v1/***
+- `chat_servers`：填写 狄哩golang服务器ip和端口，***path必须为/dili/mqtt_udp/v1/***
 ```
 {
   "debug": false,
   "development": {
     "mac_addresss": ["aa:bb:cc:dd:ee:ff"],
-    "chat_servers": ["ws://192.168.0.100:8989/xiaozhi/mqtt_udp/v1/"]
+    "chat_servers": ["ws://192.168.0.100:8989/dili/mqtt_udp/v1/"]
   },
   "production": {
-    "chat_servers": ["ws://192.168.0.100:8989/xiaozhi/mqtt_udp/v1/"]
+    "chat_servers": ["ws://192.168.0.100:8989/dili/mqtt_udp/v1/"]
   }
 }
 ```
@@ -91,7 +91,7 @@ DEBUG=mqtt-server node app.js
 
 ---
 
-## 二、小智golang后端服务配置指南
+## 二、狄哩golang后端服务配置指南
 
 
 
@@ -104,13 +104,13 @@ mqtt:
   broker: "127.0.0.1"
   type: "tcp"
   port: 2883
-  client_id: "xiaozhi_server"
+  client_id: "dili_server"
   username: "admin"
   password: "test!@#"
 ```
 
 #### OTA 配置（设备通过 OTA 获取连接参数）
-- `ota.signature_key`: 需要与xiaozhi-mqtt-bridge中的 .env文件中***MQTT_SIGNATURE_KEY***相同
+- `ota.signature_key`: 需要与dili-mqtt-bridge中的 .env文件中***MQTT_SIGNATURE_KEY***相同
 - `test`/`external`：内外网环境区分
 - `websocket.url`：返回的WebSocket 服务地址
 - `mqtt.endpoint`：MQTT 服务地址和端口

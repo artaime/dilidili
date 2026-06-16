@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	data_client "xiaozhi-esp32-server-golang/internal/data/client"
-	"xiaozhi-esp32-server-golang/internal/data/history"
-	"xiaozhi-esp32-server-golang/internal/domain/eventbus"
-	"xiaozhi-esp32-server-golang/internal/domain/memory/llm_memory"
-	"xiaozhi-esp32-server-golang/internal/util"
-	log "xiaozhi-esp32-server-golang/logger"
+	data_client "dili-esp32-server-golang/internal/data/client"
+	"dili-esp32-server-golang/internal/data/history"
+	"dili-esp32-server-golang/internal/domain/eventbus"
+	"dili-esp32-server-golang/internal/domain/memory/llm_memory"
+	"dili-esp32-server-golang/internal/util"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/spf13/viper"

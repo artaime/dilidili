@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 if ($args.Count -eq 0) {
     Write-Host "[dev-go] usage:"
     Write-Host "  scripts\dev-go.cmd run .\cmd\server -c config\config.yaml"
-    Write-Host "  scripts\dev-go.cmd build -o xiaozhi_server.exe .\cmd\server"
+    Write-Host "  scripts\dev-go.cmd build -o dili_server.exe .\cmd\server"
     exit 1
 }
 

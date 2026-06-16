@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 
-	i_redis "xiaozhi-esp32-server-golang/internal/db/redis"
-	"xiaozhi-esp32-server-golang/internal/domain/config/types"
+	i_redis "dili-esp32-server-golang/internal/db/redis"
+	"dili-esp32-server-golang/internal/domain/config/types"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"

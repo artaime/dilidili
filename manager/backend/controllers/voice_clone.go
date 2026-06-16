@@ -21,9 +21,9 @@ import (
 	"strings"
 	"time"
 
-	"xiaozhi/manager/backend/config"
-	"xiaozhi/manager/backend/models"
-	"xiaozhi/manager/backend/storage"
+	"dili/manager/backend/config"
+	"dili/manager/backend/models"
+	"dili/manager/backend/storage"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

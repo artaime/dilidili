@@ -1,12 +1,12 @@
-# 小智服务 Windows 使用说明
+# 狄哩服务 Windows 使用说明
 
-欢迎使用小智服务 Windows aio 包。本文档包含启动、配置和端口说明。
+欢迎使用狄哩服务 Windows aio 包。本文档包含启动、配置和端口说明。
 
 ## 目录结构
 
 ```
-xiaozhi_server-windows-amd64-<version>/
-├── xiaozhi_server.exe          # 主程序
+dili_server-windows-amd64-<version>/
+├── dili_server.exe          # 主程序
 ├── onnxruntime.dll             # ONNX Runtime 依赖库
 ├── sherpa-onnx-c-api.dll       # Sherpa-ONNX 依赖库
 ├── sherpa-onnx-cxx-api.dll     # Sherpa-ONNX C++ 依赖库
@@ -87,7 +87,7 @@ xiaozhi_server-windows-amd64-<version>/
 
 ### DLL 缺失
 
-如果提示缺少 DLL 文件，请确保以下文件与 `xiaozhi_server.exe` 在同一目录：
+如果提示缺少 DLL 文件，请确保以下文件与 `dili_server.exe` 在同一目录：
 - `onnxruntime.dll`
 - `sherpa-onnx-c-api.dll`
 - `sherpa-onnx-cxx-api.dll`

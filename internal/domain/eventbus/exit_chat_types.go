@@ -3,7 +3,7 @@ package eventbus
 import (
 	"time"
 
-	. "xiaozhi-esp32-server-golang/internal/data/client"
+	. "dili-esp32-server-golang/internal/data/client"
 )
 
 // ExitChatEvent 退出聊天事件

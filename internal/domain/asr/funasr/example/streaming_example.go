@@ -10,7 +10,7 @@ import (
 	"github.com/go-audio/audio"
 	"github.com/go-audio/wav"
 
-	"xiaozhi-esp32-server-golang/internal/domain/asr/funasr"
+	"dili-esp32-server-golang/internal/domain/asr/funasr"
 )
 
 // readWavFile 读取WAV文件并转换为PCM []float32数据

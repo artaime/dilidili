@@ -1,11 +1,11 @@
 package websocket
 
 import (
+	"dili-esp32-server-golang/internal/app/server/chat"
+	log "dili-esp32-server-golang/logger"
 	"io"
 	"net/http"
 	"strings"
-	"xiaozhi-esp32-server-golang/internal/app/server/chat"
-	log "xiaozhi-esp32-server-golang/logger"
 
 	"github.com/spf13/viper"
 )

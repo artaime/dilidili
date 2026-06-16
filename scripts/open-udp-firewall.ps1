@@ -1,7 +1,7 @@
-# 为本地 Xiaozhi UDP 语音端口放行入站（默认 8990）
+# 为本地 Dili UDP 语音端口放行入站（默认 8990）
 param(
     [int]$Port = 8990,
-    [string]$RuleName = "Xiaozhi-UDP-Voice"
+    [string]$RuleName = "Dili-UDP-Voice"
 )
 
 $ErrorActionPreference = "Stop"

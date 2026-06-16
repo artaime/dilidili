@@ -3,7 +3,7 @@ package rag
 import (
 	"context"
 
-	config_types "xiaozhi-esp32-server-golang/internal/domain/config/types"
+	config_types "dili-esp32-server-golang/internal/domain/config/types"
 )
 
 // Searcher 按 provider 实现知识库检索。

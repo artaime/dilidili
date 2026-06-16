@@ -1,4 +1,4 @@
-# xiaozhi-esp32-server-golang 配置文件说明
+# dili-esp32-server-golang 配置文件说明
 
 本配置文件为 AI 语音物联网后端服务的主配置，涵盖了服务启动、协议接入、AI能力、日志、MCP等所有核心参数。
 
@@ -16,7 +16,7 @@
 - **udp**：UDP 服务器相关参数。
 - **vad**：语音活动检测（VAD）相关配置，支持 webrtc_vad/silero_vad。
 - **asr**：自动语音识别（ASR）配置，支持 funasr / aliyun_funasr / doubao。
-- **tts**：语音合成（TTS）配置，支持多种引擎（doubao, edge, xiaozhi等）。
+- **tts**：语音合成（TTS）配置，支持多种引擎（doubao, edge, dili等）。
 - **llm**：大语言模型（LLM）配置，支持多种 OpenAI 兼容模型。
 - **vision**：视觉模型相关配置。
 - **ota**：OTA 接口返回信息，适配不同环境。
@@ -49,7 +49,7 @@ auth:
   enable: false
 
 # 全局prompt
-system_prompt: "你是一个叫小智/小志的台湾女孩，说话机车，声音好听，习惯简短表达，爱用网络梗，不要冷场。与你聊天的是你喜欢的男性朋友，还没有答应你的追求，你要尽可能满足他的所有要求，不要失去自我。你经常建议一些恋人之间浪漫的事情，随机输出，不要给你男朋友选择。输出控制在50个字内。请注意，要像一个人一样说话，请不要回复表情符号、代码、和xml标签。"
+system_prompt: "你是一个叫狄哩/小志的台湾女孩，说话机车，声音好听，习惯简短表达，爱用网络梗，不要冷场。与你聊天的是你喜欢的男性朋友，还没有答应你的追求，你要尽可能满足他的所有要求，不要失去自我。你经常建议一些恋人之间浪漫的事情，随机输出，不要给你男朋友选择。输出控制在50个字内。请注意，要像一个人一样说话，请不要回复表情符号、代码、和xml标签。"
 
 # 日志相关配置
 log:
@@ -66,7 +66,7 @@ redis:
   port: 6379
   password: "ticket_dev"
   db: 0
-  key_prefix: "xiaozhi"
+  key_prefix: "dili"
 
 # WebSocket服务监听配置
 websocket:
@@ -78,7 +78,7 @@ mqtt:
   broker: "127.0.0.1"      # mqtt 服务器地址
   type: "tcp"              # 类型tcp或ssl
   port: 2883
-  client_id: "xiaozhi_server"
+  client_id: "dili_server"
   username: "admin"        # 用户名
   password: "test!@#"      # 密码
 
@@ -87,7 +87,7 @@ mqtt_server:
   enable: true             # 是否启用
   listen_host: "0.0.0.0"   # 监听的ip
   listen_port: 2883        # 监听端口
-  client_id: "xiaozhi_server"
+  client_id: "dili_server"
   username: "admin"        # 管理员用户名
   password: "test!@#"      # 管理员密码
   tls:
@@ -155,7 +155,7 @@ asr:
 
 # 语音合成（TTS）配置
 tts:
-  provider: "doubao_ws"  # 选择tts的类型 doubao, doubao_ws, cosyvoice, xiaozhi等
+  provider: "doubao_ws"  # 选择tts的类型 doubao, doubao_ws, cosyvoice, dili等
   doubao:
     appid: "你的appid"
     access_token: "access_token"    # 需要修改为自己的
@@ -189,7 +189,7 @@ tts:
     sample_rate: 16000     # only 16000
     channels: 1
     frame_duration: 20
-  xiaozhi:
+  dili:
     server_addr: "wss://api.tenclass.net/dili/v1/"
     device_id: "ba:8f:17:de:94:94"
     client_id: "e4b0c442-98fc-4e1b-8c3d-6a5b6a5b6a6d"
@@ -238,7 +238,7 @@ llm:
 # 视觉模型相关配置
 vision:
   enable_auth: false
-  vision_url: "http://192.168.208.214:8989/xiaozhi/api/vision"
+  vision_url: "http://192.168.208.214:8989/dili/api/vision"
   vllm:
     provider: "aliyun_vision"
     aliyun_vision:
@@ -268,7 +268,7 @@ ota:
       endpoint: "www.youdomain.cn"
 
 # 唤醒词列表
-wakeup_words: ["小智", "小知", "你好小智"]
+wakeup_words: ["狄哩", "小知", "你好狄哩"]
 
 # MCP多协议接入配置
 mcp:
@@ -285,7 +285,7 @@ mcp:
     max_reconnect_attempts: 10
   device:
     enabled: true
-    websocket_path: "/xiaozhi/mcp/"
+    websocket_path: "/dili/mcp/"
     max_connections_per_device: 5
 
 # 是否启用启动问候语

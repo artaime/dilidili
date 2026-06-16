@@ -2,7 +2,7 @@ package user_config
 
 import (
 	"context"
-	"xiaozhi-esp32-server-golang/internal/domain/config/types"
+	"dili-esp32-server-golang/internal/domain/config/types"
 )
 
 // UserConfigProvider 用户配置提供者接口

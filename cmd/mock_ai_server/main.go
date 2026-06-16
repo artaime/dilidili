@@ -15,7 +15,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"xiaozhi-esp32-server-golang/internal/util"
+	"dili-esp32-server-golang/internal/util"
 )
 
 type serverConfig struct {

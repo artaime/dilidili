@@ -10,11 +10,11 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"xiaozhi-esp32-server-golang/internal/domain/asr/doubao/request"
-	"xiaozhi-esp32-server-golang/internal/domain/asr/doubao/response"
-	"xiaozhi-esp32-server-golang/internal/util"
+	"dili-esp32-server-golang/internal/domain/asr/doubao/request"
+	"dili-esp32-server-golang/internal/domain/asr/doubao/response"
+	"dili-esp32-server-golang/internal/util"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 )
 
 type AsrWsClient struct {

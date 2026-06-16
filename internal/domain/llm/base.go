@@ -7,10 +7,10 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"xiaozhi-esp32-server-golang/constants"
-	"xiaozhi-esp32-server-golang/internal/domain/llm/coze_llm"
-	"xiaozhi-esp32-server-golang/internal/domain/llm/dify_llm"
-	"xiaozhi-esp32-server-golang/internal/domain/llm/eino_llm"
+	"dili-esp32-server-golang/constants"
+	"dili-esp32-server-golang/internal/domain/llm/coze_llm"
+	"dili-esp32-server-golang/internal/domain/llm/dify_llm"
+	"dili-esp32-server-golang/internal/domain/llm/eino_llm"
 )
 
 // LLMExtraErrorKey 错误透传约定：ResponseWithContext 失败时在 Message.Extra 中使用的 key

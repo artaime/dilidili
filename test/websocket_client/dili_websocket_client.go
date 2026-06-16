@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/audio"
-	"xiaozhi-esp32-server-golang/internal/domain/tts"
-	"xiaozhi-esp32-server-golang/internal/util"
+	"dili-esp32-server-golang/internal/domain/audio"
+	"dili-esp32-server-golang/internal/domain/tts"
+	"dili-esp32-server-golang/internal/util"
 
 	"github.com/gorilla/websocket"
 )
@@ -150,7 +150,7 @@ func main() {
 
 	flag.Parse()
 
-	fmt.Printf("运行小智客户端\n服务器: %s\n设备ID: %s\n音频文件: %s\n",
+	fmt.Printf("运行狄哩客户端\n服务器: %s\n设备ID: %s\n音频文件: %s\n",
 		*serverAddr, *deviceID, *audioFile)
 
 	speectText = *text
@@ -169,7 +169,7 @@ func main() {
 var OpusData [][]byte
 var firstRecvFrame bool
 
-// runClient 运行小智客户端
+// runClient 运行狄哩客户端
 func runClient(serverAddr, deviceID, audioFile string) error {
 	OpusData = [][]byte{}
 	// 构建WebSocket URL
@@ -636,7 +636,7 @@ func sendTextToSpeech(conn *websocket.Conn, deviceID string) error {
 	}
 
 	//发送detect 消息
-	sendListenDetect(conn, deviceID, "你好小智")
+	sendListenDetect(conn, deviceID, "你好狄哩")
 
 	// 新增：等待用户输入文本
 	reader := bufio.NewReader(os.Stdin)

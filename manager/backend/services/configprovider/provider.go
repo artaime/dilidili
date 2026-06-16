@@ -17,7 +17,7 @@ var knownProviders = map[string]map[string]struct{}{
 	},
 	"tts": {
 		"doubao": {}, "doubao_ws": {}, "cosyvoice": {}, "edge": {}, "edge_offline": {},
-		"xiaozhi": {}, "xunfei": {}, "xunfei_super_tts": {}, "openai": {}, "zhipu": {},
+		"dili": {}, "xunfei": {}, "xunfei_super_tts": {}, "openai": {}, "zhipu": {},
 		"minimax": {}, "aliyun_qwen": {}, "indextts_vllm": {},
 	},
 	"memory": {

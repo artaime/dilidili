@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/components/http"
+	"dili-esp32-server-golang/internal/components/http"
 )
 
 type ClientConfig struct {

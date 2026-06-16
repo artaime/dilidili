@@ -2,7 +2,7 @@
 
 人类主入口。智能体见 [AGENTS.md](../../AGENTS.md)。
 
-**项目**：xiaozhi-esp32-server-golang · **档位**：full · **栈**：Go 1.24 主服务 + Gin 管理后端 + Vue 前端
+**项目**：dili-esp32-server-golang · **档位**：full · **栈**：Go 1.24 主服务 + Gin 管理后端 + Vue 前端
 
 ---
 

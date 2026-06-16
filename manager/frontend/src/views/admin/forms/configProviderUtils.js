@@ -7,7 +7,7 @@ const providers = {
     'cosyvoice',
     'edge',
     'edge_offline',
-    'xiaozhi',
+    'dili',
     'xunfei',
     'xunfei_super_tts',
     'openai',

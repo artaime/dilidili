@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	types_conn "xiaozhi-esp32-server-golang/internal/app/server/types"
-	. "xiaozhi-esp32-server-golang/internal/data/client"
+	types_conn "dili-esp32-server-golang/internal/app/server/types"
+	. "dili-esp32-server-golang/internal/data/client"
 )
 
 func TestScheduleMcpInitLocked_ReinitializesWhenRuntimeDriftsFromReadyState(t *testing.T) {

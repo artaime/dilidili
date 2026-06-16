@@ -2,17 +2,17 @@ package chat
 
 import (
 	"context"
+	"dili-esp32-server-golang/internal/app/server/mqtt_udp"
+	types_conn "dili-esp32-server-golang/internal/app/server/types"
+	types_audio "dili-esp32-server-golang/internal/data/audio"
+	. "dili-esp32-server-golang/internal/data/client"
+	. "dili-esp32-server-golang/internal/data/msg"
+	log "dili-esp32-server-golang/logger"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
-	"xiaozhi-esp32-server-golang/internal/app/server/mqtt_udp"
-	types_conn "xiaozhi-esp32-server-golang/internal/app/server/types"
-	types_audio "xiaozhi-esp32-server-golang/internal/data/audio"
-	. "xiaozhi-esp32-server-golang/internal/data/client"
-	. "xiaozhi-esp32-server-golang/internal/data/msg"
-	log "xiaozhi-esp32-server-golang/logger"
 )
 
 // ServerTransport handles sending messages to the client via the transport layer
@@ -144,7 +144,7 @@ func (s *ServerTransport) SendHello(transportType string, audioFormat *types_aud
 	msg := ServerMessage{
 		Type:        MessageTypeHello,
 		Version:     3,
-		Text:        "欢迎使用小智服务器",
+		Text:        "欢迎使用狄哩服务器",
 		SessionID:   s.clientState.SessionID,
 		Transport:   transportType,
 		AudioFormat: audioFormat,

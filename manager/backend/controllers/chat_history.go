@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"crypto/md5"
+	"dili/manager/backend/models"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
-	"xiaozhi/manager/backend/models"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"

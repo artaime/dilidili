@@ -35,18 +35,18 @@ jobs:
 
       - name: Build Windows package with Docker
         run: |
-          docker build --target builder -f docker/Dockerfile.windows -t xiaozhi-build-windows .
-          docker create --name xiaozhi_windows xiaozhi-build-windows
-          docker cp xiaozhi_windows:/out ./out
-          docker rm xiaozhi_windows
-          rm -rf "out/xiaozhi_server-windows-amd64-${VERSION}"
-          mv out/windows-amd64 "out/xiaozhi_server-windows-amd64-${VERSION}"
+          docker build --target builder -f docker/Dockerfile.windows -t dili-build-windows .
+          docker create --name dili_windows dili-build-windows
+          docker cp dili_windows:/out ./out
+          docker rm dili_windows
+          rm -rf "out/dili_server-windows-amd64-${VERSION}"
+          mv out/windows-amd64 "out/dili_server-windows-amd64-${VERSION}"
 
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
-          name: xiaozhi_server-windows-amd64-${{ env.VERSION }}
-          path: out/xiaozhi_server-windows-amd64-${{ env.VERSION }}
+          name: dili_server-windows-amd64-${{ env.VERSION }}
+          path: out/dili_server-windows-amd64-${{ env.VERSION }}
 
   build-linux-amd64:
     runs-on: ubuntu-latest
@@ -70,18 +70,18 @@ jobs:
 
       - name: Build Linux package with Docker
         run: |
-          docker build --target builder -f docker/Dockerfile.linux -t xiaozhi-build-linux .
-          docker create --name xiaozhi_linux xiaozhi-build-linux
-          docker cp xiaozhi_linux:/out ./out
-          docker rm xiaozhi_linux
-          rm -rf "out/xiaozhi_server-linux-amd64-${VERSION}"
-          mv out/linux-amd64 "out/xiaozhi_server-linux-amd64-${VERSION}"
+          docker build --target builder -f docker/Dockerfile.linux -t dili-build-linux .
+          docker create --name dili_linux dili-build-linux
+          docker cp dili_linux:/out ./out
+          docker rm dili_linux
+          rm -rf "out/dili_server-linux-amd64-${VERSION}"
+          mv out/linux-amd64 "out/dili_server-linux-amd64-${VERSION}"
 
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
         with:
-          name: xiaozhi_server-linux-amd64-${{ env.VERSION }}
-          path: out/xiaozhi_server-linux-amd64-${{ env.VERSION }}
+          name: dili_server-linux-amd64-${{ env.VERSION }}
+          path: out/dili_server-linux-amd64-${{ env.VERSION }}
 
   build-macos:
     strategy:
@@ -184,35 +184,35 @@ jobs:
           go mod tidy
           go build -v -tags "nolibopusfile asr_server manager embed_ui" \
             -ldflags "-s -w" \
-            -o xiaozhi_server ./cmd/server
+            -o dili_server ./cmd/server
 
       - name: Pack macOS release
         run: |
           ARCH="${{ matrix.arch }}"
-          PACK_DIR="out/macos-${ARCH}/xiaozhi_server-macos-${ARCH}"
+          PACK_DIR="out/macos-${ARCH}/dili_server-macos-${ARCH}"
           mkdir -p "$PACK_DIR/ten-vad/lib/macOS" "$PACK_DIR/logs"
 
-          cp xiaozhi_server "$PACK_DIR/"
+          cp dili_server "$PACK_DIR/"
           cp build/common/main_config.yaml build/common/manager.json build/common/asr_server.json "$PACK_DIR/"
           cp doc/aio/README_macos.md "$PACK_DIR/README.md"
           cp -r build/common/models build/common/data "$PACK_DIR/"
-          rm -f "$PACK_DIR/data/xiaozhi.db"
+          rm -f "$PACK_DIR/data/dili.db"
           cp -R lib/ten-vad/lib/macOS/ten_vad.framework "$PACK_DIR/ten-vad/lib/macOS/"
           # Copy all sherpa dylibs, including versioned files like libonnxruntime.1.17.1.dylib.
           cp "$SHERPA_LIB_DIR"/*.dylib "$PACK_DIR/ten-vad/lib/macOS/"
-          chmod +x "$PACK_DIR/xiaozhi_server"
+          chmod +x "$PACK_DIR/dili_server"
           chmod +x ./build/macos/fix_rpath.sh
-          ./build/macos/fix_rpath.sh "$PACK_DIR/xiaozhi_server"
-          otool -L "$PACK_DIR/xiaozhi_server" | grep -E "libonnxruntime|libsherpa-onnx" || true
+          ./build/macos/fix_rpath.sh "$PACK_DIR/dili_server"
+          otool -L "$PACK_DIR/dili_server" | grep -E "libonnxruntime|libsherpa-onnx" || true
 
-          rm -rf "out/xiaozhi_server-macos-${ARCH}-${VERSION}"
-          mv "out/macos-${ARCH}" "out/xiaozhi_server-macos-${ARCH}-${VERSION}"
+          rm -rf "out/dili_server-macos-${ARCH}-${VERSION}"
+          mv "out/macos-${ARCH}" "out/dili_server-macos-${ARCH}-${VERSION}"
 
       - name: Upload macOS package
         uses: actions/upload-artifact@v4
         with:
-          name: xiaozhi_server-macos-${{ matrix.arch }}-${{ env.VERSION }}
-          path: out/xiaozhi_server-macos-${{ matrix.arch }}-${{ env.VERSION }}
+          name: dili_server-macos-${{ matrix.arch }}-${{ env.VERSION }}
+          path: out/dili_server-macos-${{ matrix.arch }}-${{ env.VERSION }}
 
   release:
     needs:
@@ -227,34 +227,34 @@ jobs:
       - name: Download Windows package
         uses: actions/download-artifact@v4
         with:
-          name: xiaozhi_server-windows-amd64-${{ env.VERSION }}
-          path: release/xiaozhi_server-windows-amd64-${{ env.VERSION }}
+          name: dili_server-windows-amd64-${{ env.VERSION }}
+          path: release/dili_server-windows-amd64-${{ env.VERSION }}
 
       - name: Download Linux package
         uses: actions/download-artifact@v4
         with:
-          name: xiaozhi_server-linux-amd64-${{ env.VERSION }}
-          path: release/xiaozhi_server-linux-amd64-${{ env.VERSION }}
+          name: dili_server-linux-amd64-${{ env.VERSION }}
+          path: release/dili_server-linux-amd64-${{ env.VERSION }}
 
       - name: Download macOS amd64 package
         uses: actions/download-artifact@v4
         with:
-          name: xiaozhi_server-macos-amd64-${{ env.VERSION }}
-          path: release/xiaozhi_server-macos-amd64-${{ env.VERSION }}
+          name: dili_server-macos-amd64-${{ env.VERSION }}
+          path: release/dili_server-macos-amd64-${{ env.VERSION }}
 
       - name: Download macOS arm64 package
         uses: actions/download-artifact@v4
         with:
-          name: xiaozhi_server-macos-arm64-${{ env.VERSION }}
-          path: release/xiaozhi_server-macos-arm64-${{ env.VERSION }}
+          name: dili_server-macos-arm64-${{ env.VERSION }}
+          path: release/dili_server-macos-arm64-${{ env.VERSION }}
 
       - name: Pack release zip
         run: |
           cd release
-          zip -r "xiaozhi_server-windows-amd64-${VERSION}.zip" "xiaozhi_server-windows-amd64-${VERSION}"
-          zip -r "xiaozhi_server-linux-amd64-${VERSION}.zip" "xiaozhi_server-linux-amd64-${VERSION}"
-          zip -r "xiaozhi_server-macos-amd64-${VERSION}.zip" "xiaozhi_server-macos-amd64-${VERSION}"
-          zip -r "xiaozhi_server-macos-arm64-${VERSION}.zip" "xiaozhi_server-macos-arm64-${VERSION}"
+          zip -r "dili_server-windows-amd64-${VERSION}.zip" "dili_server-windows-amd64-${VERSION}"
+          zip -r "dili_server-linux-amd64-${VERSION}.zip" "dili_server-linux-amd64-${VERSION}"
+          zip -r "dili_server-macos-amd64-${VERSION}.zip" "dili_server-macos-amd64-${VERSION}"
+          zip -r "dili_server-macos-arm64-${VERSION}.zip" "dili_server-macos-arm64-${VERSION}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -264,9 +264,9 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            release/xiaozhi_server-windows-amd64-${{ env.VERSION }}.zip
-            release/xiaozhi_server-linux-amd64-${{ env.VERSION }}.zip
-            release/xiaozhi_server-macos-amd64-${{ env.VERSION }}.zip
-            release/xiaozhi_server-macos-arm64-${{ env.VERSION }}.zip
+            release/dili_server-windows-amd64-${{ env.VERSION }}.zip
+            release/dili_server-linux-amd64-${{ env.VERSION }}.zip
+            release/dili_server-macos-amd64-${{ env.VERSION }}.zip
+            release/dili_server-macos-arm64-${{ env.VERSION }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -3,7 +3,7 @@ package llm
 import (
 	"context"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/cloudwego/eino/schema"
 )

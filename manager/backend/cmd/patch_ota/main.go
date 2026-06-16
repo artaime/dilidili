@@ -1,5 +1,5 @@
 // 修补控制台 SQLite：OTA/UDP/MQTT（方案 A，AIToy TLS 8883）
-// 用法: cd manager/backend && go run ./cmd/patch_ota -db <path/to/xiaozhi.db>
+// 用法: cd manager/backend && go run ./cmd/patch_ota -db <path/to/dili.db>
 package main
 
 import (
@@ -22,7 +22,7 @@ type configRow struct {
 func (configRow) TableName() string { return "configs" }
 
 func main() {
-	dbPath := flag.String("db", "", "path to xiaozhi.db")
+	dbPath := flag.String("db", "", "path to dili.db")
 	lanIP := flag.String("ip", "192.168.0.55", "LAN IP")
 	flag.Parse()
 	if *dbPath == "" {
@@ -135,7 +135,7 @@ func applyMQTTClient(data map[string]interface{}) {
 	data["broker"] = "127.0.0.1"
 	data["type"] = "tcp"
 	data["port"] = 2883
-	data["client_id"] = "xiaozhi_server"
+	data["client_id"] = "dili_server"
 	if _, ok := data["username"]; !ok {
 		data["username"] = "admin"
 	}

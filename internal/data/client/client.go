@@ -11,16 +11,16 @@ import (
 
 	"sync"
 
-	utypes "xiaozhi-esp32-server-golang/internal/domain/config/types"
-	"xiaozhi-esp32-server-golang/internal/domain/llm"
-	llm_common "xiaozhi-esp32-server-golang/internal/domain/llm/common"
-	"xiaozhi-esp32-server-golang/internal/domain/memory"
-	"xiaozhi-esp32-server-golang/internal/domain/speaker"
-	"xiaozhi-esp32-server-golang/internal/domain/tts"
+	utypes "dili-esp32-server-golang/internal/domain/config/types"
+	"dili-esp32-server-golang/internal/domain/llm"
+	llm_common "dili-esp32-server-golang/internal/domain/llm/common"
+	"dili-esp32-server-golang/internal/domain/memory"
+	"dili-esp32-server-golang/internal/domain/speaker"
+	"dili-esp32-server-golang/internal/domain/tts"
 
-	. "xiaozhi-esp32-server-golang/internal/data/audio"
+	. "dili-esp32-server-golang/internal/data/audio"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/spf13/viper"

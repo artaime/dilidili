@@ -12,7 +12,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/spf13/viper"
 
-	"xiaozhi-esp32-server-golang/internal/domain/llm"
+	"dili-esp32-server-golang/internal/domain/llm"
 )
 
 type CaseResult struct {

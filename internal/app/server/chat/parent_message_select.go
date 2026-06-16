@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	parentmsg "xiaozhi-esp32-server-golang/internal/data/parentmessage"
-	"xiaozhi-esp32-server-golang/internal/domain/chat/intent"
-	log "xiaozhi-esp32-server-golang/logger"
+	parentmsg "dili-esp32-server-golang/internal/data/parentmessage"
+	"dili-esp32-server-golang/internal/domain/chat/intent"
+	log "dili-esp32-server-golang/logger"
 )
 
 const parentMessageSelectSearchLimit = 100

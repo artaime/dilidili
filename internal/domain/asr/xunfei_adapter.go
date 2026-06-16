@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	asrtypes "xiaozhi-esp32-server-golang/internal/domain/asr/types"
-	"xiaozhi-esp32-server-golang/internal/domain/asr/xunfei"
+	asrtypes "dili-esp32-server-golang/internal/domain/asr/types"
+	"dili-esp32-server-golang/internal/domain/asr/xunfei"
 )
 
 type XunfeiAdapter struct {

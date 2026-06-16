@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/asr/doubao"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/asr/doubao"
+	log "dili-esp32-server-golang/logger"
 )
 
 const (

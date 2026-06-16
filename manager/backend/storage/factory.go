@@ -3,9 +3,9 @@ package storage
 import (
 	"fmt"
 
-	"xiaozhi/manager/backend/config"
-	"xiaozhi/manager/backend/storage/mysql"
-	"xiaozhi/manager/backend/storage/sqlite"
+	"dili/manager/backend/config"
+	"dili/manager/backend/storage/mysql"
+	"dili/manager/backend/storage/sqlite"
 )
 
 // StorageType 存储类型

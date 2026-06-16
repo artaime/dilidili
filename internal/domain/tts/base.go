@@ -6,19 +6,18 @@ import (
 	"net/url"
 	"strings"
 
-	"xiaozhi-esp32-server-golang/constants"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/cosyvoice"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/doubao"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/edge"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/edge_offline"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/minimax"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/openai"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/qwen"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/streaming"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/xiaozhi"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/xunfei"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/xunfei_super_tts"
-	"xiaozhi-esp32-server-golang/internal/domain/tts/zhipu"
+	"dili-esp32-server-golang/constants"
+	"dili-esp32-server-golang/internal/domain/tts/cosyvoice"
+	"dili-esp32-server-golang/internal/domain/tts/doubao"
+	"dili-esp32-server-golang/internal/domain/tts/edge"
+	"dili-esp32-server-golang/internal/domain/tts/edge_offline"
+	"dili-esp32-server-golang/internal/domain/tts/minimax"
+	"dili-esp32-server-golang/internal/domain/tts/openai"
+	"dili-esp32-server-golang/internal/domain/tts/qwen"
+	"dili-esp32-server-golang/internal/domain/tts/streaming"
+	"dili-esp32-server-golang/internal/domain/tts/xunfei"
+	"dili-esp32-server-golang/internal/domain/tts/xunfei_super_tts"
+	"dili-esp32-server-golang/internal/domain/tts/zhipu"
 )
 
 // 基础TTS提供者接口（不含Context方法）
@@ -70,8 +69,6 @@ func GetTTSProvider(providerName string, config map[string]interface{}) (TTSProv
 		baseProvider = edge.NewEdgeTTSProvider(config)
 	case constants.TtsTypeEdgeOffline:
 		baseProvider = edge_offline.NewEdgeOfflineTTSProvider(config)
-	case constants.TtsTypeXiaozhi:
-		baseProvider = xiaozhi.NewXiaozhiProvider(config)
 	case constants.TtsTypeXunfei:
 		baseProvider = xunfei.NewXunfeiTTSProvider(config)
 	case constants.TtsTypeXunfeiSuper:

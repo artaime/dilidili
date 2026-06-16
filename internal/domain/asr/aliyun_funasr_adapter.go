@@ -3,9 +3,9 @@ package asr
 import (
 	"context"
 
-	"xiaozhi-esp32-server-golang/internal/domain/asr/aliyun_funasr"
-	"xiaozhi-esp32-server-golang/internal/domain/asr/types"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/asr/aliyun_funasr"
+	"dili-esp32-server-golang/internal/domain/asr/types"
+	log "dili-esp32-server-golang/logger"
 )
 
 // AliyunFunASRAdapter adapts Aliyun FunASR to AsrProvider.

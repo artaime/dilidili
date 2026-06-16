@@ -7,9 +7,9 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"xiaozhi-esp32-server-golang/internal/components/http"
-	"xiaozhi-esp32-server-golang/internal/domain/config/types"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/components/http"
+	"dili-esp32-server-golang/internal/domain/config/types"
+	log "dili-esp32-server-golang/logger"
 )
 
 // HTTP接口响应结构体

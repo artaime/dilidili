@@ -3,9 +3,9 @@ package asr
 import (
 	"context"
 
-	"xiaozhi-esp32-server-golang/internal/domain/asr/aliyun_qwen3"
-	"xiaozhi-esp32-server-golang/internal/domain/asr/types"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/asr/aliyun_qwen3"
+	"dili-esp32-server-golang/internal/domain/asr/types"
+	log "dili-esp32-server-golang/logger"
 )
 
 // AliyunQwen3Adapter adapts Qwen3 ASR to AsrProvider.

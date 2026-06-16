@@ -8,8 +8,8 @@ import (
 	mqttServer "github.com/mochi-mqtt/server/v2"
 	"github.com/mochi-mqtt/server/v2/packets"
 
-	client "xiaozhi-esp32-server-golang/internal/data/msg"
-	log "xiaozhi-esp32-server-golang/logger"
+	client "dili-esp32-server-golang/internal/data/msg"
+	log "dili-esp32-server-golang/logger"
 )
 
 // DeviceHook 设备权限与自动订阅钩子

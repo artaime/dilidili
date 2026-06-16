@@ -17,7 +17,7 @@ import (
 	cmap "github.com/orcaman/concurrent-map/v2"
 	"gorm.io/gorm"
 
-	"xiaozhi/manager/backend/models"
+	"dili/manager/backend/models"
 )
 
 type WebSocketController struct {
@@ -390,7 +390,7 @@ func (client *WebSocketClient) processRequest(request *WebSocketRequest) {
 // 处理服务器信息请求
 func (client *WebSocketClient) handleServerInfoRequest(request *WebSocketRequest) {
 	response := map[string]interface{}{
-		"server_name": "xiaozhi-manager-backend",
+		"server_name": "dili-manager-backend",
 		"version":     "1.0.0",
 		"uptime":      time.Now().Format(time.RFC3339),
 		"request_id":  request.ID,

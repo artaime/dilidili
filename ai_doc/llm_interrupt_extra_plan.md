@@ -13,14 +13,14 @@
 
 ## 2. 现状代码路径（关键点）
 
-- 中断触发：`/Users/shijingbo/git/xiaozhi-esp32-server-golang/internal/app/server/chat/common.go:3`  
+- 中断触发：`/Users/shijingbo/git/dili-esp32-server-golang/internal/app/server/chat/common.go:3`  
   `StopSpeaking()` 会取消 `SessionCtx`，导致 LLM/TTS 处理上下文结束。
 
-- LLM 流式处理与落历史：`/Users/shijingbo/git/xiaozhi-esp32-server-golang/internal/app/server/chat/llm.go:323`  
+- LLM 流式处理与落历史：`/Users/shijingbo/git/dili-esp32-server-golang/internal/app/server/chat/llm.go:323`  
   当前 `handleLLMResponse()` 只有在 `llmResponse.IsEnd=true` 时才保存 assistant 消息；  
   `ctx.Done()` 分支直接 return，不会保存“已输出但被打断”的 assistant。
 
-- 历史组装入口：`/Users/shijingbo/git/xiaozhi-esp32-server-golang/internal/app/server/chat/llm.go:1050`  
+- 历史组装入口：`/Users/shijingbo/git/dili-esp32-server-golang/internal/app/server/chat/llm.go:1050`  
   `GetMessages()` 当前直接把历史 `msg` 追加到请求，未根据 `Extra` 做内容增强。
 
 ---
@@ -38,7 +38,7 @@
 
 ### 4.1 打断时写入 Extra（LLM 阶段）
 
-改动位置：`/Users/shijingbo/git/xiaozhi-esp32-server-golang/internal/app/server/chat/llm.go:324` 的 `handleLLMResponse()`
+改动位置：`/Users/shijingbo/git/dili-esp32-server-golang/internal/app/server/chat/llm.go:324` 的 `handleLLMResponse()`
 
 新增逻辑：
 
@@ -65,7 +65,7 @@
 
 ### 4.2 组装历史时按 Extra 增强 content
 
-改动位置：`/Users/shijingbo/git/xiaozhi-esp32-server-golang/internal/app/server/chat/llm.go:1050` 的 `GetMessages()`
+改动位置：`/Users/shijingbo/git/dili-esp32-server-golang/internal/app/server/chat/llm.go:1050` 的 `GetMessages()`
 
 新增逻辑：
 
@@ -88,7 +88,7 @@
 
 ### 4.3 历史尾部 user 过滤（避免污染当前轮 user）
 
-改动位置：`/Users/shijingbo/git/xiaozhi-esp32-server-golang/internal/app/server/chat/llm.go:1050` 的 `GetMessages()`
+改动位置：`/Users/shijingbo/git/dili-esp32-server-golang/internal/app/server/chat/llm.go:1050` 的 `GetMessages()`
 
 新增逻辑：
 
@@ -155,5 +155,5 @@
 
 ## 8. 实施文件清单（确认后）
 
-- `/Users/shijingbo/git/xiaozhi-esp32-server-golang/internal/app/server/chat/llm.go`
-- （可选）`/Users/shijingbo/git/xiaozhi-esp32-server-golang/test/interrupt_history/main.go` 用于验证演示
+- `/Users/shijingbo/git/dili-esp32-server-golang/internal/app/server/chat/llm.go`
+- （可选）`/Users/shijingbo/git/dili-esp32-server-golang/test/interrupt_history/main.go` 用于验证演示

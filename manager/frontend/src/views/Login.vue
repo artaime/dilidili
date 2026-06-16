@@ -3,14 +3,14 @@
     <div class="login-shell">
       <section class="login-hero">
         <div class="login-brand">
-          <img class="login-brand-logo" :src="appLogo" alt="小智管理系统" />
+          <img class="login-brand-logo" :src="appLogo" alt="狄哩管理系统" />
           <div>
-            <strong>小智管理系统</strong>
+            <strong>狄哩管理系统</strong>
             <span>AI 服务与设备管理平台</span>
           </div>
         </div>
-        <p class="login-eyebrow">XIAOZHI CONTROL CENTER</p>
-        <h1>小智 AI Go 到起飞。</h1>
+        <p class="login-eyebrow">DILI CONTROL CENTER</p>
+        <h1>狄哩 AI Go 到起飞。</h1>
         <p>
           统一管理智能体、声纹、知识库与服务接入，让设备、模型和语音能力在同一个工作台里协同运行。
         </p>

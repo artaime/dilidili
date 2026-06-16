@@ -9,8 +9,8 @@ import (
 	"math"
 	"os"
 
-	"xiaozhi-esp32-server-golang/internal/domain/audio"
-	"xiaozhi-esp32-server-golang/internal/domain/vad/webrtc_vad"
+	"dili-esp32-server-golang/internal/domain/audio"
+	"dili-esp32-server-golang/internal/domain/vad/webrtc_vad"
 )
 
 func genFloat32Empty(sampleRate int, durationMs int, channels int, count int) [][]float32 {

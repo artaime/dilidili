@@ -17,11 +17,11 @@ import (
 	"github.com/gorilla/websocket"
 	cmap "github.com/orcaman/concurrent-map/v2"
 
-	"xiaozhi-esp32-server-golang/internal/domain/config/types"
-	"xiaozhi-esp32-server-golang/internal/domain/mcp"
-	"xiaozhi-esp32-server-golang/internal/domain/openclaw"
-	"xiaozhi-esp32-server-golang/internal/util"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/config/types"
+	"dili-esp32-server-golang/internal/domain/mcp"
+	"dili-esp32-server-golang/internal/domain/openclaw"
+	"dili-esp32-server-golang/internal/util"
+	log "dili-esp32-server-golang/logger"
 )
 
 type MessageHandleFunc func(*WebSocketRequest) (string, error)
@@ -767,7 +767,7 @@ func (c *WebSocketClient) handleDefaultRequest(request *WebSocketRequest) {
 	case "/api/server/info":
 		// 返回服务器信息
 		response := map[string]interface{}{
-			"server_name": "xiaozhi-server",
+			"server_name": "dili-server",
 			"version":     "1.0.0",
 			"uptime":      time.Now().Format(time.RFC3339),
 			"request_id":  request.ID,

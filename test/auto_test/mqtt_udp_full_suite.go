@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/audio"
-	"xiaozhi-esp32-server-golang/internal/domain/tts"
+	"dili-esp32-server-golang/internal/domain/audio"
+	"dili-esp32-server-golang/internal/domain/tts"
 )
 
 func buildMqttUDPTestCases(manualListenCount, auto1ListenCount, auto2ListenCount, manualMultiTurns, manualMultiListenCount int) []protocolTestCase {

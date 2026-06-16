@@ -3,9 +3,10 @@ package plugins
 import (
 	"strings"
 
+	"dili-esp32-server-golang/internal/domain/chat/streamtransform"
+	"dili-esp32-server-golang/internal/util"
+
 	"github.com/cloudwego/eino/schema"
-	"xiaozhi-esp32-server-golang/internal/domain/chat/streamtransform"
-	"xiaozhi-esp32-server-golang/internal/util"
 )
 
 const (

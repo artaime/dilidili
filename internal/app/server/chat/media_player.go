@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	types_audio "xiaozhi-esp32-server-golang/internal/data/audio"
-	mcp_domain "xiaozhi-esp32-server-golang/internal/domain/mcp"
-	"xiaozhi-esp32-server-golang/internal/domain/play_music"
-	"xiaozhi-esp32-server-golang/internal/util"
-	log "xiaozhi-esp32-server-golang/logger"
+	types_audio "dili-esp32-server-golang/internal/data/audio"
+	mcp_domain "dili-esp32-server-golang/internal/domain/mcp"
+	"dili-esp32-server-golang/internal/domain/play_music"
+	"dili-esp32-server-golang/internal/util"
+	log "dili-esp32-server-golang/logger"
 
 	mcpclient "github.com/mark3labs/mcp-go/client"
 	mcp_go "github.com/mark3labs/mcp-go/mcp"

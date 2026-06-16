@@ -3,12 +3,12 @@
 package vad
 
 import (
+	"dili-esp32-server-golang/constants"
+	"dili-esp32-server-golang/internal/domain/vad/inter"
+	"dili-esp32-server-golang/internal/domain/vad/silero_vad"
+	"dili-esp32-server-golang/internal/domain/vad/ten_vad"
 	"errors"
-	"xiaozhi-esp32-server-golang/constants"
-	"xiaozhi-esp32-server-golang/internal/domain/vad/inter"
-	"xiaozhi-esp32-server-golang/internal/domain/vad/silero_vad"
-	"xiaozhi-esp32-server-golang/internal/domain/vad/ten_vad"
-	// "xiaozhi-esp32-server-golang/internal/domain/vad/webrtc_vad"
+	// "dili-esp32-server-golang/internal/domain/vad/webrtc_vad"
 )
 
 func AcquireVAD(provider string, config map[string]interface{}) (inter.VAD, error) {

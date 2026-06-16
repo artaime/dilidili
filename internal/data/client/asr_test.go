@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	asr_types "xiaozhi-esp32-server-golang/internal/domain/asr/types"
+	asr_types "dili-esp32-server-golang/internal/domain/asr/types"
 )
 
 func TestRetireAsrResult_RetryableErrorUsesRetryReason(t *testing.T) {

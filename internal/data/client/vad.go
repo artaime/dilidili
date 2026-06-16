@@ -1,11 +1,11 @@
 package client
 
 import (
+	"dili-esp32-server-golang/internal/domain/vad"
+	vad_inter "dili-esp32-server-golang/internal/domain/vad/inter"
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"xiaozhi-esp32-server-golang/internal/domain/vad"
-	vad_inter "xiaozhi-esp32-server-golang/internal/domain/vad/inter"
 )
 
 type Vad struct {

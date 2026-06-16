@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	types_conn "xiaozhi-esp32-server-golang/internal/app/server/types"
-	parentmsg "xiaozhi-esp32-server-golang/internal/data/parentmessage"
-	log "xiaozhi-esp32-server-golang/logger"
+	types_conn "dili-esp32-server-golang/internal/app/server/types"
+	parentmsg "dili-esp32-server-golang/internal/data/parentmessage"
+	log "dili-esp32-server-golang/logger"
 )
 
 type parentMessageItem = parentmsg.PendingMessage

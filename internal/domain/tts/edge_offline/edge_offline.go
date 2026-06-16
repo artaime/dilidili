@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/util"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/util"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/gopxl/beep"
 	"github.com/gorilla/websocket"

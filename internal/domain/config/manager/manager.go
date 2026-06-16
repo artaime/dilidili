@@ -2,15 +2,15 @@ package manager
 
 import (
 	"context"
+	"dili-esp32-server-golang/internal/components/http"
+	"dili-esp32-server-golang/internal/domain/config/types"
+	"dili-esp32-server-golang/internal/util"
+	log "dili-esp32-server-golang/logger"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 	"time"
-	"xiaozhi-esp32-server-golang/internal/components/http"
-	"xiaozhi-esp32-server-golang/internal/domain/config/types"
-	"xiaozhi-esp32-server-golang/internal/util"
-	log "xiaozhi-esp32-server-golang/logger"
 )
 
 var (

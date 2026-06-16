@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	mcp_manager "xiaozhi-esp32-server-golang/internal/domain/mcp"
-	log "xiaozhi-esp32-server-golang/logger"
+	mcp_manager "dili-esp32-server-golang/internal/domain/mcp"
+	log "dili-esp32-server-golang/logger"
 
 	//"github.com/scroot/music-sd/pkg/netease"
 	//"github.com/scroot/music-sd/pkg/qq"

@@ -2,9 +2,9 @@ package redis_config
 
 import (
 	"context"
+	"dili-esp32-server-golang/internal/domain/config/types"
 	"fmt"
 	"math/rand"
-	"xiaozhi-esp32-server-golang/internal/domain/config/types"
 
 	"github.com/google/uuid"
 )
@@ -36,7 +36,7 @@ func (r *UserConfig) GetActivationInfo(ctx context.Context, deviceId string, cli
 	preActivationInfo[deviceId] = activationInfo{
 		code:      code,
 		challenge: challenge,
-		msg:       fmt.Sprintf("xiaozhi\n%s", code),
+		msg:       fmt.Sprintf("dili\n%s", code),
 	}
 	return code, challenge, preActivationInfo[deviceId].msg, 300
 }

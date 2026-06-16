@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/chat/intent"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/chat/intent"
+	log "dili-esp32-server-golang/logger"
 )
 
 func (c *ChatManager) HandleMsgPlay(ctx context.Context, data intent.MsgPlayData) error {

@@ -2,11 +2,11 @@ package server
 
 import (
 	"context"
+	. "dili-esp32-server-golang/internal/data/client"
+	"dili-esp32-server-golang/internal/domain/eventbus"
+	log "dili-esp32-server-golang/logger"
 	"hash/fnv"
 	"sync"
-	. "xiaozhi-esp32-server-golang/internal/data/client"
-	"xiaozhi-esp32-server-golang/internal/domain/eventbus"
-	log "xiaozhi-esp32-server-golang/logger"
 )
 
 // EventWrapper 事件包装器，用于统一处理不同类型的事件

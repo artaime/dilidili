@@ -2,7 +2,7 @@ package storage
 
 import (
 	"context"
-	"xiaozhi/manager/backend/models"
+	"dili/manager/backend/models"
 )
 
 // Storage 通用存储接口
@@ -11,10 +11,10 @@ type Storage interface {
 	Connect(ctx context.Context) error
 	Close() error
 	Ping(ctx context.Context) error
-	
+
 	// 事务管理
 	BeginTx(ctx context.Context) (Transaction, error)
-	
+
 	// 用户管理
 	UserStorage
 	// 设备管理
@@ -77,7 +77,7 @@ type ConfigStorage interface {
 	UpdateConfig(ctx context.Context, id uint, updates map[string]interface{}) error
 	DeleteConfig(ctx context.Context, id uint) error
 	SetDefaultConfig(ctx context.Context, configType string, id uint) error
-	
+
 	// 全局角色配置
 	CreateGlobalRole(ctx context.Context, role *models.GlobalRole) error
 	GetGlobalRoles(ctx context.Context) ([]*models.GlobalRole, error)

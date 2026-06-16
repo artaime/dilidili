@@ -158,7 +158,7 @@ func visionHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallT
 	question := "图片中有什么？"
 	url := GetServerVisionURL()
 	if url == "" {
-		url = "http://192.168.208.214:8989/xiaozhi/api/vision" // 未收到服务器下发时使用默认
+		url = "http://192.168.208.214:8989/dili/api/vision" // 未收到服务器下发时使用默认
 	}
 	deviceId := "shijingbo"
 	responseText, err := requestVllm(image, question, url, deviceId)

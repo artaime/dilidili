@@ -1,4 +1,4 @@
-# xiaozhi-esp32-server-golang
+# dili-esp32-server-golang
 
 > ESP32 智能终端 AI 语音后端，端到端全流式 ASR → LLM → TTS，支持 WebSocket / MQTT-UDP 多协议接入与管理控制台。
 
@@ -15,13 +15,13 @@ Go 1.24 主服务 + Gin 管理后端 + Vue 前端
 
 ## Entry
 
-- Main: `cmd/server/main.go` (`./xiaozhi_server -c config/config.yaml`)
+- Main: `cmd/server/main.go` (`./dili_server -c config/config.yaml`)
 - Manager API: `manager/backend/main.go`
 - Manager UI: `manager/frontend/`
 
 ## Commands
 
-- Build: `go build -o xiaozhi_server ./cmd/server/`
+- Build: `go build -o dili_server ./cmd/server/`
 - Test: `go test ./...`
 - Governance check: `powershell -File scripts/check-governance.ps1`
 

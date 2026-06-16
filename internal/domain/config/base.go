@@ -3,9 +3,9 @@ package user_config
 import (
 	"fmt"
 
-	"xiaozhi-esp32-server-golang/internal/domain/config/manager"
-	userconfig_redis "xiaozhi-esp32-server-golang/internal/domain/config/redis"
-	"xiaozhi-esp32-server-golang/internal/util"
+	"dili-esp32-server-golang/internal/domain/config/manager"
+	userconfig_redis "dili-esp32-server-golang/internal/domain/config/redis"
+	"dili-esp32-server-golang/internal/util"
 )
 
 // Config 用户配置提供者配置结构

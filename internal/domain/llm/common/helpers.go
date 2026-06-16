@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	defaultStableUserPrefix = "xiaozhi"
+	defaultStableUserPrefix = "dili"
 	maxStableUserIDLength   = 64
 )
 

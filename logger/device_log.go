@@ -65,7 +65,7 @@ func InitDeviceLog(path string) error {
 
 // ResolveDeviceLogPath 解析 device.log 路径：配置 > 环境变量 > 仓库根目录 logs/device.log。
 func ResolveDeviceLogPath() string {
-	if p := os.Getenv("XIAOZHI_DEVICE_LOG"); p != "" {
+	if p := os.Getenv("DILI_DEVICE_LOG"); p != "" {
 		return p
 	}
 	if root := findRepoRoot(); root != "" {
@@ -81,10 +81,10 @@ func FindRepoRootForLog() string {
 }
 
 func findRepoRoot() string {
-	if env := os.Getenv("XIAOZHI_REPO_ROOT"); env != "" {
+	if env := os.Getenv("DILI_REPO_ROOT"); env != "" {
 		return env
 	}
-	for _, start := range []func() string {
+	for _, start := range []func() string{
 		func() string { d, _ := os.Getwd(); return d },
 		func() string { p, _ := os.Executable(); return filepath.Dir(p) },
 	} {

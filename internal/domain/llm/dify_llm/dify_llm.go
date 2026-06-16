@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	llm_common "xiaozhi-esp32-server-golang/internal/domain/llm/common"
-	log "xiaozhi-esp32-server-golang/logger"
+	llm_common "dili-esp32-server-golang/internal/domain/llm/common"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/cloudwego/eino/schema"
 	sse "github.com/tmaxmax/go-sse"
@@ -22,7 +22,7 @@ import (
 
 const (
 	defaultDifyBaseURL = "https://api.dify.ai/v1"
-	defaultUserPrefix  = "xiaozhi"
+	defaultUserPrefix  = "dili"
 	llmExtraErrorKey   = "error"
 
 	maxIdleConns        = 200

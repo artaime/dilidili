@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
-	. "xiaozhi-esp32-server-golang/internal/data/client"
-	"xiaozhi-esp32-server-golang/internal/domain/mcp"
-	log "xiaozhi-esp32-server-golang/logger"
+	. "dili-esp32-server-golang/internal/data/client"
+	"dili-esp32-server-golang/internal/domain/mcp"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/mark3labs/mcp-go/client/transport"
 	"github.com/spf13/viper"

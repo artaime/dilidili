@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/app/server/mqtt_udp"
-	data_audio "xiaozhi-esp32-server-golang/internal/data/audio"
-	data_client "xiaozhi-esp32-server-golang/internal/data/client"
-	msgdata "xiaozhi-esp32-server-golang/internal/data/msg"
-	config_types "xiaozhi-esp32-server-golang/internal/domain/config/types"
-	llm_common "xiaozhi-esp32-server-golang/internal/domain/llm/common"
-	"xiaozhi-esp32-server-golang/internal/domain/play_music"
+	"dili-esp32-server-golang/internal/app/server/mqtt_udp"
+	data_audio "dili-esp32-server-golang/internal/data/audio"
+	data_client "dili-esp32-server-golang/internal/data/client"
+	msgdata "dili-esp32-server-golang/internal/data/msg"
+	config_types "dili-esp32-server-golang/internal/domain/config/types"
+	llm_common "dili-esp32-server-golang/internal/domain/llm/common"
+	"dili-esp32-server-golang/internal/domain/play_music"
 )
 
 func TestClearTTSQueueDismissesDrainedItemsForTurnBarrier(t *testing.T) {

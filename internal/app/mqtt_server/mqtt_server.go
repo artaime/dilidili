@@ -11,8 +11,8 @@ import (
 	"github.com/mochi-mqtt/server/v2/listeners"
 	"github.com/spf13/viper"
 
-	msg "xiaozhi-esp32-server-golang/internal/data/msg"
-	log "xiaozhi-esp32-server-golang/logger"
+	msg "dili-esp32-server-golang/internal/data/msg"
+	log "dili-esp32-server-golang/logger"
 )
 
 var (

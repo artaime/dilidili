@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/tts/minimax"
+	"dili-esp32-server-golang/internal/domain/tts/minimax"
 )
 
 func main() {

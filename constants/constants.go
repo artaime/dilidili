@@ -29,7 +29,7 @@ const (
 	TtsTypeCosyvoice    = "cosyvoice"
 	TtsTypeEdge         = "edge"
 	TtsTypeEdgeOffline  = "edge_offline"
-	TtsTypeXiaozhi      = "xiaozhi"
+	TtsTypeDili         = "dili"
 	TtsTypeXunfei       = "xunfei"
 	TtsTypeXunfeiSuper  = "xunfei_super_tts"
 	TtsTypeOpenAI       = "openai"

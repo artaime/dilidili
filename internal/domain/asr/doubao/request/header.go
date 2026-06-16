@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"net/http"
 
-	"xiaozhi-esp32-server-golang/internal/domain/asr/doubao/common"
-	"xiaozhi-esp32-server-golang/internal/domain/doubaoapi"
+	"dili-esp32-server-golang/internal/domain/asr/doubao/common"
+	"dili-esp32-server-golang/internal/domain/doubaoapi"
 )
 
 type AsrRequestHeader struct {

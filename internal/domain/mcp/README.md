@@ -27,8 +27,8 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    WebSocket Server                        │
-│  /xiaozhi/mcp/{deviceId} - 设备MCP连接                      │
-│  /xiaozhi/api/mcp/tools/{deviceId} - 工具列表API            │
+│  /dili/mcp/{deviceId} - 设备MCP连接                      │
+│  /dili/api/mcp/tools/{deviceId} - 工具列表API            │
 └─────────────────────────────────────────────────────────────┘
                               │
                     ┌─────────┴─────────┐
@@ -73,7 +73,7 @@
     },
     "device": {
       "enabled": true,
-      "websocket_path": "/xiaozhi/mcp/",
+      "websocket_path": "/dili/mcp/",
       "max_connections_per_device": 5
     }
   }
@@ -98,7 +98,7 @@
 
 #### 设备 MCP 连接
 ```
-ws://localhost:8989/xiaozhi/mcp/{deviceId}
+ws://localhost:8989/dili/mcp/{deviceId}
 ```
 
 **连接流程：**
@@ -121,7 +121,7 @@ ws://localhost:8989/xiaozhi/mcp/{deviceId}
 
 #### 获取设备工具列表
 ```http
-GET /xiaozhi/api/mcp/tools/{deviceId}
+GET /dili/api/mcp/tools/{deviceId}
 ```
 
 **响应示例：**
@@ -155,7 +155,7 @@ GET /xiaozhi/api/mcp/tools/{deviceId}
 package main
 
 import (
-    "xiaozhi-esp32-server-golang/internal/app/server/websocket"
+    "dili-esp32-server-golang/internal/app/server/websocket"
 )
 
 func main() {
@@ -175,7 +175,7 @@ MCP 服务器需要提供 SSE 端点，支持以下事件：
 
 ```javascript
 // 设备端 WebSocket 连接
-const ws = new WebSocket('ws://localhost:8989/xiaozhi/mcp/device123');
+const ws = new WebSocket('ws://localhost:8989/dili/mcp/device123');
 
 ws.onopen = function() {
     console.log('MCP连接已建立');
@@ -265,10 +265,10 @@ func (t *customTool) InvokableRun(ctx context.Context, argumentsInJSON string, o
 
 ```bash
 # 检查全局工具
-curl http://localhost:8989/xiaozhi/api/mcp/tools/health_check
+curl http://localhost:8989/dili/api/mcp/tools/health_check
 
 # 检查特定设备工具  
-curl http://localhost:8989/xiaozhi/api/mcp/tools/device123
+curl http://localhost:8989/dili/api/mcp/tools/device123
 ```
 
 ## 故障排除

@@ -1,4 +1,4 @@
-# PROJECT_MAP — xiaozhi-esp32-server-golang
+# PROJECT_MAP — dili-esp32-server-golang
 
 ESP32 智能终端 AI 语音后端，端到端全流式 ASR → LLM → TTS，支持 WebSocket / MQTT-UDP 多协议接入与管理控制台。
 
@@ -20,7 +20,7 @@ ESP32 智能终端 AI 语音后端，端到端全流式 ASR → LLM → TTS，�
 ## 目录地图
 
 ```
-xiaozhi-esp32-server-golang/
+dili-esp32-server-golang/
 ├── cmd/
 │   ├── server/              # 主服务入口（-c config/config.yaml）
 │   ├── mqtt/                # MQTT 独立进程
@@ -52,8 +52,8 @@ xiaozhi-esp32-server-golang/
 | MQTT 入口 | `cmd/mqtt/main.go` |
 | 管理后端入口 | `manager/backend/main.go` |
 | 管理前端 | `manager/frontend/`（Vite dev server） |
-| 编译 | `go build -o xiaozhi_server ./cmd/server/` |
-| 启动 | `./xiaozhi_server -c config/config.yaml` |
+| 编译 | `go build -o dili_server ./cmd/server/` |
+| 启动 | `./dili_server -c config/config.yaml` |
 | 测试 | `go test ./...` |
 | 本地密钥 | `.env`、`config/*.pro.yaml`、`*.dev.yaml`、`*.local.*`、`*.pem`、`*.key`、`logs/`、`*.db`（勿提交） |
 

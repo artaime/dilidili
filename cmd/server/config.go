@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"dili-esp32-server-golang/internal/app/server/auth"
+	redisdb "dili-esp32-server-golang/internal/db/redis"
+	user_config "dili-esp32-server-golang/internal/domain/config"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,11 +12,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-	"xiaozhi-esp32-server-golang/internal/app/server/auth"
-	redisdb "xiaozhi-esp32-server-golang/internal/db/redis"
-	user_config "xiaozhi-esp32-server-golang/internal/domain/config"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 
 	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	"github.com/mitchellh/hashstructure/v2"

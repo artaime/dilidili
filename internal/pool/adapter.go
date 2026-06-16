@@ -1,18 +1,18 @@
 package pool
 
 import (
-	"xiaozhi-esp32-server-golang/internal/util"
+	"dili-esp32-server-golang/internal/util"
 )
 
 // ResourceWrapper 泛型资源包装器
 // T: 具体的资源类型（如 vad.VAD, asr.AsrProvider 等）
 type ResourceWrapper[T any] struct {
-	provider     T                    // 实际的资源提供者（类型安全）
-	configKey    string               // 配置键，用于标识资源池
-	resourceType string               // 资源类型（vad/asr/llm/tts等）
-	closeFunc    func(T) error        // 关闭资源的函数
-	isValidFunc  func(T) bool         // 验证资源是否有效的函数
-	resetFunc    func(T) error        // 重置资源状态的函数（可选）
+	provider     T             // 实际的资源提供者（类型安全）
+	configKey    string        // 配置键，用于标识资源池
+	resourceType string        // 资源类型（vad/asr/llm/tts等）
+	closeFunc    func(T) error // 关闭资源的函数
+	isValidFunc  func(T) bool  // 验证资源是否有效的函数
+	resetFunc    func(T) error // 重置资源状态的函数（可选）
 }
 
 // Close 关闭资源

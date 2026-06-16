@@ -1,6 +1,6 @@
 package plugins
 
-import "xiaozhi-esp32-server-golang/internal/domain/chat/streamtransform"
+import "dili-esp32-server-golang/internal/domain/chat/streamtransform"
 
 // Init 初始化输出相关 transform。
 func Init(registry *streamtransform.Registry) {

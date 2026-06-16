@@ -338,9 +338,9 @@ def main():
     
     # 创建日志文件
     with open("websocket_client.log", "w", encoding="utf-8") as f:
-        f.write(f"=== 小智WebSocket客户端日志 - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+        f.write(f"=== 狄哩WebSocket客户端日志 - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
     
-    parser = argparse.ArgumentParser(description="小智WebSocket客户端")
+    parser = argparse.ArgumentParser(description="狄哩WebSocket客户端")
     parser.add_argument("--server", "-s", default="ws://localhost:8989/dili/v1/", help="服务器地址")
     parser.add_argument("--device", "-d", default="test-device-001", help="设备ID")
     parser.add_argument("--audio", "-a", default="../test.wav", help="音频文件路径")
@@ -348,7 +348,7 @@ def main():
     
     args = parser.parse_args()
     
-    log(f"运行小智客户端\n服务器: {args.server}\n设备ID: {args.device}\n音频文件: {args.audio}\n文本: {args.text}")
+    log(f"运行狄哩客户端\n服务器: {args.server}\n设备ID: {args.device}\n音频文件: {args.audio}\n文本: {args.text}")
     
     try:
         # 兼容不同Python版本

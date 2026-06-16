@@ -14,8 +14,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	asrtypes "xiaozhi-esp32-server-golang/internal/domain/asr/types"
-	log "xiaozhi-esp32-server-golang/logger"
+	asrtypes "dili-esp32-server-golang/internal/domain/asr/types"
+	log "dili-esp32-server-golang/logger"
 )
 
 // ASR 讯飞流式听写实现

@@ -108,7 +108,7 @@ func buildOpusHeadPacket(sampleRate int, channels int) []byte {
 }
 
 func buildOpusTagsPacket() []byte {
-	vendor := []byte("xiaozhi-mock-ai-server")
+	vendor := []byte("dili-mock-ai-server")
 	var buf bytes.Buffer
 	_, _ = buf.WriteString("OpusTags")
 	_ = binary.Write(&buf, binary.LittleEndian, uint32(len(vendor)))

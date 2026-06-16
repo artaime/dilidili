@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	i_redis "xiaozhi-esp32-server-golang/internal/db/redis"
-	log "xiaozhi-esp32-server-golang/logger"
+	i_redis "dili-esp32-server-golang/internal/db/redis"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/spf13/viper"
@@ -71,7 +71,7 @@ func GetWithConfig(config map[string]interface{}) (*Memory, error) {
 				return
 			}
 		} else {
-			keyPrefix = "xiaozhi:" // 默认值
+			keyPrefix = "dili:" // 默认值
 		}
 
 		// 获取 Redis 客户端（这里仍然使用现有的 Redis 客户端获取方式）
@@ -119,7 +119,7 @@ func NewWithConfig(config map[string]interface{}) (*Memory, error) {
 			return nil, fmt.Errorf("redis.key_prefix 必须是字符串")
 		}
 	} else {
-		keyPrefix = "xiaozhi:" // 默认值
+		keyPrefix = "dili:" // 默认值
 	}
 
 	// 获取 Redis 客户端（这里仍然使用现有的 Redis 客户端获取方式）

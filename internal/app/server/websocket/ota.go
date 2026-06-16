@@ -1,18 +1,18 @@
 package websocket
 
 import (
+	"dili-esp32-server-golang/internal/data/client"
+	user_config "dili-esp32-server-golang/internal/domain/config"
+	ctypes "dili-esp32-server-golang/internal/domain/config/types"
+	"dili-esp32-server-golang/internal/ota/aitoy"
+	"dili-esp32-server-golang/internal/util"
+	log "dili-esp32-server-golang/logger"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
-	"xiaozhi-esp32-server-golang/internal/data/client"
-	user_config "xiaozhi-esp32-server-golang/internal/domain/config"
-	"xiaozhi-esp32-server-golang/internal/ota/aitoy"
-	ctypes "xiaozhi-esp32-server-golang/internal/domain/config/types"
-	"xiaozhi-esp32-server-golang/internal/util"
-	log "xiaozhi-esp32-server-golang/logger"
 
 	"github.com/spf13/viper"
 )

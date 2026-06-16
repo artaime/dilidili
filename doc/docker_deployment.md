@@ -71,11 +71,11 @@ services:
   mysql:
     image: docker.jsdelivr.fyi/mysql:8.0
   main-server:
-    image: docker.jsdelivr.fyi/hackers365/xiaozhi_golang:0.1
+    image: docker.jsdelivr.fyi/hackers365/dili_golang:0.1
   backend:
-    image: docker.jsdelivr.fyi/hackers365/xiaozhi_backend:0.1
+    image: docker.jsdelivr.fyi/hackers365/dili_backend:0.1
   frontend:
-    image: docker.jsdelivr.fyi/hackers365/xiaozhi_frontend:0.1
+    image: docker.jsdelivr.fyi/hackers365/dili_frontend:0.1
 ```
 
 ### docker-compose.local.yml

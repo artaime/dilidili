@@ -6,7 +6,7 @@
 **一、HTTP请求（全交互内容）**
 
 **OTA 版本检查 ( 没有可升级版本时 )**
-*   **请求地址：** http://iot.realscene.cn:8002/xiaozhi/ota/
+*   **请求地址：** http://iot.realscene.cn:8002/dili/ota/
 *   **接口状态：** OTA 接口运行正常， websocket 集群数量： 1
 *   **触发时机：**设备 4G 网络连接成功，进入激活检查阶段
 
@@ -53,12 +53,12 @@
 "pd-v1-re3220" : {
 "version" :  "2.10.0" ,
 "size" :  1407024 ,
-"url" :  "http://iot.realscene.cn:8002/xiaozhi/otaMag/download/5e85e47b-5983-4d9c-bbad-a5646d7b5c02?subtype=2"
+"url" :  "http://iot.realscene.cn:8002/dili/otaMag/download/5e85e47b-5983-4d9c-bbad-a5646d7b5c02?subtype=2"
       }
     }
   },
 "websocket" : {
-"url" :  "ws://iot.realscene.cn:8000/xiaozhi/v1/" ,
+"url" :  "ws://iot.realscene.cn:8000/dili/v1/" ,
 "token" :  ""
   },
 "mqtt" : {
@@ -76,7 +76,7 @@
 ```
 
 **OTA版本检查(有可升级版本时)**
-*   **请求地址：** http://iot.realscene.cn:8002/xiaozhi/ota/
+*   **请求地址：** http://iot.realscene.cn:8002/dili/ota/
 *   **接口状态：** OTA 接口运行正常， websocket 集群数量： 1
 *   **触发时机：**设备 4G 网络连接成功，进入激活检查阶段（首次请求域名解析失败，重试后成功）
 
@@ -123,22 +123,22 @@
 "pd-v1-ln882" : {
 "version" :  "2.34.0" ,
 "size" :  669154 ,
-"url" :  "http://iot.realscene.cn:8002/xiaozhi/otaMag/download/54116515-6f61-48b7-808e-a1995a6a2224?subtype=0"
+"url" :  "http://iot.realscene.cn:8002/dili/otaMag/download/54116515-6f61-48b7-808e-a1995a6a2224?subtype=0"
       },
 "pd-v1-gx8006" : {
 "version" :  "2.13.0" ,
 "size" :  1577024 ,
-"url" :  "http://iot.realscene.cn:8002/xiaozhi/otaMag/download/335814dd-b4d8-4f89-ab24-8234b69c751b?subtype=1"
+"url" :  "http://iot.realscene.cn:8002/dili/otaMag/download/335814dd-b4d8-4f89-ab24-8234b69c751b?subtype=1"
       },
 "pd-v1-re3220" : {
 "version" :  "2.13.0" ,
 "size" :  1408184 ,
-"url" :  "http://iot.realscene.cn:8002/xiaozhi/otaMag/download/b22ac639-e13c-4840-bdcc-13c032ddee44?subtype=2"
+"url" :  "http://iot.realscene.cn:8002/dili/otaMag/download/b22ac639-e13c-4840-bdcc-13c032ddee44?subtype=2"
       }
     }
   },
 "websocket" : {
-"url" :  "ws://iot.realscene.cn:8000/xiaozhi/v1/" ,
+"url" :  "ws://iot.realscene.cn:8000/dili/v1/" ,
 "token" :  ""
   },
 "mqtt" : {
@@ -196,7 +196,7 @@
 " protocolversion": "2024-11-05",
 " capabilities": {},
 "clientInfo": {
-" name": " xiaozhi-mqtt-client",
+" name": " dili-mqtt-client",
 " version": "1.0.0"
 }
 }
@@ -395,7 +395,7 @@
         }
       },
 "clientInfo" : {
-"name" :  "XiaozhiClient" ,
+"name" :  "DiliClient" ,
 "version" :  "1.0.0"
       }
     }

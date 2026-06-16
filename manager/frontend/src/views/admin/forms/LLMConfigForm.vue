@@ -63,7 +63,7 @@
     </el-form-item>
 
     <el-form-item v-if="isDify || isCoze" label="User前缀" prop="user_prefix">
-      <el-input v-model="model.user_prefix" placeholder="可选，默认 xiaozhi" />
+      <el-input v-model="model.user_prefix" placeholder="可选，默认 dili" />
     </el-form-item>
 
     <el-form-item v-if="isCoze" label="Connector ID" prop="connector_id">

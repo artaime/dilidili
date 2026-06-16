@@ -10,11 +10,11 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"xiaozhi-esp32-server-golang/internal/app/server/auth"
-	"xiaozhi-esp32-server-golang/internal/app/server/types"
-	"xiaozhi-esp32-server-golang/internal/domain/mcp"
-	"xiaozhi-esp32-server-golang/internal/domain/openclaw"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/app/server/auth"
+	"dili-esp32-server-golang/internal/app/server/types"
+	"dili-esp32-server-golang/internal/domain/mcp"
+	"dili-esp32-server-golang/internal/domain/openclaw"
+	log "dili-esp32-server-golang/logger"
 )
 
 // WebSocketServer 表示 WebSocket 服务器
@@ -104,14 +104,14 @@ func (s *WebSocketServer) Start() error {
 	go s.cleanupSessions()
 
 	// 注册路由处理器
-	http.HandleFunc("/xiaozhi/mqtt_udp/v1/", s.handleMqttUdpChat)
+	http.HandleFunc("/dili/mqtt_udp/v1/", s.handleMqttUdpChat)
 	http.HandleFunc("/dili/v1/", s.handleChat)
 	http.HandleFunc("/dili/ota/", s.handleOta)
 	http.HandleFunc("/dili/ota/activate", s.handleOtaActivate)
 	http.HandleFunc("/mcp", s.handleMCPWebSocket)
 	http.HandleFunc("/ws/openclaw", s.handleOpenClawWebSocket)
-	http.HandleFunc("/xiaozhi/api/mcp/tools/", s.handleMCPAPI)
-	http.HandleFunc("/xiaozhi/api/vision", s.handleVisionAPI) //图片识别API
+	http.HandleFunc("/dili/api/mcp/tools/", s.handleMCPAPI)
+	http.HandleFunc("/dili/api/vision", s.handleVisionAPI) //图片识别API
 
 	http.HandleFunc("/admin/inject_msg", s.handleInjectMsg)
 
@@ -119,7 +119,7 @@ func (s *WebSocketServer) Start() error {
 	log.Infof("WebSocket 服务器启动在 ws://%s/dili/v1/", listenAddr)
 	log.Infof("MCP WebSocket 端点: ws://%s/mcp?token=xxx", listenAddr)
 	log.Infof("OpenClaw WebSocket 端点: ws://%s/ws/openclaw?token=xxx", listenAddr)
-	log.Infof("MCP API 端点: http://%s/xiaozhi/api/mcp/tools/{deviceId}", listenAddr)
+	log.Infof("MCP API 端点: http://%s/dili/api/mcp/tools/{deviceId}", listenAddr)
 
 	if err := http.ListenAndServe(listenAddr, nil); err != nil {
 		log.Log().Fatalf("WebSocket 服务器启动失败: %v", err)

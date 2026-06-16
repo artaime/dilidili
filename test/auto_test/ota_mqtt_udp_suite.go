@@ -398,7 +398,7 @@ func requestOTAConfig(serverAddr, deviceID string) (*otaResponse, error) {
 	req.Header.Set("Device-Id", deviceID)
 	req.Header.Set("Client-Id", clientId)
 	req.Header.Set("Activation-Version", "1")
-	req.Header.Set("User-Agent", "auto-test/xiaozhi")
+	req.Header.Set("User-Agent", "auto-test/dili")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -471,7 +471,7 @@ func buildOTADeviceInfo(deviceID string) map[string]interface{} {
 			"features": 20,
 		},
 		"application": map[string]interface{}{
-			"name":         "xiaozhi",
+			"name":         "dili",
 			"version":      "1.6.0",
 			"compile_time": "2026-05-10T12:00:00Z",
 			"idf_version":  "v5.3.2",

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"xiaozhi-esp32-server-golang/internal/data/audio"
+	"dili-esp32-server-golang/internal/data/audio"
 )
 
 func TestNewIndexTTSVLLMProviderDefaultsAndSetVoice(t *testing.T) {

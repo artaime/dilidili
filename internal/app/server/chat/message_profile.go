@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/viper"
 
-	"xiaozhi-esp32-server-golang/internal/domain/chat/devicestate"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/chat/devicestate"
+	log "dili-esp32-server-golang/logger"
 )
 
 func playedHistoryLimit() int {

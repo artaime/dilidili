@@ -1,5 +1,5 @@
-# XiaoZhi service manager (Windows PowerShell)
-# Usage: .\scripts\xiaozhi-service.ps1 start|stop|restart|status
+# DILI service manager (Windows PowerShell)
+# Usage: .\scripts\dili-service.ps1 start|stop|restart|status
 
 param(
     [Parameter(Position = 0)]
@@ -10,33 +10,33 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
-$BundleDir = Join-Path $RepoRoot "dist\bundle\xiaozhi_server-windows-amd64-v0.6.3\xiaozhi-server-windows-amd64"
-$ServerExe = Join-Path $BundleDir "xiaozhi_server.exe"
+$BundleDir = Join-Path $RepoRoot "dist\bundle\dili_server-windows-amd64-v0.6.3\dili-server-windows-amd64"
+$ServerExe = Join-Path $BundleDir "dili_server.exe"
 $MainConfig = Join-Path $BundleDir "main_config.yaml"
 $AsrConfig = Join-Path $BundleDir "asr_server.json"
 $ManagerConfig = Join-Path $BundleDir "manager.json"
-$PidFile = Join-Path $BundleDir "logs\xiaozhi_server.pid"
+$PidFile = Join-Path $BundleDir "logs\dili_server.pid"
 $LogDir = Join-Path $BundleDir "logs"
 $LanIP = "192.168.0.55"
 
-function Write-Info([string]$msg) { Write-Host "[xiaozhi] $msg" }
+function Write-Info([string]$msg) { Write-Host "[dili] $msg" }
 
 function Get-ServiceProcess {
     if (Test-Path $PidFile) {
         $pidText = (Get-Content $PidFile -Raw).Trim()
         if ($pidText -match '^\d+$') {
             $proc = Get-Process -Id ([int]$pidText) -ErrorAction SilentlyContinue
-            if ($proc -and $proc.ProcessName -eq "xiaozhi_server") {
+            if ($proc -and $proc.ProcessName -eq "dili_server") {
                 return $proc
             }
         }
     }
-    return Get-Process -Name "xiaozhi_server" -ErrorAction SilentlyContinue | Select-Object -First 1
+    return Get-Process -Name "dili_server" -ErrorAction SilentlyContinue | Select-Object -First 1
 }
 
 function Test-Prerequisites {
     if (-not (Test-Path $ServerExe)) {
-        throw "xiaozhi_server.exe not found: $ServerExe"
+        throw "dili_server.exe not found: $ServerExe"
     }
     if (-not (Test-Path $MainConfig)) {
         throw "main_config.yaml not found: $MainConfig"
@@ -62,8 +62,8 @@ function Start-Service {
 
     Write-Info "workdir: $BundleDir"
     Write-Info "config:  $MainConfig"
-    $env:XIAOZHI_REPO_ROOT = $RepoRoot
-    $env:XIAOZHI_DEVICE_LOG = Join-Path $RepoRoot "logs\device.log"
+    $env:DILI_REPO_ROOT = $RepoRoot
+    $env:DILI_DEVICE_LOG = Join-Path $RepoRoot "logs\device.log"
     $proc = Start-Process -FilePath $ServerExe -ArgumentList $args -WorkingDirectory $BundleDir -PassThru -WindowStyle Hidden
     Start-Sleep -Seconds 2
 
@@ -95,7 +95,7 @@ function Stop-Service {
 }
 
 function Sync-ConsoleOTA {
-    $db = Join-Path $BundleDir "data\xiaozhi.db"
+    $db = Join-Path $BundleDir "data\dili.db"
     if (-not (Test-Path $db)) {
         Write-Info "sync-ota skip: db not found"
         return

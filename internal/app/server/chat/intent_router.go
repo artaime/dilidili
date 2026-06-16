@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/chat/intent"
-	"xiaozhi-esp32-server-golang/internal/domain/speaker"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/chat/intent"
+	"dili-esp32-server-golang/internal/domain/speaker"
+	log "dili-esp32-server-golang/logger"
 )
 
 func (c *ChatManager) RouteUserIntent(ctx context.Context, text string, speakerResult *speaker.IdentifyResult) (bool, error) {

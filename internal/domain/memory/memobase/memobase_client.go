@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/cloudwego/eino/schema"
 	"github.com/google/uuid"

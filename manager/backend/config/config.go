@@ -72,7 +72,7 @@ type MySQLConfig struct {
 
 // SQLiteConfig SQLite 数据库配置
 type SQLiteConfig struct {
-	FilePath string `json:"file_path"` // 数据库文件路径，如 ./data/xiaozhi.db
+	FilePath string `json:"file_path"` // 数据库文件路径，如 ./data/dili.db
 }
 
 type JWTConfig struct {

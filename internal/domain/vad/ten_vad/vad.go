@@ -6,9 +6,9 @@ import (
 	"sync"
 	"unsafe"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 
-	. "xiaozhi-esp32-server-golang/internal/domain/vad/inter"
+	. "dili-esp32-server-golang/internal/domain/vad/inter"
 )
 
 // VAD默认配置

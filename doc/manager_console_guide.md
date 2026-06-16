@@ -12,7 +12,7 @@
 
 ### Step 1: OTA 配置
 
-配置OTA服务器信息，用于配置下发给小智硬件的 websocket和mqtt地址。
+配置OTA服务器信息，用于配置下发给狄哩硬件的 websocket和mqtt地址。
 
 <!-- 截图位置：OTA配置界面 -->
 > 图：OTA配置向导界面

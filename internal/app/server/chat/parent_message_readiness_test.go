@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/viper"
 
-	types_conn "xiaozhi-esp32-server-golang/internal/app/server/types"
-	. "xiaozhi-esp32-server-golang/internal/data/client"
+	types_conn "dili-esp32-server-golang/internal/app/server/types"
+	. "dili-esp32-server-golang/internal/data/client"
 )
 
 func TestCollectParentMessageReadinessHelloPending(t *testing.T) {

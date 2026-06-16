@@ -2,11 +2,11 @@ package pool
 
 import (
 	"context"
+	"dili-esp32-server-golang/internal/components/http"
+	"dili-esp32-server-golang/internal/util"
+	log "dili-esp32-server-golang/logger"
 	"sync"
 	"time"
-	"xiaozhi-esp32-server-golang/internal/components/http"
-	"xiaozhi-esp32-server-golang/internal/util"
-	log "xiaozhi-esp32-server-golang/logger"
 
 	"github.com/spf13/viper"
 )

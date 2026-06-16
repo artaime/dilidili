@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"dili-esp32-server-golang/internal/domain/speaker"
+
 	"github.com/cloudwego/eino/schema"
-	"xiaozhi-esp32-server-golang/internal/domain/speaker"
 )
 
 type Context struct {

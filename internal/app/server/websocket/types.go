@@ -16,7 +16,7 @@ package websocket
         "features": 18
     },
     "application": {
-        "name": "xiaozhi",
+        "name": "dili",
         "version": "0.9.9",
         "compile_time": "Jan 22 2025T20:40:23Z",
         "idf_version": "v5.3.2-dirty",
@@ -143,7 +143,7 @@ type Board struct {
 /*
 	{
 	    "mqtt": {
-	        "endpoint": "mqtt.xiaozhi.me",
+	        "endpoint": "mqtt.dili.me",
 	        "client_id": "GID_test@@@02_4A_7D_E3_89_BF@@@e3b0c442-98fc-4e1a-8c3d-6a5b6a5b6a5b",
 	        "username": "eyJpcCI6IjEuMjAyLjE5My4xOTQifQ==",
 	        "password": "Ru9zRLdD/4wrBYorxIyABtHe8EiA1hdZ4v34juJ2BUU=",
@@ -160,7 +160,7 @@ type Board struct {
 	    },
 	    "activation": {
 	        "code": "738133",
-	        "message": "xiaozhi.me\n738133",
+	        "message": "dili.me\n738133",
 	        "challenge": "ee2af2f0-0ca0-45f2-8b8c-6f34edd62156"
 	    }
 	}
@@ -197,8 +197,8 @@ type ServerTimeInfo struct {
 
 // FirmwareInfo ESP32 使用 version/url；AIToy（胖豆）使用 subs。
 type FirmwareInfo struct {
-	Version string                       `json:"version,omitempty"`
-	Url     string                       `json:"url,omitempty"`
+	Version string                        `json:"version,omitempty"`
+	Url     string                        `json:"url,omitempty"`
 	Subs    map[string]FirmwareSubPackage `json:"subs,omitempty"`
 }
 

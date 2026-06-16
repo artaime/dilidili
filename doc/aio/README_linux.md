@@ -1,12 +1,12 @@
-# 小智服务 Linux 使用说明
+# 狄哩服务 Linux 使用说明
 
-欢迎使用小智服务 Linux aio 包。本文档包含依赖安装、启动和配置说明。
+欢迎使用狄哩服务 Linux aio 包。本文档包含依赖安装、启动和配置说明。
 
 ## 目录结构
 
 ```
-xiaozhi_server-linux-amd64-<version>/
-├── xiaozhi_server              # 主程序
+dili_server-linux-amd64-<version>/
+├── dili_server              # 主程序
 ├── ten-vad/
 │   └── lib/Linux/x64/
 │       ├── libten_vad.so       # VAD 依赖库
@@ -61,10 +61,10 @@ sudo yum install -y libcxx libcxxabi
 
 ```bash
 # 添加执行权限
-chmod +x xiaozhi_server
+chmod +x dili_server
 
 # 启动服务
-./xiaozhi_server
+./dili_server
 ```
 
 ### 后台运行
@@ -72,7 +72,7 @@ chmod +x xiaozhi_server
 使用 nohup：
 
 ```bash
-nohup ./xiaozhi_server > logs/output.log 2>&1 &
+nohup ./dili_server > logs/output.log 2>&1 &
 ```
 
 或使用 systemd（推荐生产环境），见下文。
@@ -124,18 +124,18 @@ nohup ./xiaozhi_server > logs/output.log 2>&1 &
 
 ## 生产环境部署（systemd）
 
-创建服务文件 `/etc/systemd/system/xiaozhi.service`：
+创建服务文件 `/etc/systemd/system/dili.service`：
 
 ```ini
 [Unit]
-Description=Xiaozhi Server
+Description=Dili Server
 After=network.target
 
 [Service]
 Type=simple
 User=YOUR_USER
-WorkingDirectory=/path/to/xiaozhi_server-linux-amd64
-ExecStart=/path/to/xiaozhi_server-linux-amd64/xiaozhi_server
+WorkingDirectory=/path/to/dili_server-linux-amd64
+ExecStart=/path/to/dili_server-linux-amd64/dili_server
 Restart=always
 RestartSec=3
 
@@ -150,16 +150,16 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reload
 
 # 启用开机自启
-sudo systemctl enable xiaozhi
+sudo systemctl enable dili
 
 # 启动服务
-sudo systemctl start xiaozhi
+sudo systemctl start dili
 
 # 查看状态
-sudo systemctl status xiaozhi
+sudo systemctl status dili
 
 # 查看日志
-sudo journalctl -u xiaozhi -f
+sudo journalctl -u dili -f
 ```
 
 ## 防火墙配置
@@ -188,7 +188,7 @@ sudo firewall-cmd --reload
 使用 `ldd` 命令检查缺失的库：
 
 ```bash
-ldd xiaozhi_server
+ldd dili_server
 ldd ten-vad/lib/Linux/x64/libten_vad.so
 ```
 

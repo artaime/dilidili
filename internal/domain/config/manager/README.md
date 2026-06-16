@@ -70,7 +70,7 @@ package main
 
 import (
     "context"
-    "xiaozhi-esp32-server-golang/internal/domain/config/manager"
+    "dili-esp32-server-golang/internal/domain/config/manager"
 )
 
 func main() {

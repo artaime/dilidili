@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	log "dili-esp32-server-golang/logger"
 	"voice_server/server"
-	log "xiaozhi-esp32-server-golang/logger"
 )
 
 const (

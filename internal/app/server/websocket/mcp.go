@@ -1,11 +1,11 @@
 package websocket
 
 import (
+	"dili-esp32-server-golang/internal/domain/mcp"
+	"dili-esp32-server-golang/internal/util"
+	log "dili-esp32-server-golang/logger"
 	"net/http"
 	"strings"
-	"xiaozhi-esp32-server-golang/internal/domain/mcp"
-	"xiaozhi-esp32-server-golang/internal/util"
-	log "xiaozhi-esp32-server-golang/logger"
 
 	"github.com/golang-jwt/jwt/v4"
 )
@@ -102,8 +102,8 @@ func (s *WebSocketServer) parseMCPToken(tokenString string) (*MCPClaims, error) 
 // handleMCPAPI 处理MCP REST API请求
 func (s *WebSocketServer) handleMCPAPI(w http.ResponseWriter, r *http.Request) {
 	// 从URL路径中提取deviceId
-	// URL格式: /xiaozhi/api/mcp/tools/{deviceId}
-	path := strings.TrimPrefix(r.URL.Path, "/xiaozhi/api/mcp/tools/")
+	// URL格式: /dili/api/mcp/tools/{deviceId}
+	path := strings.TrimPrefix(r.URL.Path, "/dili/api/mcp/tools/")
 	if path == "" || path == r.URL.Path {
 		http.Error(w, "缺少设备ID参数", http.StatusBadRequest)
 		return

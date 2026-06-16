@@ -2,8 +2,9 @@ package storage
 
 import (
 	"context"
+	"dili/manager/backend/models"
+
 	"gorm.io/gorm"
-	"xiaozhi/manager/backend/models"
 )
 
 // GormConfigStorage 通用GORM配置存储实现

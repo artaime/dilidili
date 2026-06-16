@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"xiaozhi-esp32-server-golang/internal/domain/asr/types"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/asr/types"
+	log "dili-esp32-server-golang/logger"
 )
 
 // DoubaoV2Adapter 适配器，实现现有的AsrProvider接口

@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"xiaozhi-esp32-server-golang/internal/domain/audio"
-	"xiaozhi-esp32-server-golang/internal/domain/vad/ten_vad"
+	"dili-esp32-server-golang/internal/domain/audio"
+	"dili-esp32-server-golang/internal/domain/vad/ten_vad"
 
 	goaudio "github.com/go-audio/audio"
 	"github.com/go-audio/wav"

@@ -2,7 +2,7 @@
 
 package main
 
-import log "xiaozhi-esp32-server-golang/logger"
+import log "dili-esp32-server-golang/logger"
 
 // StartAsrServerHTTP 未启用 asr_server 编译时的空实现。需使用 -tags asr_server 编译以启用内嵌 asr_server。
 func StartAsrServerHTTP(configPath string) {

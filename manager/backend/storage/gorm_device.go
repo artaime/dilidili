@@ -2,8 +2,9 @@ package storage
 
 import (
 	"context"
+	"dili/manager/backend/models"
+
 	"gorm.io/gorm"
-	"xiaozhi/manager/backend/models"
 )
 
 // GormDeviceStorage 通用GORM设备存储实现
@@ -47,13 +48,13 @@ func (s *GormDeviceStorage) GetDeviceByCode(ctx context.Context, deviceCode stri
 func (s *GormDeviceStorage) GetDevicesByUserID(ctx context.Context, userID uint, offset, limit int) ([]*models.Device, int64, error) {
 	var devices []*models.Device
 	var total int64
-	
+
 	// 获取总数
 	err := s.db.WithContext(ctx).Model(&models.Device{}).Where("user_id = ?", userID).Count(&total).Error
 	if err != nil {
 		return nil, 0, err
 	}
-	
+
 	// 获取分页数据
 	err = s.db.WithContext(ctx).Where("user_id = ?", userID).Offset(offset).Limit(limit).Find(&devices).Error
 	return devices, total, err

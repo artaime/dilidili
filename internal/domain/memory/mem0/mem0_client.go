@@ -10,7 +10,7 @@ import (
 	"github.com/hackers365/mem0-go/client"
 	"github.com/hackers365/mem0-go/types"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 )
 
 // Mem0Client 实现 MemoryProvider 和 EnhancedMemoryProvider 接口
@@ -293,7 +293,7 @@ func (m *Mem0Client) AddBatchMessages(ctx context.Context, agentID string, messa
 		_, err := m.client.Add(message, types.MemoryOptions{
 			AgentID: agentID,
 			Metadata: map[string]interface{}{
-				"source": "xiaozhi-esp32",
+				"source": "dili-esp32",
 				"batch":  true,
 			},
 		})

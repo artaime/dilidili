@@ -651,7 +651,7 @@ async function saveMqttConfig() {
     existingData.broker = host
     existingData.type = useTls ? 'ssl' : 'tcp'
     existingData.port = port
-    existingData.client_id = existingData.client_id || 'xiaozhi_manager'
+    existingData.client_id = existingData.client_id || 'dili_manager'
     existingData.username = MQTT_SERVER_DEFAULT_USER
     existingData.password = MQTT_SERVER_DEFAULT_PASS
     configData = existingData
@@ -662,7 +662,7 @@ async function saveMqttConfig() {
       broker: host,
       type: useTls ? 'ssl' : 'tcp',
       port,
-      client_id: 'xiaozhi_manager',
+      client_id: 'dili_manager',
       username: MQTT_SERVER_DEFAULT_USER,
       password: MQTT_SERVER_DEFAULT_PASS
     }

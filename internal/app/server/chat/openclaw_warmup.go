@@ -11,10 +11,10 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"xiaozhi-esp32-server-golang/internal/domain/llm"
-	llm_common "xiaozhi-esp32-server-golang/internal/domain/llm/common"
-	"xiaozhi-esp32-server-golang/internal/pool"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/llm"
+	llm_common "dili-esp32-server-golang/internal/domain/llm/common"
+	"dili-esp32-server-golang/internal/pool"
+	log "dili-esp32-server-golang/logger"
 )
 
 var openClawWarmupSchedule = []time.Duration{

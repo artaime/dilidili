@@ -1,7 +1,7 @@
 package manager
 
 import (
-	"xiaozhi-esp32-server-golang/internal/domain/config/types"
+	"dili-esp32-server-golang/internal/domain/config/types"
 )
 
 const (

@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/app/server/auth"
-	"xiaozhi-esp32-server-golang/internal/app/server/mqtt_udp"
-	types_conn "xiaozhi-esp32-server-golang/internal/app/server/types"
-	data_audio "xiaozhi-esp32-server-golang/internal/data/audio"
-	data_client "xiaozhi-esp32-server-golang/internal/data/client"
-	msgdata "xiaozhi-esp32-server-golang/internal/data/msg"
-	"xiaozhi-esp32-server-golang/internal/util"
+	"dili-esp32-server-golang/internal/app/server/auth"
+	"dili-esp32-server-golang/internal/app/server/mqtt_udp"
+	types_conn "dili-esp32-server-golang/internal/app/server/types"
+	data_audio "dili-esp32-server-golang/internal/data/audio"
+	data_client "dili-esp32-server-golang/internal/data/client"
+	msgdata "dili-esp32-server-golang/internal/data/msg"
+	"dili-esp32-server-golang/internal/util"
 
 	"github.com/spf13/viper"
 )

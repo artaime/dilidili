@@ -1,6 +1,6 @@
 # test_openclaw_server
 
-用于对接 `test/xiaozhi_openclaw/xiaozhi-integration/openclaw-channel` 插件的 WebSocket 测试服务。
+用于对接 `test/dili_openclaw/dili-integration/openclaw-channel` 插件的 WebSocket 测试服务。
 
 ## 功能
 
@@ -25,20 +25,20 @@ go run ./test/test_openclaw_server -addr :18080 -jwt-secret dili_admin_secret_ke
 ## 生成 token（测试）
 
 ```bash
-node test/xiaozhi_openclaw/xiaozhi-integration/generate-token.js 1 main agent_main
+node test/dili_openclaw/dili-integration/generate-token.js 1 main agent_main
 ```
 
 或显式指定与服务端一致的密钥（推荐）：
 
 ```bash
 JWT_SECRET=dili_admin_secret_key \
-node test/xiaozhi_openclaw/xiaozhi-integration/generate-token.js 1 main agent_main
+node test/dili_openclaw/dili-integration/generate-token.js 1 main agent_main
 ```
 
 把输出的 `Token` 配到插件配置里：
 
-- `channels.xiaozhi.url = ws://127.0.0.1:18080/ws/openclaw`
-- `channels.xiaozhi.token = <token>`
+- `channels.dili.url = ws://127.0.0.1:18080/ws/openclaw`
+- `channels.dili.token = <token>`
 - `JWT_SECRET` 必须和 `go run ./test/test_openclaw_server -jwt-secret ...` 完全一致，否则会报 `signature is invalid`
 
 ## HTTP API

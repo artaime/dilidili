@@ -1,8 +1,8 @@
 package main
 
 import (
+	"dili-esp32-server-golang/internal/util"
 	"fmt"
-	"xiaozhi-esp32-server-golang/internal/util"
 )
 
 func main() {

@@ -3,7 +3,7 @@ package msg
 import (
 	"encoding/json"
 
-	types_audio "xiaozhi-esp32-server-golang/internal/data/audio"
+	types_audio "dili-esp32-server-golang/internal/data/audio"
 )
 
 const (
@@ -58,11 +58,11 @@ const (
 )
 
 type UdpConfig struct {
-	Server      string `json:"server"`
-	Port        int    `json:"port"`
-	Encryption  string `json:"encryption,omitempty"`
-	Key         string `json:"key"`
-	Nonce       string `json:"nonce"`
+	Server     string `json:"server"`
+	Port       int    `json:"port"`
+	Encryption string `json:"encryption,omitempty"`
+	Key        string `json:"key"`
+	Nonce      string `json:"nonce"`
 }
 
 type MqttLifecycleEvent struct {

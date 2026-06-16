@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/domain/chat/devicestate"
+	"dili-esp32-server-golang/internal/domain/chat/devicestate"
 )
 
 func TestApplyPendingSync(t *testing.T) {

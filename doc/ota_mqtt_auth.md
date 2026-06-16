@@ -34,13 +34,13 @@ ota:
 - `ota.test`: 测试环境配置（内网IP使用）
 - `ota.external`: 外部环境配置（外网IP使用）
 
-### 与 xiaozhi-mqtt-gateway 集成
+### 与 dili-mqtt-gateway 集成
 
-本系统与虾哥官方的 [xiaozhi-mqtt-gateway](https://github.com/78/xiaozhi-mqtt-gateway) 项目配合使用，实现完整的MQTT认证流程：
+本系统与虾哥官方的 [dili-mqtt-gateway](https://github.com/78/dili-mqtt-gateway) 项目配合使用，实现完整的MQTT认证流程：
 
-1. **配置一致性要求**: `ota.signature_key` 必须与 xiaozhi-mqtt-gateway 项目中的签名密钥完全一致
+1. **配置一致性要求**: `ota.signature_key` 必须与 dili-mqtt-gateway 项目中的签名密钥完全一致
 2. **认证流程**: 
-   - xiaozhi-mqtt-gateway 负责生成MQTT连接凭据
+   - dili-mqtt-gateway 负责生成MQTT连接凭据
    - 本系统负责验证MQTT连接凭据
    - 双方使用相同的签名算法和密钥确保认证成功
 3. **部署建议**: 建议将两个项目部署在同一网络环境中，确保配置同步更新
@@ -172,7 +172,7 @@ func (h *AuthHook) OnConnectAuthenticate(cl *mqttServer.Client, pk packets.Packe
 3. 在生产环境中使用HTTPS/WSS连接
 4. 监控异常登录尝试
 5. 启用日志记录，跟踪认证成功/失败情况
-6. **确保 xiaozhi-mqtt-gateway 与本系统的签名密钥同步更新**
+6. **确保 dili-mqtt-gateway 与本系统的签名密钥同步更新**
 
 ## 数据结构
 
@@ -195,16 +195,16 @@ type MqttCredentialInfo struct {
 }
 ``` 
 
-# 虾哥官方 xiaozhi-mqtt-gateway 使用说明
+# 虾哥官方 dili-mqtt-gateway 使用说明
 
-本系统可以与虾哥官方的 [xiaozhi-mqtt-gateway](https://github.com/78/xiaozhi-mqtt-gateway) 项目配合使用。
+本系统可以与虾哥官方的 [dili-mqtt-gateway](https://github.com/78/dili-mqtt-gateway) 项目配合使用。
 
-只需ota接口中MQTT的用户名密码与xiaozhi-mqtt-gateway认证通过，为确保MQTT认证正常工作，**`ota.signature_key` 配置必须与 xiaozhi-mqtt-gateway 中的签名密钥保持一致**。
+只需ota接口中MQTT的用户名密码与dili-mqtt-gateway认证通过，为确保MQTT认证正常工作，**`ota.signature_key` 配置必须与 dili-mqtt-gateway 中的签名密钥保持一致**。
 
 配置如下:
-1. 不启用mqtt server (使用 xiaozhi-mqtt-gateway)
-2. `ota.signature_key` 配置必须与 xiaozhi-mqtt-gateway 中的签名密钥保持一致
-3. 配置 xiaozhi-mqtt-gateway 的websocket后端为本项目地址
+1. 不启用mqtt server (使用 dili-mqtt-gateway)
+2. `ota.signature_key` 配置必须与 dili-mqtt-gateway 中的签名密钥保持一致
+3. 配置 dili-mqtt-gateway 的websocket后端为本项目地址
 
 ```yaml
 mqtt_server:
@@ -216,11 +216,11 @@ ota:
       url: "ws://192.168.208.214:8989/dili/v1/"
     mqtt:
       enable: true
-      endpoint: "192.168.208.214:1883"  # xiaozhi-mqtt-gateway中的mqtt server地址
+      endpoint: "192.168.208.214:1883"  # dili-mqtt-gateway中的mqtt server地址
   external:  # 外网的返回
     websocket:
       url: "wss://www.tb263.cn:55555/go_ws/dili/v1/"
     mqtt:
       enable: true
-      endpoint: "mqtt.youdomain.com:1883"  # xiaozhi-mqtt-gateway中的mqtt server地址
+      endpoint: "mqtt.youdomain.com:1883"  # dili-mqtt-gateway中的mqtt server地址
 ```

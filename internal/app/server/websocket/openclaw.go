@@ -1,15 +1,15 @@
 package websocket
 
 import (
+	"dili-esp32-server-golang/internal/domain/openclaw"
+	"dili-esp32-server-golang/internal/util"
+	log "dili-esp32-server-golang/logger"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-	"xiaozhi-esp32-server-golang/internal/domain/openclaw"
-	"xiaozhi-esp32-server-golang/internal/util"
-	log "xiaozhi-esp32-server-golang/logger"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
@@ -277,7 +277,7 @@ func handleOpenClawResponse(agentID string, session *openclaw.AgentSession, wsMs
 func sendOpenClawHandshakeAck(session *openclaw.AgentSession) error {
 	payloadBytes, err := json.Marshal(map[string]interface{}{
 		"version": "1.0.0",
-		"server":  "xiaozhi-esp32-server",
+		"server":  "dili-esp32-server",
 	})
 	if err != nil {
 		return err

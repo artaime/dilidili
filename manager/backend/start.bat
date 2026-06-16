@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-echo === 小智管理系统后端启动脚本 ===
+echo === 狄哩管理系统后端启动脚本 ===
 
 REM 检查参数
 if "%1"=="help" goto :help

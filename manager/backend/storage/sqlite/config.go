@@ -1,14 +1,14 @@
 package sqlite
 
 import (
+	"dili/manager/backend/config"
 	"fmt"
 	"path/filepath"
-	"xiaozhi/manager/backend/config"
 )
 
 // Config SQLite配置
 type Config struct {
-	// FilePath 数据库文件路径（如：./data/xiaozhi.db 或 /path/to/xiaozhi.db）
+	// FilePath 数据库文件路径（如：./data/dili.db 或 /path/to/dili.db）
 	FilePath string `json:"file_path"`
 
 	// 连接池配置（SQLite 通常单连接足够）
@@ -21,13 +21,13 @@ type Config struct {
 func NewConfigFromDatabase(cfg *config.SQLiteConfig) *Config {
 	filePath := cfg.FilePath
 	if filePath == "" {
-		filePath = "./data/xiaozhi.db"
+		filePath = "./data/dili.db"
 	}
 
 	return &Config{
-		FilePath:       filePath,
-		MaxIdleConns:   1,
-		MaxOpenConns:   1,
+		FilePath:        filePath,
+		MaxIdleConns:    1,
+		MaxOpenConns:    1,
 		ConnMaxLifetime: 3600,
 	}
 }

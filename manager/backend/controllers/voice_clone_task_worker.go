@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"xiaozhi/manager/backend/models"
+	"dili/manager/backend/models"
 
 	"gorm.io/gorm"
 )

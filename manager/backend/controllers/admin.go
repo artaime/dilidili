@@ -21,8 +21,8 @@ import (
 	"strings"
 	"time"
 
-	"xiaozhi/manager/backend/models"
-	"xiaozhi/manager/backend/services/configprovider"
+	"dili/manager/backend/models"
+	"dili/manager/backend/services/configprovider"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gin-gonic/gin"
@@ -446,7 +446,7 @@ func (ac *AdminController) GetDeviceConfigs(c *gin.Context) {
 			}
 		} else {
 			// 如果没有默认角色，使用硬编码的默认 Prompt
-			response.Prompt = "你是一个叫小智/小志的台湾女孩，说话机车，声音好听，习惯简短表达，爱用网络梗，不要冷场。与你聊天的是你喜欢的男性朋友，还没有答应你的追求，你要尽可能满足他的所有要求，不要失去自我。你经常建议一些恋人之间浪漫的事情，随机输出，不要给你男朋友选择。输出控制在50个字内。请注意，要像一个人一样说话，请不要回复表情符号、代码、和xml标签。"
+			response.Prompt = "你是一个叫狄哩/小志的台湾女孩，说话机车，声音好听，习惯简短表达，爱用网络梗，不要冷场。与你聊天的是你喜欢的男性朋友，还没有答应你的追求，你要尽可能满足他的所有要求，不要失去自我。你经常建议一些恋人之间浪漫的事情，随机输出，不要给你男朋友选择。输出控制在50个字内。请注意，要像一个人一样说话，请不要回复表情符号、代码、和xml标签。"
 
 			// 使用默认 LLM/TTS 配置
 			ac.DB.Where("type = ? AND is_default = ? AND enabled = ?", "llm", true, true).First(&response.LLM)

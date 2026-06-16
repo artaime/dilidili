@@ -1,12 +1,12 @@
-# 小智服务 macOS 使用说明
+# 狄哩服务 macOS 使用说明
 
-欢迎使用小智服务 macOS aio 包。本文档包含依赖安装、启动和配置说明。
+欢迎使用狄哩服务 macOS aio 包。本文档包含依赖安装、启动和配置说明。
 
 ## 目录结构
 
 ```
-xiaozhi_server-macos-<arch>-<version>/
-├── xiaozhi_server              # 主程序
+dili_server-macos-<arch>-<version>/
+├── dili_server              # 主程序
 ├── ten-vad/
 │   └── lib/macOS/
 │       ├── ten_vad.framework/  # VAD 框架
@@ -45,13 +45,13 @@ brew install pkg-config
 
 ```bash
 # 添加执行权限
-chmod +x xiaozhi_server
+chmod +x dili_server
 
 # 如果这是你自己构建的发布包，先修正 rpath
-./build/macos/fix_rpath.sh ./xiaozhi_server
+./build/macos/fix_rpath.sh ./dili_server
 
 # 启动服务
-./xiaozhi_server
+./dili_server
 ```
 
 说明：
@@ -65,13 +65,13 @@ chmod +x xiaozhi_server
 首次运行时，macOS 可能会弹出安全提示，因为程序未经过 Apple 认证。请：
 
 1. 打开「系统设置」→「隐私与安全性」
-2. 找到关于 `xiaozhi_server` 的提示
+2. 找到关于 `dili_server` 的提示
 3. 点击「仍要打开」或「允许」
 
 或使用以下命令解除隔离：
 
 ```bash
-xattr -cr xiaozhi_server
+xattr -cr dili_server
 ```
 
 ## 端口与服务
@@ -124,12 +124,12 @@ xattr -cr xiaozhi_server
 ### 使用 nohup
 
 ```bash
-nohup ./xiaozhi_server > logs/output.log 2>&1 &
+nohup ./dili_server > logs/output.log 2>&1 &
 ```
 
 ### 创建 launchd 服务（推荐）
 
-创建 `~/Library/LaunchAgents/com.xiaozhi.server.plist`：
+创建 `~/Library/LaunchAgents/com.dili.server.plist`：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -137,13 +137,13 @@ nohup ./xiaozhi_server > logs/output.log 2>&1 &
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.xiaozhi.server</string>
+    <string>com.dili.server</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/path/to/xiaozhi_server</string>
+        <string>/path/to/dili_server</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/path/to/xiaozhi_server-macos-<arch>-<version></string>
+    <string>/path/to/dili_server-macos-<arch>-<version></string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -160,35 +160,35 @@ nohup ./xiaozhi_server > logs/output.log 2>&1 &
 
 ```bash
 # 加载服务
-launchctl load ~/Library/LaunchAgents/com.xiaozhi.server.plist
+launchctl load ~/Library/LaunchAgents/com.dili.server.plist
 
 # 启动服务
-launchctl start com.xiaozhi.server
+launchctl start com.dili.server
 
 # 查看状态
-launchctl list | grep xiaozhi
+launchctl list | grep dili
 
 # 停止服务
-launchctl stop com.xiaozhi.server
+launchctl stop com.dili.server
 
 # 卸载服务
-launchctl unload ~/Library/LaunchAgents/com.xiaozhi.server.plist
+launchctl unload ~/Library/LaunchAgents/com.dili.server.plist
 ```
 
 ## 防火墙配置
 
-如果启用了防火墙，需要允许 `xiaozhi_server` 接受入站连接：
+如果启用了防火墙，需要允许 `dili_server` 接受入站连接：
 
 1. 打开「系统设置」→「网络」→「防火墙」
 2. 点击「选项」
-3. 找到 `xiaozhi_server`，设置为「允许入站连接」
+3. 找到 `dili_server`，设置为「允许入站连接」
 
 或在终端中使用命令：
 
 ```bash
 # 添加防火墙例外（需要 sudo）
-sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add /path/to/xiaozhi_server
-sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblock /path/to/xiaozhi_server
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add /path/to/dili_server
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblock /path/to/dili_server
 ```
 
 ## 常见问题
@@ -198,7 +198,7 @@ sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblock /path/to/xiaozhi_
 如果提示应用已损坏，运行以下命令：
 
 ```bash
-xattr -cr xiaozhi_server
+xattr -cr dili_server
 ```
 
 ### 动态库加载失败
@@ -207,10 +207,10 @@ xattr -cr xiaozhi_server
 
 ```bash
 # 查看依赖
-otool -L xiaozhi_server
+otool -L dili_server
 
 # 查看 rpath
-otool -l xiaozhi_server | grep -A2 LC_RPATH
+otool -l dili_server | grep -A2 LC_RPATH
 
 # 确保动态库在正确位置
 ls -la ten-vad/lib/macOS/
@@ -219,13 +219,13 @@ ls -la ten-vad/lib/macOS/
 如果 `LC_RPATH` 仍然是开发机源码绝对路径，而不是 `@executable_path/ten-vad/lib/macOS`，请执行：
 
 ```bash
-./build/macos/fix_rpath.sh ./xiaozhi_server
+./build/macos/fix_rpath.sh ./dili_server
 ```
 
 如果你是在 IDE 临时目录调试，或手动移动了二进制导致目录结构不一致，可临时使用：
 
 ```bash
-DYLD_FRAMEWORK_PATH="$PWD/ten-vad/lib/macOS" ./xiaozhi_server
+DYLD_FRAMEWORK_PATH="$PWD/ten-vad/lib/macOS" ./dili_server
 ```
 
 ### 端口被占用

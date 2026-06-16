@@ -1,15 +1,15 @@
 package database
 
 import (
+	"dili/manager/backend/config"
+	"dili/manager/backend/models"
+	"dili/manager/backend/services/configprovider"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	"xiaozhi/manager/backend/config"
-	"xiaozhi/manager/backend/models"
-	"xiaozhi/manager/backend/services/configprovider"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/driver/mysql"

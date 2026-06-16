@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"xiaozhi-esp32-server-golang/internal/components/http"
+	"dili-esp32-server-golang/internal/components/http"
 
 	"github.com/cloudwego/eino/schema"
 )

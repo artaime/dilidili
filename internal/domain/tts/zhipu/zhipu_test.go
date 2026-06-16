@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"xiaozhi-esp32-server-golang/internal/data/audio"
+	"dili-esp32-server-golang/internal/data/audio"
 )
 
 func TestNewZhipuTTSProviderDefaultsAndSetVoice(t *testing.T) {

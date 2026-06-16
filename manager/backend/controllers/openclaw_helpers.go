@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"xiaozhi/manager/backend/models"
+	"dili/manager/backend/models"
 )
 
 type OpenClawConfigResponse struct {

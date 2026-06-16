@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/spf13/viper"
 )

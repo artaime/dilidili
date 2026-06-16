@@ -2,13 +2,13 @@
 
 ## 下载
 
-访问 [Release 页面](https://github.com/hackers365/xiaozhi-esp32-server-golang/releases) 下载对应平台：
+访问 [Release 页面](https://github.com/hackers365/dili-esp32-server-golang/releases) 下载对应平台：
 
 | 平台 | 文件名 |
 |-----|-------|
-| Windows | `xiaozhi-server-windows-xxx.zip` |
-| Linux | `xiaozhi-server-linux-xxx.tar.gz` |
-| macOS | `xiaozhi-server-macos-xxx.tar.gz` |
+| Windows | `dili-server-windows-xxx.zip` |
+| Linux | `dili-server-linux-xxx.tar.gz` |
+| macOS | `dili-server-macos-xxx.tar.gz` |
 
 ---
 
@@ -17,8 +17,8 @@
 解压后目录结构：
 
 ```
-xiaozhi-aio/
-├── xiaozhi_server          # 主程序
+dili-aio/
+├── dili_server          # 主程序
 ├── config/                 # 配置文件目录
 ├── models/                 # 模型文件目录（如使用本地ASR/TTS）
 └── data/                   # 数据目录
@@ -36,21 +36,21 @@ xiaozhi-aio/
 # ten_vad 运行时依赖
 sudo apt install -y libc++1 libc++abi1
 
-chmod +x xiaozhi_server
-LD_LIBRARY_PATH="$PWD/ten-vad/lib/Linux/x64:${LD_LIBRARY_PATH:-}" ./xiaozhi_server
+chmod +x dili_server
+LD_LIBRARY_PATH="$PWD/ten-vad/lib/Linux/x64:${LD_LIBRARY_PATH:-}" ./dili_server
 ```
 
 ### macOS
 ```bash
-chmod +x xiaozhi_server
-./build/macos/fix_rpath.sh ./xiaozhi_server
-./xiaozhi_server
+chmod +x dili_server
+./build/macos/fix_rpath.sh ./dili_server
+./dili_server
 ```
 
 如果目录结构保持为：
 
 ```text
-./xiaozhi_server
+./dili_server
 ./ten-vad/lib/macOS/ten_vad.framework
 ```
 
@@ -59,13 +59,13 @@ chmod +x xiaozhi_server
 如果你是从 IDE 临时目录调试，或手动移动了二进制导致相对目录结构被破坏，可使用兜底方式：
 
 ```bash
-DYLD_FRAMEWORK_PATH="$PWD/ten-vad/lib/macOS" ./xiaozhi_server
+DYLD_FRAMEWORK_PATH="$PWD/ten-vad/lib/macOS" ./dili_server
 ```
 
 如果你是在源码仓库里自行打 macOS 分发包，发布前需要额外执行一次：
 
 ```bash
-./build/macos/fix_rpath.sh ./xiaozhi_server
+./build/macos/fix_rpath.sh ./dili_server
 ```
 
 这一步会把二进制里的 `rpath` 从开发机源码路径修正为 `@executable_path/ten-vad/lib/macOS`，让发布包在目录结构正确时直接运行。
@@ -110,5 +110,5 @@ DYLD_FRAMEWORK_PATH="$PWD/ten-vad/lib/macOS" ./xiaozhi_server
 控制台输出实时日志，如需保存可重定向：
 
 ```bash
-./xiaozhi_server > server.log 2>&1
+./dili_server > server.log 2>&1
 ```

@@ -1,6 +1,9 @@
 package main
 
 import (
+	"dili-esp32-server-golang/internal/app/server"
+	user_config "dili-esp32-server-golang/internal/domain/config"
+	log "dili-esp32-server-golang/logger"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,9 +13,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"xiaozhi-esp32-server-golang/internal/app/server"
-	user_config "xiaozhi-esp32-server-golang/internal/domain/config"
-	log "xiaozhi-esp32-server-golang/logger"
 
 	"github.com/spf13/viper"
 )

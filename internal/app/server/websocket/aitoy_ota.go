@@ -1,7 +1,7 @@
 package websocket
 
 import (
-	"xiaozhi-esp32-server-golang/internal/ota/aitoy"
+	"dili-esp32-server-golang/internal/ota/aitoy"
 )
 
 func isAIToyOTARequest(req *OtaRequest, userAgent string) bool {

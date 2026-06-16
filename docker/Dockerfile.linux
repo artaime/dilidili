@@ -67,14 +67,14 @@ ENV CGO_LDFLAGS="-lm -L/opt/sherpa-onnx-go-linux/x86_64-unknown-linux-gnu"
 RUN go mod tidy \
     && go build -v -tags "nolibopusfile asr_server manager embed_ui" \
        -ldflags "-s -w" \
-       -o xiaozhi_server ./cmd/server
+       -o dili_server ./cmd/server
 
-RUN upx --lzma xiaozhi_server -o xiaozhi_server.upx && mv xiaozhi_server.upx xiaozhi_server || true
+RUN upx --lzma dili_server -o dili_server.upx && mv dili_server.upx dili_server || true
 
-RUN PACK_DIR="/out/linux-amd64/xiaozhi_server-linux-amd64" \
+RUN PACK_DIR="/out/linux-amd64/dili_server-linux-amd64" \
     && mkdir -p "$PACK_DIR/ten-vad/lib/Linux/x64" "$PACK_DIR/logs" \
-    && cp xiaozhi_server "$PACK_DIR/" \
-    && patchelf --add-rpath '$ORIGIN/ten-vad/lib/Linux/x64' "$PACK_DIR/xiaozhi_server" 2>/dev/null || true \
+    && cp dili_server "$PACK_DIR/" \
+    && patchelf --add-rpath '$ORIGIN/ten-vad/lib/Linux/x64' "$PACK_DIR/dili_server" 2>/dev/null || true \
     && cp build/linux/libten_vad.so "$PACK_DIR/ten-vad/lib/Linux/x64/" \
     && cp /opt/sherpa-onnx-go-linux/x86_64-unknown-linux-gnu/libsherpa-onnx-c-api.so "$PACK_DIR/ten-vad/lib/Linux/x64/" \
     && cp /opt/sherpa-onnx-go-linux/x86_64-unknown-linux-gnu/libsherpa-onnx-cxx-api.so "$PACK_DIR/ten-vad/lib/Linux/x64/" \
@@ -82,7 +82,7 @@ RUN PACK_DIR="/out/linux-amd64/xiaozhi_server-linux-amd64" \
     && cp build/common/main_config.yaml build/common/manager.json build/common/asr_server.json "$PACK_DIR/" \
     && cp doc/aio/README_linux.md "$PACK_DIR/README.md" \
     && cp -r build/common/models build/common/data "$PACK_DIR/" \
-    && chmod +x "$PACK_DIR/xiaozhi_server"
+    && chmod +x "$PACK_DIR/dili_server"
 
 FROM scratch AS export
 COPY --from=builder /out /out

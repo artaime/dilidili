@@ -3,10 +3,10 @@ package client
 import (
 	"bytes"
 	"context"
+	asr_types "dili-esp32-server-golang/internal/domain/asr/types"
+	log "dili-esp32-server-golang/logger"
 	"strings"
 	"sync"
-	asr_types "xiaozhi-esp32-server-golang/internal/domain/asr/types"
-	log "xiaozhi-esp32-server-golang/logger"
 )
 
 type Asr struct {

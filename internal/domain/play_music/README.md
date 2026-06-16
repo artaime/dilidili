@@ -23,7 +23,7 @@ import (
     "context"
     "fmt"
     
-    "xiaozhi-esp32-server-golang/internal/domain/play_music"
+    "dili-esp32-server-golang/internal/domain/play_music"
 )
 
 func main() {
@@ -73,7 +73,7 @@ import (
     "fmt"
     "time"
     
-    "xiaozhi-esp32-server-golang/internal/domain/play_music"
+    "dili-esp32-server-golang/internal/domain/play_music"
 )
 
 func main() {

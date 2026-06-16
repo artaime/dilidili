@@ -4,17 +4,17 @@ services:
   # MySQL数据库服务
   mysql:
     image: mysql:8.0
-    container_name: xiaozhi-mysql
+    container_name: dili-mysql
     environment:
       MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: xiaozhi_admin
+      MYSQL_DATABASE: dili_admin
     ports:
       - "23306:3306"        #可以不进行映射
     volumes:
       - mysql_data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password --skip-ssl
     networks:
-      - xiaozhi-network
+      - dili-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "mysql", "-h", "localhost", "-P", "3306", "-u", "root", "-ppassword", "-e", "SELECT 1"]
@@ -31,8 +31,8 @@ services:
       platform: linux/amd64
       args:
         TARGETARCH: amd64
-    container_name: xiaozhi-main-server
-    command: ["/workspace/bin/xiaozhi_server", "-c", "/workspace/config/config.personal.yaml"]
+    container_name: dili-main-server
+    command: ["/workspace/bin/dili_server", "-c", "/workspace/config/config.personal.yaml"]
     ports:
       - "8989:8989"        # websocket服务 端口 18989端口
       - "2883:2883"        # mqtt server 12883
@@ -47,13 +47,13 @@ services:
       - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=password
-      - DB_NAME=xiaozhi_admin
+      - DB_NAME=dili_admin
       - BACKEND_URL=http://backend:8080
     volumes:
       - ../../config:/workspace/config
       - ../../logs:/workspace/logs
     networks:
-      - xiaozhi-network
+      - dili-network
     restart: unless-stopped
 
   # 后端管理服务（本地构建版本）
@@ -61,7 +61,7 @@ services:
     build:
       context: ../../manager/backend
       dockerfile: Dockerfile
-    container_name: xiaozhi-backend
+    container_name: dili-backend
     ports:
       - "8081:8080"        # 后端管理服务 端口 映射至宿主机 28080
     depends_on:
@@ -72,11 +72,11 @@ services:
       - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=password
-      - DB_NAME=xiaozhi_admin
+      - DB_NAME=dili_admin
     volumes:
       - ../../manager/backend/config:/root/config
     networks:
-      - xiaozhi-network
+      - dili-network
     restart: unless-stopped
 
   # 前端管理服务（本地构建版本）
@@ -84,18 +84,18 @@ services:
     build:
       context: ../../manager/frontend
       dockerfile: Dockerfile
-    container_name: xiaozhi-frontend
+    container_name: dili-frontend
     ports:
       - "8080:80"           # 前端管理服务 端口 映射至宿主机 18080
     depends_on:
       - backend
     networks:
-      - xiaozhi-network
+      - dili-network
     restart: unless-stopped
 
 volumes:
   mysql_data:
 
 networks:
-  xiaozhi-network:
+  dili-network:
     driver: bridge

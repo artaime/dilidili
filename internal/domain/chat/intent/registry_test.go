@@ -3,7 +3,7 @@ package intent_test
 import (
 	"testing"
 
-	"xiaozhi-esp32-server-golang/internal/domain/chat/intent"
+	"dili-esp32-server-golang/internal/domain/chat/intent"
 )
 
 func TestParseRouterResponse(t *testing.T) {

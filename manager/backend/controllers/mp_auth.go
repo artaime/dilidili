@@ -10,9 +10,9 @@ import (
 	"net/url"
 	"strings"
 
-	"xiaozhi/manager/backend/config"
-	"xiaozhi/manager/backend/middleware"
-	"xiaozhi/manager/backend/models"
+	"dili/manager/backend/config"
+	"dili/manager/backend/middleware"
+	"dili/manager/backend/models"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"

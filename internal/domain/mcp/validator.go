@@ -87,7 +87,7 @@ func validateSingleServer(config MCPServerConfig) error {
 		Params: mcpgo.InitializeParams{
 			ProtocolVersion: mcpgo.LATEST_PROTOCOL_VERSION,
 			ClientInfo: mcpgo.Implementation{
-				Name:    "xiaozhi-mcp-validator",
+				Name:    "dili-mcp-validator",
 				Version: "1.0.0",
 			},
 			Capabilities: mcpgo.ClientCapabilities{

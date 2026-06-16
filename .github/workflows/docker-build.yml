@@ -38,7 +38,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/xiaozhi_server
+          images: ghcr.io/${{ github.repository_owner }}/dili_server
           tags: |
             type=semver,pattern={{version}}
             type=sha,prefix=,suffix=,format=short
@@ -75,7 +75,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/xiaozhi_manager_frontend
+          images: ghcr.io/${{ github.repository_owner }}/dili_manager_frontend
           tags: |
             type=semver,pattern={{version}}
             type=sha,prefix=,suffix=,format=short
@@ -111,7 +111,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/xiaozhi_manager_backend
+          images: ghcr.io/${{ github.repository_owner }}/dili_manager_backend
           tags: |
             type=semver,pattern={{version}}
             type=sha,prefix=,suffix=,format=short

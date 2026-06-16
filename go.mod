@@ -1,4 +1,4 @@
-module xiaozhi-esp32-server-golang
+module dili-esp32-server-golang
 
 go 1.24.2
 
@@ -40,11 +40,11 @@ require (
 	go.uber.org/zap v1.27.0
 	gopkg.in/hraban/opus.v2 v2.0.0-20230925203106-0188a62cb302
 	gorm.io/gorm v1.30.0
-	xiaozhi/manager/backend v0.0.0-00010101000000-000000000000
+	dili/manager/backend v0.0.0-00010101000000-000000000000
 )
 
 // 主进程内嵌 manager HTTP 时引用 backend 子模块
-replace xiaozhi/manager/backend => ./manager/backend
+replace dili/manager/backend => ./manager/backend
 
 require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect

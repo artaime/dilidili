@@ -1,7 +1,7 @@
 package client
 
 import (
-	msg "xiaozhi-esp32-server-golang/internal/data/msg"
+	msg "dili-esp32-server-golang/internal/data/msg"
 )
 
 const (

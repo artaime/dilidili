@@ -1,9 +1,9 @@
 package webrtc_vad
 
 import (
+	"dili-esp32-server-golang/internal/util"
 	"fmt"
 	"time"
-	"xiaozhi-esp32-server-golang/internal/util"
 )
 
 // WebRTCVADConfig WebRTC VAD 配置

@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	user_config "xiaozhi-esp32-server-golang/internal/domain/config"
-	config_types "xiaozhi-esp32-server-golang/internal/domain/config/types"
-	llm_memory "xiaozhi-esp32-server-golang/internal/domain/memory/llm_memory"
-	"xiaozhi-esp32-server-golang/internal/domain/rag"
-	log "xiaozhi-esp32-server-golang/logger"
+	user_config "dili-esp32-server-golang/internal/domain/config"
+	config_types "dili-esp32-server-golang/internal/domain/config/types"
+	llm_memory "dili-esp32-server-golang/internal/domain/memory/llm_memory"
+	"dili-esp32-server-golang/internal/domain/rag"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/spf13/viper"
 )

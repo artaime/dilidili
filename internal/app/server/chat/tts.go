@@ -2,19 +2,19 @@ package chat
 
 import (
 	"context"
+	. "dili-esp32-server-golang/internal/data/client"
+	chathooks "dili-esp32-server-golang/internal/domain/chat/hooks"
+	llm_common "dili-esp32-server-golang/internal/domain/llm/common"
+	"dili-esp32-server-golang/internal/domain/tts"
+	ttsstream "dili-esp32-server-golang/internal/domain/tts/streaming"
+	"dili-esp32-server-golang/internal/pool"
+	"dili-esp32-server-golang/internal/util"
+	log "dili-esp32-server-golang/logger"
 	"fmt"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-	. "xiaozhi-esp32-server-golang/internal/data/client"
-	chathooks "xiaozhi-esp32-server-golang/internal/domain/chat/hooks"
-	llm_common "xiaozhi-esp32-server-golang/internal/domain/llm/common"
-	"xiaozhi-esp32-server-golang/internal/domain/tts"
-	ttsstream "xiaozhi-esp32-server-golang/internal/domain/tts/streaming"
-	"xiaozhi-esp32-server-golang/internal/pool"
-	"xiaozhi-esp32-server-golang/internal/util"
-	log "xiaozhi-esp32-server-golang/logger"
 )
 
 // 会话级全局音频队列元素类型常量

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	log "xiaozhi-esp32-server-golang/logger"
+	log "dili-esp32-server-golang/logger"
 )
 
 // MCPManager 统一的MCP管理器，负责协调所有子管理器

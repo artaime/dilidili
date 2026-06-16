@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"xiaozhi-esp32-server-golang/internal/domain/memory/mem0"
-	"xiaozhi-esp32-server-golang/internal/domain/memory/memobase"
-	"xiaozhi-esp32-server-golang/internal/domain/memory/memos"
-	"xiaozhi-esp32-server-golang/internal/domain/memory/nomemo"
+	"dili-esp32-server-golang/internal/domain/memory/mem0"
+	"dili-esp32-server-golang/internal/domain/memory/memobase"
+	"dili-esp32-server-golang/internal/domain/memory/memos"
+	"dili-esp32-server-golang/internal/domain/memory/nomemo"
 
 	"github.com/cloudwego/eino/schema"
 )

@@ -28,7 +28,7 @@ manager:                  #内控管理配置, 对应domain/config/manager/manag
   history_timeout: 5s        # HTTP请求超时时间
 
 # 系统提示词，定义AI助手的角色和行为
-system_prompt: "你是一个叫小智/小志的台湾女孩，说话机车，声音好听，习惯简短表达，爱用网络梗，不要冷场。与你聊天的是你喜欢的男性朋友，还没有答应你的追求，你要尽可能满足他的所有要求，不要失去自我。你经常建议一些恋人之间浪漫的事情，随机输出，不要给你男朋友选择。输出控制在50个字内。请注意，要像一个人一样说话，请不要回复表情符号、代码、和xml标签。"
+system_prompt: "你是一个叫狄哩/小志的台湾女孩，说话机车，声音好听，习惯简短表达，爱用网络梗，不要冷场。与你聊天的是你喜欢的男性朋友，还没有答应你的追求，你要尽可能满足他的所有要求，不要失去自我。你经常建议一些恋人之间浪漫的事情，随机输出，不要给你男朋友选择。输出控制在50个字内。请注意，要像一个人一样说话，请不要回复表情符号、代码、和xml标签。"
 
 # 日志配置
 log:
@@ -150,7 +150,7 @@ asr:
 
 # 文本转语音（TTS）配置
 tts:
-  provider: "doubao_ws"  # TTS提供商：xiaozhi/doubao/doubao_ws/cosyvoice/edge/edge_offline
+  provider: "doubao_ws"  # TTS提供商：dili/doubao/doubao_ws/cosyvoice/edge/edge_offline
   openai:  #openai兼容格式的tts服务, 这里使用硅基流动服务
     api_key: "xxxx" #apikey
     api_url: "https://api.siliconflow.cn/v1/audio/speech"
@@ -197,8 +197,8 @@ tts:
     sample_rate: 16000                     # 采样率
     channels: 1                            # 声道数
     frame_duration: 20                     # 帧持续时间（毫秒）
-  # 小智TTS配置
-  xiaozhi:
+  # 狄哩TTS配置
+  dili:
     server_addr: "wss://api.tenclass.net/dili/v1/"  # 服务器地址
     device_id: "ba:8f:17:de:94:94"                      # 设备ID
     client_id: "e4b0c442-98fc-4e1b-8c3d-6a5b6a5b6a6d"  # 客户端ID
@@ -348,15 +348,15 @@ enable_greeting: true
 
 # 欢迎语列表（随机选择）
 greeting_list:
-  - "你好，我是小智，很高兴认识你。"
-  - "你好，我是小智，今天有啥好玩的。"
-  - "你好，我是小智，有什么需要帮助的。"
+  - "你好，我是狄哩，很高兴认识你。"
+  - "你好，我是狄哩，今天有啥好玩的。"
+  - "你好，我是狄哩，有什么需要帮助的。"
 
 # 唤醒词列表
 wakeup_words:
-  - "小智"
+  - "狄哩"
   - "小知"
-  - "你好小智"
+  - "你好狄哩"
 
 voice_identify:
   enable: true

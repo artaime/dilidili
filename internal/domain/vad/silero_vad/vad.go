@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	. "xiaozhi-esp32-server-golang/internal/domain/vad/inter"
-	log "xiaozhi-esp32-server-golang/logger"
+	. "dili-esp32-server-golang/internal/domain/vad/inter"
+	log "dili-esp32-server-golang/logger"
 
 	"github.com/hackers365/silero-vad-go/speech"
 )

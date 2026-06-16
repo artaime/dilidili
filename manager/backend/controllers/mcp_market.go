@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"context"
+	"dili/manager/backend/models"
+	mcpmarket "dili/manager/backend/services/mcp_market"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,8 +14,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"xiaozhi/manager/backend/models"
-	mcpmarket "xiaozhi/manager/backend/services/mcp_market"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

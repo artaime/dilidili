@@ -13,12 +13,12 @@ import (
 	"github.com/go-audio/audio"
 	"github.com/go-audio/wav"
 
-	"xiaozhi-esp32-server-golang/internal/domain/asr"
-	"xiaozhi-esp32-server-golang/internal/domain/llm"
-	"xiaozhi-esp32-server-golang/internal/domain/tts"
-	"xiaozhi-esp32-server-golang/internal/domain/vad/inter"
-	"xiaozhi-esp32-server-golang/internal/pool"
-	log "xiaozhi-esp32-server-golang/logger"
+	"dili-esp32-server-golang/internal/domain/asr"
+	"dili-esp32-server-golang/internal/domain/llm"
+	"dili-esp32-server-golang/internal/domain/tts"
+	"dili-esp32-server-golang/internal/domain/vad/inter"
+	"dili-esp32-server-golang/internal/pool"
+	log "dili-esp32-server-golang/logger"
 )
 
 // DefaultTestWavPath 配置测试用固定 WAV 路径（16kHz 单声道，约 1–3 秒），可选
