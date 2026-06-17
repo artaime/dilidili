@@ -430,17 +430,22 @@ func (c *ChatHistoryController) deleteAudioFile(relativePath string) error {
 
 // GetAudioFile 获取音频文件（通过Golang转发）
 func (c *ChatHistoryController) GetAudioFile(ctx *gin.Context) {
-	id := ctx.Param("id")
-
 	userID, exists := ctx.Get("user_id")
 	if !exists {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "未授权"})
 		return
 	}
+	uid, _ := userID.(uint)
+	serveChatMessageAudio(ctx, c.DB, c.AudioBasePath, ctx.Param("id"), &uid)
+}
 
-	// 获取消息信息
+func serveChatMessageAudio(ctx *gin.Context, db *gorm.DB, audioBasePath string, id string, userID *uint) {
 	var message models.ChatMessage
-	if err := c.DB.Where("id = ? AND user_id = ? AND is_deleted = ?", id, userID, false).First(&message).Error; err != nil {
+	query := db.Where("id = ? AND is_deleted = ?", id, false)
+	if userID != nil {
+		query = query.Where("user_id = ?", *userID)
+	}
+	if err := query.First(&message).Error; err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "消息不存在"})
 		return
 	}
@@ -450,8 +455,7 @@ func (c *ChatHistoryController) GetAudioFile(ctx *gin.Context) {
 		return
 	}
 
-	// 读取文件
-	fullPath := filepath.Join(c.AudioBasePath, message.AudioPath)
+	fullPath := filepath.Join(audioBasePath, message.AudioPath)
 	audioData, err := os.ReadFile(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -462,12 +466,9 @@ func (c *ChatHistoryController) GetAudioFile(ctx *gin.Context) {
 		return
 	}
 
-	// 设置响应头（wav格式）
 	ctx.Header("Content-Type", "audio/wav")
 	ctx.Header("Content-Length", strconv.Itoa(len(audioData)))
 	ctx.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", filepath.Base(message.AudioPath)))
-
-	// 转发音频数据
 	ctx.Data(http.StatusOK, "audio/wav", audioData)
 }
 

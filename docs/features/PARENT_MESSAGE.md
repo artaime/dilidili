@@ -87,6 +87,10 @@ pending → notified → played
 
 **已删除 `skipped`**：儿童拒绝或播放失败时留言保持待播，可下次再查/再播。历史 `skipped` 数据在 manager 启动时迁移为 `pending`。
 
+## 对话记录时间线
+
+设备端播放完成（`status=played`）的家长留言，会按 `played_at` 与 AI 聊天记录合并展示在小程序/管理端「对话记录」页。小程序/管理端回放留言**不修改**留言状态。详见 [DEVICE_CONVERSATION_RECORDS.md](DEVICE_CONVERSATION_RECORDS.md)。
+
 ## 依赖
 
 - 主服务与 Manager 内网可达

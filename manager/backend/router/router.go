@@ -60,6 +60,10 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		AudioBasePath: audioBasePath,
 		MaxFileSize:   maxFileSize,
 	}
+	conversationRecordController := &controllers.ConversationRecordController{
+		DB:                    db,
+		ChatHistoryController: chatHistoryController,
+	}
 	mpAuthController := &controllers.MpAuthController{DB: db, Cfg: cfg}
 	mpDeviceController := &controllers.MpDeviceController{DB: db}
 	mpMessageController := controllers.NewMpMessageController(db, cfg)
@@ -120,6 +124,8 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				mp.POST("/devices/bind", mpDeviceController.BindDevice)
 				mp.GET("/devices", mpDeviceController.ListDevices)
 				mp.DELETE("/devices/:id", mpDeviceController.UnbindDevice)
+				mp.GET("/devices/:id/conversation-records", conversationRecordController.MpList)
+				mp.GET("/conversation-records/chat/:id/audio", conversationRecordController.MpGetChatAudio)
 				mp.POST("/messages", mpMessageController.CreateMessage)
 				mp.GET("/messages", mpMessageController.ListMessages)
 				mp.GET("/messages/:id/audio", mpMessageController.GetMessageAudio)
@@ -398,6 +404,9 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				admin.POST("/devices", adminController.CreateDevice)
 				admin.PUT("/devices/:id", adminController.UpdateDevice)
 				admin.DELETE("/devices/:id", adminController.DeleteDevice)
+				admin.GET("/devices/:id/conversation-records", conversationRecordController.AdminList)
+				admin.GET("/conversation-records/chat/:id/audio", conversationRecordController.AdminGetChatAudio)
+				admin.GET("/conversation-records/parent/:id/audio", conversationRecordController.AdminGetParentAudio)
 
 				// 智能体管理
 				admin.GET("/agents", adminController.GetAgents)

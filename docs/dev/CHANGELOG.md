@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- 设备对话记录：播放家长文字留言时不再重复展示 TTS 正文，保留家长留言气泡并支持双击回放 TTS 音频
+- 管理端对话记录：播放按钮移至消息气泡外侧
+
+### Added
+
+- 设备对话记录：小程序首页「看记录」跳转子页，合并展示 AI 聊天与设备端已播家长留言；支持游标分页、按日期搜索、音频播放（不写库）
+- 管理端设备管理：操作栏「对话记录」跳转子页，能力同上；API `/api/mp/devices/:id/conversation-records`、`/api/admin/devices/:id/conversation-records`
+
 ### Changed
 
 - 小程序 BLE 首次连接：收集 SN 阶段忽略 `sta_code=4`（未激活）等非致命状态，不再阻断绑定确认流程；绑定成功后再进入 WiFi 配网

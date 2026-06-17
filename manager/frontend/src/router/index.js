@@ -182,6 +182,12 @@ const routes = [
             meta: { title: '设备管理' }
           },
           {
+            path: 'devices/:id/conversation-records',
+            name: 'AdminDeviceConversationRecords',
+            component: () => import('../views/admin/DeviceConversationRecords.vue'),
+            meta: { title: '设备对话记录' }
+          },
+          {
             path: 'agents',
             name: 'AdminAgents',
             component: () => import('../views/admin/Agents.vue'),

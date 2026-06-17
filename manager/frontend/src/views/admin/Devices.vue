@@ -59,10 +59,18 @@
           {{ new Date(row.created_at).toLocaleString() }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="300">
+      <el-table-column label="操作" width="380">
         <template #default="{ row }">
           <el-button size="small" @click="editDevice(row)">
             编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="success"
+            :disabled="!row.agent_id || !row.device_name"
+            @click="openConversationRecords(row)"
+          >
+            对话记录
           </el-button>
           <el-button size="small" type="primary" @click="showDeviceMcp(row)">
             MCP
@@ -130,12 +138,15 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
 import api from '../../utils/api'
 import DeviceForm from '../../components/common/DeviceForm.vue'
 import { createDefaultDeviceForm, deviceToForm } from '../../composables/useAgentFormOptions'
 import { formatDeviceNickName, getDeviceNickName, getDeviceReferenceLabel } from '../../utils/iotDevice'
+
+const router = useRouter()
 
 const devices = ref([])
 const loading = ref(false)
@@ -171,6 +182,14 @@ const openAddDialog = () => {
   editingDevice.value = null
   deviceForm.value = createDefaultDeviceForm({ isAdmin: true })
   showAddDialog.value = true
+}
+
+const openConversationRecords = (device) => {
+  if (!device.agent_id || !device.device_name) {
+    ElMessage.warning('设备须绑定智能体且具备 SN 方可查看对话记录')
+    return
+  }
+  router.push({ name: 'AdminDeviceConversationRecords', params: { id: device.id } })
 }
 
 const editDevice = (device) => {
