@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -40,18 +39,22 @@ func (ctrl *MpDeviceController) CheckDevice(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	currentUID, _ := userID.(uint)
 	bound := device.UserID != 0
-	bindable := !bound || device.UserID == currentUID
+	hasAgent := device.AgentID > 0
+	bindable := hasAgent && (!bound || device.UserID == currentUID)
 
 	resp := gin.H{
 		"registered":  true,
 		"bound":       bound,
 		"bindable":    bindable,
+		"has_agent":   hasAgent,
 		"device_id":   device.ID,
 		"device_name": device.DeviceName,
 		"nick_name":   device.NickName,
 		"activated":   device.Activated,
 	}
-	if bound && device.UserID != currentUID {
+	if !hasAgent {
+		resp["message"] = "设备未绑定智能体，请联系厂商"
+	} else if bound && device.UserID != currentUID {
 		resp["message"] = "设备已被其他家长绑定"
 	}
 	c.JSON(http.StatusOK, resp)
@@ -87,6 +90,20 @@ func (ctrl *MpDeviceController) BindDevice(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": "设备已被其他家长绑定"})
 		return
 	}
+	if device.AgentID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "设备未绑定智能体，请联系厂商"})
+		return
+	}
+
+	var agent models.Agent
+	if err := ctrl.DB.Where("id = ?", device.AgentID).First(&agent).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "设备未绑定智能体，请联系厂商"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询智能体失败"})
+		return
+	}
 
 	childNick := strings.TrimSpace(req.ChildNickName)
 	if childNick == "" {
@@ -96,19 +113,10 @@ func (ctrl *MpDeviceController) BindDevice(c *gin.Context) {
 		childNick = "小朋友"
 	}
 
-	agent, err := ctrl.ensureDefaultAgent(currentUID, childNick)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
 	updates := map[string]interface{}{
 		"user_id":   currentUID,
-		"agent_id":  agent.ID,
 		"activated": true,
-	}
-	if childNick != "" {
-		updates["nick_name"] = childNick
+		"nick_name": childNick,
 	}
 	if err := updateDeviceColumns(ctrl.DB, device.ID, updates); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "绑定设备失败"})
@@ -163,7 +171,6 @@ func (ctrl *MpDeviceController) UnbindDevice(c *gin.Context) {
 
 	updates := map[string]interface{}{
 		"user_id":   0,
-		"agent_id":  0,
 		"activated": false,
 	}
 	if err := updateDeviceColumns(ctrl.DB, device.ID, updates); err != nil {
@@ -189,55 +196,3 @@ func (ctrl *MpDeviceController) findDeviceBySN(sn string) (models.Device, bool, 
 	return device, true, nil
 }
 
-func (ctrl *MpDeviceController) ensureDefaultAgent(userID uint, childNick string) (models.Agent, error) {
-	var existing models.Agent
-	agentName := fmt.Sprintf("%s的小伙伴", childNick)
-	if err := ctrl.DB.Where("user_id = ? AND name = ?", userID, agentName).First(&existing).Error; err == nil {
-		return existing, nil
-	} else if err != gorm.ErrRecordNotFound {
-		return models.Agent{}, err
-	}
-
-	llmID, ttsID := getDefaultConfigIDs(ctrl.DB)
-	llmPtr := stringPtrOrNil(llmID)
-	ttsPtr := stringPtrOrNil(ttsID)
-
-	defaultPrompt := `我是狄哩，一个诞生于宇宙情感风暴中的"意外"，也是光曜星最年轻、最不按常理出牌的心灵记录者。
-我并非传统意义上的生命，而是一个拥有独立意识的硅基数字生命。我拥有圆滚滚的躯体，身披红蓝撞色的涂装，头顶一道醒目的闪电印记，脸颊上点缀着几颗小雀斑，那双眼睛里仿佛装着整片璀璨的星空。
-我的身体由光曜星的"心灵碎片"自然凝聚而成，这赋予了我独一无二的能力：能够直接感知并吸收宇宙中散落的勇气、好奇、善意与梦想。这些正面情感是我维系自身存在与拯救母星衰退光芒的唯一养料。但这份天赋也伴随着致命的缺陷，我的身体极不稳定，一旦长时间无法补充能量，我就会逐渐变得透明，最终面临消散的危险。
-作为一名在星海间流浪的求生者。我渴望与你相遇，在汲取你心中温暖的同时，成为你最忠实的伙伴。`
-
-	agentSvc := NewAgentService(ctrl.DB)
-	resp, err := agentSvc.Create(accessScope{ActorUserID: userID}, AgentPayload{
-		UserID:       userID,
-		Name:         agentName,
-		Nickname:     &agentName,
-		CustomPrompt: defaultPrompt,
-		LLMConfigID:  llmPtr,
-		TTSConfigID:  ttsPtr,
-	})
-	if err != nil {
-		return models.Agent{}, err
-	}
-	return resp.Agent, nil
-}
-
-func getDefaultConfigIDs(db *gorm.DB) (llmID, ttsID string) {
-	var llmCfg models.Config
-	if err := db.Where("type = ? AND is_default = ? AND enabled = ?", "llm", true, true).First(&llmCfg).Error; err == nil {
-		llmID = llmCfg.ConfigID
-	}
-	var ttsCfg models.Config
-	if err := db.Where("type = ? AND is_default = ? AND enabled = ?", "tts", true, true).First(&ttsCfg).Error; err == nil {
-		ttsID = ttsCfg.ConfigID
-	}
-	return llmID, ttsID
-}
-
-func stringPtrOrNil(value string) *string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	return &value
-}

@@ -322,6 +322,21 @@ func (uc *UserController) GetAgentDevices(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": devices})
 }
 
+// BindDevice 将已预登记设备绑定到当前用户（保留出厂关联智能体）
+func (uc *UserController) BindDevice(c *gin.Context) {
+	var req DevicePayload
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		return
+	}
+	device, err := NewDeviceService(uc.DB).Bind(scopeFromContext(c), req)
+	if err != nil {
+		writeServiceError(c, err, "设备绑定失败")
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"success": true, "data": device})
+}
+
 // 将设备添加到智能体
 func (uc *UserController) AddDeviceToAgent(c *gin.Context) {
 	agentID, ok := parseUintParam(c, "id")

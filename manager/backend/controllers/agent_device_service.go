@@ -682,17 +682,14 @@ func (svc *DeviceService) Delete(scope accessScope, id uint) error {
 	return svc.DB.Delete(&device).Error
 }
 
-func (svc *DeviceService) BindToAgent(scope accessScope, agentID uint, payload DevicePayload) (*DeviceResponse, error) {
-	var agent models.Agent
-	query := svc.DB.Where("id = ?", agentID)
-	if !scope.IsAdmin {
-		query = query.Where("user_id = ?", scope.ActorUserID)
+// Bind 将已预登记设备绑定到当前用户，保留出厂关联的智能体，仅更新用户、昵称与激活状态。
+func (svc *DeviceService) Bind(scope accessScope, payload DevicePayload) (*DeviceResponse, error) {
+	targetUserID := scope.ActorUserID
+	if scope.IsAdmin && payload.UserID > 0 {
+		targetUserID = payload.UserID
 	}
-	if err := query.First(&agent).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("智能体不存在")
-		}
-		return nil, err
+	if targetUserID == 0 {
+		return nil, fmt.Errorf("未认证")
 	}
 
 	code := strings.TrimSpace(payload.Code)
@@ -712,66 +709,58 @@ func (svc *DeviceService) BindToAgent(scope accessScope, agentID uint, payload D
 	}
 
 	var device models.Device
-	deviceExists := true
 	if code != "" {
 		if err := svc.DB.Where("device_code = ?", code).First(&device).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
-				deviceExists = false
-			} else {
-				return nil, err
+				return nil, fmt.Errorf("设备未登记，请联系厂商")
 			}
-		}
-	} else {
-		if err := svc.DB.Where("device_name = ?", deviceName).First(&device).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				deviceExists = false
-			} else {
-				return nil, err
-			}
-		}
-	}
-
-	if deviceExists {
-		if device.UserID != 0 && device.UserID != agent.UserID {
-			if code != "" {
-				return nil, fmt.Errorf("验证码无效或设备已被绑定")
-			}
-			return nil, fmt.Errorf("设备 SN 无效或设备已被绑定")
-		}
-		device.UserID = agent.UserID
-		device.AgentID = agent.ID
-		device.Activated = true
-		if nickName != "" {
-			device.NickName = nickName
-		} else if strings.TrimSpace(device.NickName) == "" {
-			device.NickName = strings.TrimSpace(device.DeviceName)
-		}
-		if err := updateDeviceColumns(svc.DB, device.ID, map[string]interface{}{
-			"user_id":   device.UserID,
-			"agent_id":  device.AgentID,
-			"activated": device.Activated,
-			"nick_name": device.NickName,
-		}); err != nil {
 			return nil, err
 		}
-		return svc.Get(accessScope{ActorUserID: agent.UserID, IsAdmin: scope.IsAdmin}, device.ID)
-	}
-
-	device = models.Device{
-		UserID:     agent.UserID,
-		AgentID:    agent.ID,
-		NickName:   nickName,
-		DeviceCode: code,
-		DeviceName: deviceName,
-		Activated:  true,
-	}
-	if device.NickName == "" {
-		device.NickName = strings.TrimSpace(device.DeviceName)
-	}
-	if err := svc.DB.Create(&device).Error; err != nil {
+	} else if err := svc.DB.Where("device_name = ?", deviceName).First(&device).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("设备未登记，请联系厂商")
+		}
 		return nil, err
 	}
-	return svc.Get(accessScope{ActorUserID: agent.UserID, IsAdmin: scope.IsAdmin}, device.ID)
+
+	if device.AgentID == 0 {
+		return nil, fmt.Errorf("设备未绑定智能体，请联系厂商")
+	}
+	var agentCount int64
+	if err := svc.DB.Model(&models.Agent{}).Where("id = ?", device.AgentID).Count(&agentCount).Error; err != nil {
+		return nil, err
+	}
+	if agentCount == 0 {
+		return nil, fmt.Errorf("设备未绑定智能体，请联系厂商")
+	}
+
+	if device.UserID != 0 && device.UserID != targetUserID {
+		if code != "" {
+			return nil, fmt.Errorf("验证码无效或设备已被绑定")
+		}
+		return nil, fmt.Errorf("设备 SN 无效或设备已被绑定")
+	}
+
+	device.UserID = targetUserID
+	device.Activated = true
+	if nickName != "" {
+		device.NickName = nickName
+	} else if strings.TrimSpace(device.NickName) == "" {
+		device.NickName = strings.TrimSpace(device.DeviceName)
+	}
+	if err := updateDeviceColumns(svc.DB, device.ID, map[string]interface{}{
+		"user_id":   device.UserID,
+		"activated": device.Activated,
+		"nick_name": device.NickName,
+	}); err != nil {
+		return nil, err
+	}
+	return svc.Get(accessScope{ActorUserID: targetUserID, IsAdmin: scope.IsAdmin}, device.ID)
+}
+
+func (svc *DeviceService) BindToAgent(scope accessScope, agentID uint, payload DevicePayload) (*DeviceResponse, error) {
+	_ = agentID
+	return svc.Bind(scope, payload)
 }
 
 func (svc *DeviceService) UnbindFromAgent(scope accessScope, agentID uint, deviceID uint) error {

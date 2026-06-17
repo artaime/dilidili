@@ -319,10 +319,6 @@ const resetAddDeviceForm = () => {
 }
 
 const openAddDeviceDialog = () => {
-  if (!agents.value.length) {
-    ElMessage.warning('请先创建智能体，再绑定设备')
-    return
-  }
   resetAddDeviceForm()
   showAddDeviceDialog.value = true
 }
@@ -335,15 +331,9 @@ const handleAddDevice = async () => {
     return
   }
 
-  const agentId = deviceForm.value.agent_id
-  if (!agentId) {
-    ElMessage.warning('请选择目标智能体')
-    return
-  }
-
   addingDevice.value = true
   try {
-    const response = await api.post(`/user/agents/${agentId}/devices`, deviceFormRef.value.buildPayload())
+    const response = await api.post('/user/devices/bind', deviceFormRef.value.buildPayload())
     if (response.data?.success) {
       ElMessage.success('设备绑定成功')
       showAddDeviceDialog.value = false

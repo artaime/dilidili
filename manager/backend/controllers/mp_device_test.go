@@ -30,7 +30,6 @@ func setupMpDeviceTestDB(t *testing.T) *gorm.DB {
 
 func TestMpDeviceBindRejectsUnregisteredDevice(t *testing.T) {
 	db := setupMpDeviceTestDB(t)
-	user := createServiceTestUser(t, db, "mp-parent", "user")
 	ctrl := &MpDeviceController{DB: db}
 
 	_, found, err := ctrl.findDeviceBySN("SN-TEST-UNREGISTERED")
@@ -40,33 +39,26 @@ func TestMpDeviceBindRejectsUnregisteredDevice(t *testing.T) {
 	if found {
 		t.Fatal("unregistered device should not be found")
 	}
+}
 
-	var llmCount int64
-	if db.Model(&models.Config{}).Where("type = ? AND is_default = ? AND enabled = ?", "llm", true, true).Count(&llmCount).Error != nil || llmCount == 0 {
-		createServiceTestConfig(t, db, "llm", "llm-mp-default", "openai")
-	}
-	var ttsCount int64
-	if db.Model(&models.Config{}).Where("type = ? AND is_default = ? AND enabled = ?", "tts", true, true).Count(&ttsCount).Error != nil || ttsCount == 0 {
-		createServiceTestConfig(t, db, "tts", "tts-mp-default", "doubao")
+func TestMpDeviceBindRequiresFactoryAgent(t *testing.T) {
+	db := setupMpDeviceTestDB(t)
+	user := createServiceTestUser(t, db, "mp-parent", "user")
+	admin := createServiceTestUser(t, db, "mp-admin", "admin")
+	agent := models.Agent{UserID: admin.ID, Name: "factory-agent", Nickname: "狄哩"}
+	if err := db.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
 	}
 
-	device := models.Device{DeviceName: "SN-TEST-001", DeviceCode: "111111", NickName: "test-device"}
+	device := models.Device{DeviceName: "SN-TEST-001", DeviceCode: "111111", NickName: "test-device", AgentID: agent.ID}
 	if err := db.Create(&device).Error; err != nil {
 		t.Fatalf("create device: %v", err)
 	}
 
-	agent, err := ctrl.ensureDefaultAgent(user.ID, "小明")
-	if err != nil {
-		t.Fatalf("ensure default agent: %v", err)
-	}
-	if agent.Name != "小明的小伙伴" {
-		t.Fatalf("agent name = %q", agent.Name)
-	}
-
 	updates := map[string]interface{}{
 		"user_id":   user.ID,
-		"agent_id":  agent.ID,
 		"activated": true,
+		"nick_name": "小明",
 	}
 	if err := updateDeviceColumns(db, device.ID, updates); err != nil {
 		t.Fatalf("bind device: %v", err)
@@ -76,8 +68,8 @@ func TestMpDeviceBindRejectsUnregisteredDevice(t *testing.T) {
 	if err := db.First(&bound, device.ID).Error; err != nil {
 		t.Fatalf("load bound device: %v", err)
 	}
-	if bound.UserID != user.ID || !bound.Activated {
-		t.Fatalf("bound device = user:%d activated:%v", bound.UserID, bound.Activated)
+	if bound.UserID != user.ID || !bound.Activated || bound.AgentID != agent.ID {
+		t.Fatalf("bound device = user:%d agent:%d activated:%v", bound.UserID, bound.AgentID, bound.Activated)
 	}
 }
 
@@ -106,5 +98,42 @@ func TestMpDeviceBindRejectsOccupiedDevice(t *testing.T) {
 	}
 	if foundDevice.UserID == userB.ID {
 		t.Fatal("device should not belong to userB")
+	}
+}
+
+func TestMpDeviceUnbindPreservesFactoryAgent(t *testing.T) {
+	db := setupMpDeviceTestDB(t)
+	user := createServiceTestUser(t, db, "mp-unbind", "user")
+	admin := createServiceTestUser(t, db, "mp-admin-unbind", "admin")
+	agent := models.Agent{UserID: admin.ID, Name: "factory-agent", Nickname: "狄哩"}
+	if err := db.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+
+	device := models.Device{
+		UserID:     user.ID,
+		AgentID:    agent.ID,
+		DeviceName: "SN-TEST-UNBIND",
+		DeviceCode: "333333",
+		Activated:  true,
+	}
+	if err := db.Create(&device).Error; err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	updates := map[string]interface{}{
+		"user_id":   0,
+		"activated": false,
+	}
+	if err := updateDeviceColumns(db, device.ID, updates); err != nil {
+		t.Fatalf("unbind device: %v", err)
+	}
+
+	var unbound models.Device
+	if err := db.First(&unbound, device.ID).Error; err != nil {
+		t.Fatalf("load unbound device: %v", err)
+	}
+	if unbound.UserID != 0 || unbound.Activated || unbound.AgentID != agent.ID {
+		t.Fatalf("unbound device = user:%d agent:%d activated:%v, want user:0 agent:%d activated:false", unbound.UserID, unbound.AgentID, unbound.Activated, agent.ID)
 	}
 }

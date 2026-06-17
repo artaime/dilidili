@@ -159,6 +159,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				// 设备管理
 				user.GET("/devices", userController.GetMyDevices)
 				user.POST("/devices", userController.CreateDevice)
+				user.POST("/devices/bind", userController.BindDevice)
 				user.PUT("/devices/:id", userController.UpdateDevice)
 				user.DELETE("/devices/:id", userController.DeleteDevice)
 

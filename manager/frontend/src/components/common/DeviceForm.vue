@@ -25,17 +25,6 @@
       </el-select>
     </el-form-item>
 
-    <el-form-item v-if="isBindMode && !hasFixedAgent" label="目标智能体" prop="agent_id">
-      <el-select v-model="form.agent_id" placeholder="请选择要绑定的智能体" filterable style="width: 100%">
-        <el-option
-          v-for="agent in displayAgents"
-          :key="agent.id"
-          :label="agent.name || `智能体 #${agent.id}`"
-          :value="agent.id"
-        />
-      </el-select>
-    </el-form-item>
-
     <el-form-item v-if="isBindMode" label="设备验证码或 SN" prop="identifier">
       <el-input
         v-model="form.identifier"
@@ -47,6 +36,9 @@
         <span>示例：</span>
         <code>123456</code>
         <code>SN-XXXXXXXX-XXXXXXXX</code>
+      </div>
+      <div class="form-hint">
+        设备出厂已关联内置智能体，绑定后仅关联到您的账号。
       </div>
     </el-form-item>
 
@@ -216,14 +208,6 @@ const validateDeviceName = (_, value, callback) => {
 
 const validateAgentId = (_, value, callback) => {
   const agentId = Number(value || 0)
-  if (isBindMode.value && !hasFixedAgent.value) {
-    if (!agentId) {
-      callback(new Error('请选择目标智能体'))
-      return
-    }
-    callback()
-    return
-  }
   if (!isBindMode.value && props.mode === 'create' && !agentId) {
     callback(new Error('请选择关联智能体'))
     return
