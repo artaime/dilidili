@@ -64,6 +64,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		DB:                    db,
 		ChatHistoryController: chatHistoryController,
 	}
+	deviceMemoryController := &controllers.DeviceMemoryController{DB: db}
 	mpAuthController := &controllers.MpAuthController{DB: db, Cfg: cfg}
 	mpDeviceController := &controllers.MpDeviceController{DB: db}
 	mpMessageController := controllers.NewMpMessageController(db, cfg)
@@ -405,6 +406,8 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				admin.PUT("/devices/:id", adminController.UpdateDevice)
 				admin.DELETE("/devices/:id", adminController.DeleteDevice)
 				admin.GET("/devices/:id/conversation-records", conversationRecordController.AdminList)
+				admin.GET("/devices/:id/memory", deviceMemoryController.GetDeviceMemory)
+				admin.DELETE("/devices/:id/memory", deviceMemoryController.DeleteDeviceMemory)
 				admin.GET("/conversation-records/chat/:id/audio", conversationRecordController.AdminGetChatAudio)
 				admin.GET("/conversation-records/parent/:id/audio", conversationRecordController.AdminGetParentAudio)
 

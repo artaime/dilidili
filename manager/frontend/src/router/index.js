@@ -188,6 +188,12 @@ const routes = [
             meta: { title: '设备对话记录' }
           },
           {
+            path: 'devices/:id/memory',
+            name: 'AdminDeviceMemory',
+            component: () => import('../views/admin/DeviceMemory.vue'),
+            meta: { title: '设备长期记忆' }
+          },
+          {
             path: 'agents',
             name: 'AdminAgents',
             component: () => import('../views/admin/Agents.vue'),

@@ -151,7 +151,7 @@ func (w *MessageWorker) processMemoryProvider(event *eventbus.AddMessageEvent) {
 
 	err := clientState.MemoryProvider.AddMessage(
 		clientState.Ctx,
-		clientState.GetDeviceIDOrAgentID(),
+		clientState.GetMemoryUserID(),
 		event.Msg)
 	if err != nil {
 		log.Errorf("add message to memory provider failed: %v", err)

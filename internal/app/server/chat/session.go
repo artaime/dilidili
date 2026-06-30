@@ -456,7 +456,7 @@ func (c *ChatSession) InitAsrLlmTts() error {
 
 	if memoryMode == MemoryModeLong {
 		// 初始化memory context（仅长记忆模式）
-		context, err := memoryProvider.GetContext(c.ctx, c.clientState.GetDeviceIDOrAgentID(), 500)
+		context, err := memoryProvider.GetContext(c.ctx, c.clientState.GetMemoryUserID(), 500)
 		if err != nil {
 			log.Warnf("初始化memory context失败: %v", err)
 		}

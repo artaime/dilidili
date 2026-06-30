@@ -1200,7 +1200,7 @@ func (l *LLMManager) GetMessages(ctx context.Context, userMessage *schema.Messag
 
 	//search memory
 	if memoryMode == MemoryModeLong && l.clientState.MemoryProvider != nil && userMessage != nil {
-		memoryContext, err := l.clientState.MemoryProvider.Search(ctx, l.clientState.GetDeviceIDOrAgentID(), userMessage.Content, 10, 180)
+		memoryContext, err := l.clientState.MemoryProvider.Search(ctx, l.clientState.GetMemoryUserID(), userMessage.Content, 10, 180)
 		if err != nil {
 			log.Errorf("搜索记忆失败: %v", err)
 		}

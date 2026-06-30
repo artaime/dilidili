@@ -203,7 +203,7 @@ func (h *SessionEndHandler) Process(ctx context.Context, data interface{}) error
 	// 将消息加到长期记忆体中
 	err := clientState.MemoryProvider.Flush(
 		clientState.Ctx,
-		clientState.GetDeviceIDOrAgentID())
+		clientState.GetMemoryUserID())
 	if err != nil {
 		log.Errorf("flush message to memory provider failed: %v", err)
 		return err

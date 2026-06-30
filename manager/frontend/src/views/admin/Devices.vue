@@ -59,7 +59,7 @@
           {{ new Date(row.created_at).toLocaleString() }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="380">
+      <el-table-column label="操作" width="460">
         <template #default="{ row }">
           <el-button size="small" @click="editDevice(row)">
             编辑
@@ -71,6 +71,14 @@
             @click="openConversationRecords(row)"
           >
             对话记录
+          </el-button>
+          <el-button
+            size="small"
+            type="warning"
+            :disabled="!row.agent_id || !row.device_name"
+            @click="openDeviceMemory(row)"
+          >
+            设备记忆
           </el-button>
           <el-button size="small" type="primary" @click="showDeviceMcp(row)">
             MCP
@@ -190,6 +198,14 @@ const openConversationRecords = (device) => {
     return
   }
   router.push({ name: 'AdminDeviceConversationRecords', params: { id: device.id } })
+}
+
+const openDeviceMemory = (device) => {
+  if (!device.agent_id || !device.device_name) {
+    ElMessage.warning('设备须绑定智能体且具备 SN 方可查看设备记忆')
+    return
+  }
+  router.push({ name: 'AdminDeviceMemory', params: { id: device.id } })
 }
 
 const editDevice = (device) => {

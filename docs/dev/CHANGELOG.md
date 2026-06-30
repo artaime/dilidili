@@ -6,11 +6,15 @@
 
 ### Fixed
 
+- Memobase：修复 `getUser` double-UUID，设备 SN 仅做一次 UUID v5 映射；管理端查询与运行时键一致，并兼容历史二次哈希数据
+- Memobase 接入：`config.yaml` 默认 MCP/Memory 改为本地 Memobase（API 6019、MCP SSE 6050）；修复 `search_top_k` 配置项未被 memobase 客户端读取的问题
+- 长期记忆：多设备共用同一智能体时，Memobase/mem0 等长记忆按设备 ID 隔离，不再共用 agent 级记忆
 - 设备对话记录：播放家长文字留言时不再重复展示 TTS 正文，保留家长留言气泡并支持双击回放 TTS 音频
 - 管理端对话记录：播放按钮移至消息气泡外侧
 
 ### Added
 
+- 管理端设备管理：「设备记忆」子页，查看 Memobase Profile/Event/Context，支持清空长期记忆；API `GET/DELETE /api/admin/devices/:id/memory`（详见 `docs/features/DEVICE_MEMORY_VIEW.md`）
 - 设备对话记录：小程序首页「看记录」跳转子页，合并展示 AI 聊天与设备端已播家长留言；支持游标分页、按日期搜索、音频播放（不写库）
 - 管理端设备管理：操作栏「对话记录」跳转子页，能力同上；API `/api/mp/devices/:id/conversation-records`、`/api/admin/devices/:id/conversation-records`
 

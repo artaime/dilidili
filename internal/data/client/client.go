@@ -206,6 +206,15 @@ func (c *ClientState) GetDeviceIDOrAgentID() string {
 	return c.DeviceID
 }
 
+// GetMemoryUserID 返回长期记忆的用户隔离键，始终优先使用设备 ID，
+// 以便多设备共用同一智能体时仍保持各自独立的 Memobase/mem0 记忆。
+func (c *ClientState) GetMemoryUserID() string {
+	if c.DeviceID != "" {
+		return c.DeviceID
+	}
+	return c.AgentID
+}
+
 // 历史消息相关的方法开始
 func (c *ClientState) AddMessage(msg *schema.Message) {
 	if msg == nil {
