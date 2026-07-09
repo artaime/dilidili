@@ -110,6 +110,10 @@ type ClientState struct {
 	MemoryProvider memory.MemoryProvider
 	MemoryContext  string //memory context
 
+	recentStoryMu      sync.RWMutex
+	recentStoryContext string
+	recentStoryAt      time.Time
+
 	// 上下文控制
 	Ctx    context.Context
 	Cancel context.CancelFunc
@@ -213,6 +217,32 @@ func (c *ClientState) GetMemoryUserID() string {
 		return c.DeviceID
 	}
 	return c.AgentID
+}
+
+func (c *ClientState) SetRecentStoryContext(brief string) {
+	if c == nil {
+		return
+	}
+	c.recentStoryMu.Lock()
+	defer c.recentStoryMu.Unlock()
+	c.recentStoryContext = strings.TrimSpace(brief)
+	c.recentStoryAt = time.Now()
+}
+
+// RecentStoryContextForPrompt 返回最近故事摘要，供 LLM system prompt 注入；超过 30 分钟自动失效。
+func (c *ClientState) RecentStoryContextForPrompt() string {
+	if c == nil {
+		return ""
+	}
+	c.recentStoryMu.RLock()
+	defer c.recentStoryMu.RUnlock()
+	if c.recentStoryContext == "" {
+		return ""
+	}
+	if !c.recentStoryAt.IsZero() && time.Since(c.recentStoryAt) > 30*time.Minute {
+		return ""
+	}
+	return c.recentStoryContext
 }
 
 // 历史消息相关的方法开始

@@ -13,7 +13,13 @@ import (
 
 func (c *ChatManager) RouteUserIntent(ctx context.Context, text string, speakerResult *speaker.IdentifyResult) (bool, error) {
 	_ = speakerResult
-	if c == nil || !intent.IntentRouterEnabled() {
+	if c == nil {
+		return false, nil
+	}
+	if handled, err := c.tryHandleChildStoryRequest(ctx, text); handled {
+		return true, err
+	}
+	if !intent.IntentRouterEnabled() {
 		return false, nil
 	}
 	if c.parentMessageState != nil {

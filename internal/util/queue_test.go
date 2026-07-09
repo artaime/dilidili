@@ -34,3 +34,21 @@ func TestQueueClearAndDrainReturnsBufferedItems(t *testing.T) {
 		t.Fatalf("expected to pop new item 3 after clear, got %d", item)
 	}
 }
+
+func TestQueuePushBlockingWaitsForSpace(t *testing.T) {
+	q := NewQueue[int](1)
+	if err := q.Push(1); err != nil {
+		t.Fatalf("push failed: %v", err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- q.PushBlocking(context.Background(), 2)
+	}()
+	item, err := q.Pop(context.Background(), 0)
+	if err != nil || item != 1 {
+		t.Fatalf("pop failed: item=%d err=%v", item, err)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("blocking push failed: %v", err)
+	}
+}

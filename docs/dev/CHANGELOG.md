@@ -4,16 +4,45 @@
 
 ## [Unreleased]
 
+### Changed
+
+- 儿童故事：LLM 首行输出 `[[meta:title=…|genre=…|theme=…]]` 元信息（不播报），管理端标题/题材分别展示故事名称与类型（童话、神话、寓言、冒险等）
+- 儿童故事：TTS 打断时同步停止 LLM 生成；未完成生成的故事管理端不展示播放进度、提示「故事未完成生成」；续讲 B 方案：过渡语后先按整句补播未听草稿，再从全文末 LLM 自然续写；已完整生成的故事仍从断点 TTS 复播
+- 管理端设备故事：标题优先按题材展示（如「普罗米修斯的故事」）；状态 `abandoned` 文案改为「生成失败」
+
 ### Fixed
 
-- Memobase：修复 `getUser` double-UUID，设备 SN 仅做一次 UUID v5 映射；管理端查询与运行时键一致，并兼容历史二次哈希数据
+- 儿童故事：管理端标题误显示正文首句 — 落库与列表展示均优先用 LLM meta / 题材生成标题，旧数据在 API 层修正
+- 儿童故事：TTS 打断被误判为「已放弃」— 生成取消与 TTS 取消统一记为 interrupted
+- 儿童故事：生成失败/中断时过早 `tts stop` — 故事流 TTS 排空等待不受 ctx 取消影响，须播完已入队音频后再发 stop
+- 儿童故事：生成失败原因不明 — 新增结构化日志（`reason=user_tts_interrupt|llm_timeout|generation_canceled|llm_error:…`、partial_runes、story_id）
+- 儿童故事：追问「刚才讲了什么故事」误走复播/列表导致「内容为空」— 故事追问改走主 LLM；播完或听过即写入最近故事上下文；list_recent 不再返回空 ready
+- 儿童故事：长故事 TTS 中途 `push timeout (10s)` — TTS 队列改为阻塞入队（随会话 ctx 取消），容量 10→128；双流缓冲 16→64
+- 儿童故事：续讲先播一小段后又从头开始 — 续讲正文改为按 CharOffset 定位；流式 TTS 打断后不再向播报通道送句
+- 儿童故事：流式故事未播完即收到 `tts stop` — 移除 LLM 通道 `IsEnd` 时过早标记完成/发 stop；故事流改为 TTS 排空后再发 `tts_stop`；打断进度在落库 segments 后正确写入
+- 儿童故事：打断后「继续讲」从头开始 — 续讲回退一段并口述上次讲到的摘要；修正流式打断时 segments 为空导致进度始终为 0 的问题
+- 儿童故事：打断后进度误显 100%、重讲从结尾开始 — 进度按实际 TTS 已播字符计；TTS 取消时停止 LLM 生成；复播/续讲兜底异常末段进度
+- 儿童故事：流式开场过渡语重复播报 — 同主题 8 秒内防重复启动流式生成；故事 LLM 禁止再输出开场白（过渡语已由系统播报）；主 LLM 规则强调工具调用前勿口头铺垫
+- 儿童故事：讲完后追问「刚才的故事」设备不知道 — 故事播完写入「最近故事」上下文并注入 system prompt，同时补写对话历史供后续 LLM 引用
+- 儿童故事：打断后 Redis 正文为空导致复播/续讲提示「内容为空」— 落库改用不受会话取消影响的 context；流式打断时即时保存已生成片段；按主题复播优先找有正文的记录，无正文时自动重新生成
+- 儿童故事：过渡语含具体主题（如「好呀，我给你讲经典故事，龟兔赛跑的故事。」）；无「故事」二字但含经典/神话名（如「讲龟兔赛跑」）可识别；经典童话与神话改用 classic/myth 模式正篇讲述、勿魔改；流式开始前草稿落库、打断/失败时保存片段，管理端可见 interrupted 记录
+- 儿童故事流式播报：主 LLM 工具调用后过早 tts_stop 导致过渡语播完即停；关键词扩展「讲…故事」直达路由；生成上下文与会话绑定
+- 儿童故事：重复同一主题 — 故事 LLM 使用独立 session 避免 Dify/Coze 对话污染；关键词路由提取用户主题
+- 管理端设备故事页：修正 Redis `key_prefix` 须与主服务一致（生产为 `dili`）
+- 儿童故事：「讲个故事」仅一句短回复 — 增加关键词直达 `create_child_story`、工具结果直接 TTS 朗读（绕过 50 字角色限制与第二轮 LLM）；故事生成提高 max_tokens/超时
 - Memobase 接入：`config.yaml` 默认 MCP/Memory 改为本地 Memobase（API 6019、MCP SSE 6050）；修复 `search_top_k` 配置项未被 memobase 客户端读取的问题
 - 长期记忆：多设备共用同一智能体时，Memobase/mem0 等长记忆按设备 ID 隔离，不再共用 agent 级记忆
 - 设备对话记录：播放家长文字留言时不再重复展示 TTS 正文，保留家长留言气泡并支持双击回放 TTS 音频
 - 管理端对话记录：播放按钮移至消息气泡外侧
+- Memobase：修复服务端未启用 Event embedding 时搜索失败导致无法读取记忆的问题；Search 方法现在会同时获取 Profile 画像信息（包含家乡等个人信息）
+- Memobase：修复 GetContext 方法使用 user.Context() API 无法正确获取画像数据的问题，改为使用 user.Profile() 获取完整画像信息并格式化为上下文
+- Memobase：添加详细日志输出，包括画像详情、搜索结果、SystemPrompt 注入内容等，方便调试记忆是否生效
 
 ### Added
 
+- 儿童故事流式播报：生成路径先 TTS 过渡语（P0），LLM 流式输出按句入 TTS（P1），生成完成后落 Redis；配置 `story.stream_enabled` / `story.filler_*`
+- 管理端设备故事页：查看设备故事列表、播放进度、字数、题材、年龄段与正文详情（详见 `docs/features/DEVICE_STORY_VIEW.md`）
+- 儿童故事 MCP 与 Story Memory：Local MCP 工具 `create_child_story`（生成/复播/续讲），Redis 存全文与播放进度，支持「再讲一遍昨晚的故事」与复听加权保留（详见 `docs/features/CHILD_STORY.md`）
 - 管理端设备管理：「设备记忆」子页，查看 Memobase Profile/Event/Context，支持清空长期记忆；API `GET/DELETE /api/admin/devices/:id/memory`（详见 `docs/features/DEVICE_MEMORY_VIEW.md`）
 - 设备对话记录：小程序首页「看记录」跳转子页，合并展示 AI 聊天与设备端已播家长留言；支持游标分页、按日期搜索、音频播放（不写库）
 - 管理端设备管理：操作栏「对话记录」跳转子页，能力同上；API `/api/mp/devices/:id/conversation-records`、`/api/admin/devices/:id/conversation-records`

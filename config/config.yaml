@@ -417,6 +417,24 @@ mcp:
 local_mcp:
   exit_conversation: true           # 允许退出对话
   clear_conversation_history: true  # 允许清除对话历史
+  create_child_story: true          # 儿童故事生成/复播/续讲
+
+# 儿童故事 Story Memory（Redis）
+story:
+  enabled: true
+  min_retention_days: 7
+  max_retention_days: 90
+  last_night_start_hour: 18
+  last_night_end_hour: 7
+  replay_suggest_threshold: 5
+  replay_suggest_interval: 3
+  memory_hint_min_confidence: 0.75
+  generate_max_tokens: 2048
+  stream_enabled: true
+  llm_route_enabled: true         # 用户话术后 LLM 识别故事意图并直达（不用关键词/内置故事名）
+  filler_enabled: true
+  filler_default: "好呀，我给你讲一个故事。"
+  filler_bedtime: "好呀，那我们讲个睡前故事，乖乖听哦。"
 
 # Memory 长记忆配置
 memory:

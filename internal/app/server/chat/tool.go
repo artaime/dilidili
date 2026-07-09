@@ -15,6 +15,7 @@ import (
 	data_client "dili-esp32-server-golang/internal/data/client"
 	"dili-esp32-server-golang/internal/domain/eventbus"
 	"dili-esp32-server-golang/internal/domain/mcp"
+	"dili-esp32-server-golang/internal/domain/story"
 	log "dili-esp32-server-golang/logger"
 
 	"github.com/cloudwego/eino/components/tool"
@@ -25,6 +26,7 @@ import (
 type toolCallResponseSummary struct {
 	invokeToolSuccess bool
 	hasMediaOutput    bool
+	deferTtsTurnEnd   bool
 }
 
 // handleToolCallResponse 处理工具调用响应
@@ -56,6 +58,7 @@ func (l *LLMManager) handleToolCallResponse(ctx context.Context, respMsg *schema
 	findExitTool := false
 	shouldStopLLMProcessing := false
 	hasMediaOutput := false
+	deferTtsTurnEnd := false
 
 	results := executor.Wait()
 	for _, result := range results {
@@ -70,6 +73,9 @@ func (l *LLMManager) handleToolCallResponse(ctx context.Context, respMsg *schema
 		}
 		if result.hasMediaOutput {
 			hasMediaOutput = true
+		}
+		if result.deferTtsTurnEnd {
+			deferTtsTurnEnd = true
 		}
 		messageList = append(messageList, result.message)
 	}
@@ -105,6 +111,7 @@ func (l *LLMManager) handleToolCallResponse(ctx context.Context, respMsg *schema
 		return toolCallResponseSummary{
 			invokeToolSuccess: invokeToolSuccess,
 			hasMediaOutput:    hasMediaOutput,
+			deferTtsTurnEnd:   deferTtsTurnEnd,
 		}, nil
 	}
 
@@ -116,6 +123,7 @@ func (l *LLMManager) handleToolCallResponse(ctx context.Context, respMsg *schema
 	return toolCallResponseSummary{
 		invokeToolSuccess: invokeToolSuccess,
 		hasMediaOutput:    hasMediaOutput,
+		deferTtsTurnEnd:   deferTtsTurnEnd,
 	}, nil
 }
 
@@ -126,6 +134,7 @@ type toolCallExecutionResult struct {
 	findExitTool            bool
 	shouldStopLLMProcessing bool
 	hasMediaOutput          bool
+	deferTtsTurnEnd         bool
 }
 
 type toolCallExecutor struct {
@@ -270,6 +279,24 @@ func (e *toolCallExecutor) executeToolCall(order int, toolCall schema.ToolCall) 
 
 	var contentList []mcp_go.Content
 	if mcpResp, ok := e.manager.handleLocalToolResult(fcResult); ok {
+		if contentResp, ok := mcpResp.(*MCPContentResponse); ok && contentResp.DirectNarration {
+			narration := strings.TrimSpace(contentResp.NarrationText)
+			if narration != "" {
+				var storyResult *story.ToolResult
+				if dataMap, ok := contentResp.Data.(map[string]interface{}); ok {
+					storyResult = storyToolResultFromMap(dataMap)
+				}
+				if err := e.manager.deliverChildStoryFromTool(e.ctx, narration, storyResult); err != nil {
+					log.Errorf("故事直接朗读失败: %v", err)
+				}
+			} else if contentResp.StopLLMFollowUp {
+				// 流式故事已在工具内启动 TTS，延后主轮次 tts_stop 至故事流结束。
+				execResult.deferTtsTurnEnd = true
+			}
+			execResult.shouldStopLLMProcessing = contentResp.StopLLMFollowUp
+			execResult.message.Content = "故事开始播放"
+			return execResult
+		}
 		if mcpResp.GetType() == MCPResponseTypeAction && mcpResp.GetAction() == "exit_conversation" {
 			execResult.findExitTool = true
 		}

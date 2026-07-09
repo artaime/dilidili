@@ -43,5 +43,12 @@
   "parent_message": {
     "audio_base_path": "./storage/parent_messages/audio",
     "max_file_size": 10485760
+  },
+  "redis": {
+    "host": "127.0.0.1",
+    "port": 6379,
+    "password": "",
+    "db": 1,
+    "key_prefix": "dili"
   }
 }

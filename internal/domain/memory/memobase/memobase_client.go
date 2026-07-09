@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	log "dili-esp32-server-golang/logger"
 
@@ -199,7 +200,7 @@ func (m *MemobaseClient) Flush(ctx context.Context, userID string) error {
 	return nil
 }
 
-// GetContext 获取用户上下文
+// GetContext 获取用户上下文（使用 Profile API 获取所有画像信息）
 func (m *MemobaseClient) GetContext(ctx context.Context, userID string, maxToken int) (string, error) {
 	user, err := m.getUser(userID)
 	if err != nil {
@@ -207,16 +208,41 @@ func (m *MemobaseClient) GetContext(ctx context.Context, userID string, maxToken
 		return "", fmt.Errorf("获取用户实例失败: %v", err)
 	}
 
-	// 获取上下文，使用默认选项
-	context, err := user.Context(&core.ContextOptions{
+	// 获取用户画像 Profile（家乡等个人信息存储在这里）
+	profileList, err := user.Profile(&core.ProfileOptions{
 		MaxTokenSize: maxToken,
 	})
 	if err != nil {
-		log.Log().Errorf("从Memobase获取上下文失败, userID: %s, memobaseUserID: %s, error: %v", userID, MemobaseUserID(userID), err)
-		return "", fmt.Errorf("从Memobase获取上下文失败: %v", err)
+		log.Log().Errorf("从Memobase获取用户画像失败, userID: %s, memobaseUserID: %s, error: %v", userID, MemobaseUserID(userID), err)
+		return "", fmt.Errorf("从Memobase获取用户画像失败: %v", err)
 	}
 
-	log.Log().Debugf("成功从Memobase获取上下文, userID: %s, context长度: %d", userID, len(context))
+	// 将画像信息格式化为上下文字符串
+	var contextParts []string
+	for _, profile := range profileList {
+		if profile.Content != "" {
+			topic := profile.Attributes.Topic
+			if topic == "" {
+				topic = "general"
+			}
+			subTopic := profile.Attributes.SubTopic
+			if subTopic != "" {
+				contextParts = append(contextParts, fmt.Sprintf("[%s-%s] %s", topic, subTopic, profile.Content))
+			} else {
+				contextParts = append(contextParts, fmt.Sprintf("[%s] %s", topic, profile.Content))
+			}
+		}
+	}
+
+	context := strings.Join(contextParts, "\n")
+	// 打印详细的画像内容，方便调试
+	if len(profileList) > 0 {
+		log.Log().Infof("[Memobase] 用户画像详情, userID: %s, 共%d条:", userID, len(profileList))
+		for i, part := range contextParts {
+			log.Log().Infof("[Memobase] 画像[%d]: %s", i+1, part)
+		}
+	}
+	log.Log().Debugf("成功从Memobase获取上下文, userID: %s, 画像数量: %d, context长度: %d", userID, len(profileList), len(context))
 	return context, nil
 }
 
@@ -224,7 +250,14 @@ func (m *MemobaseClient) Search(ctx context.Context, userID string, query string
 	if !m.EnableSearch {
 		return "", nil
 	}
-	topK = m.SearchTopk
+
+	// 使用配置的 topK 如果传入的无效
+	if topK <= 0 {
+		topK = m.SearchTopk
+	}
+	if topK <= 0 {
+		topK = 3 // 默认值为 3
+	}
 
 	user, err := m.getUser(userID)
 	if err != nil {
@@ -232,25 +265,66 @@ func (m *MemobaseClient) Search(ctx context.Context, userID string, query string
 		return "", fmt.Errorf("获取用户实例失败: %v", err)
 	}
 
-	topK = 2
+	var results []string
 
-	// 搜索event
-	userEventList, err := user.SearchEvent(query, topK, 0.2, int(timeRangeDays))
-	if err != nil {
-		log.Log().Errorf("从Memobase搜索事件失败, userID: %s, error: %v", userID, err)
-		return "", fmt.Errorf("从Memobase搜索事件失败: %v", err)
+	// 1. 搜索 event（如果服务端启用了 embedding）
+	// 使用配置的搜索阈值，默认为 0.2
+	threshold := m.SearchThreshold
+	if threshold <= 0 {
+		threshold = 0.2
 	}
 
-	var eventList []string
-	for _, event := range userEventList {
-		eventList = append(eventList, fmt.Sprintf("- %s: %s", event.CreatedAt, event.EventData.EventTip))
+	userEventList, err := user.SearchEvent(query, topK, threshold, int(timeRangeDays))
+	if err != nil {
+		// Event embedding 未启用或其他错误，记录警告但不阻断流程
+		log.Log().Warnf("从Memobase搜索事件失败(可能是服务端未启用Event embedding), userID: %s, error: %v", userID, err)
+	} else {
+		for _, event := range userEventList {
+			if event.EventData.EventTip != "" {
+				results = append(results, fmt.Sprintf("- [%s] %s", event.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"), event.EventData.EventTip))
+			}
+		}
+		log.Log().Debugf("从Memobase搜索到 %d 个事件, userID: %s", len(userEventList), userID)
+	}
+
+	// 2. 搜索用户画像 Profile（家乡等个人信息通常存储在这里）
+	// Profile 不依赖于 embedding，通常是结构化存储
+	profileList, err := user.Profile(&core.ProfileOptions{
+		MaxTokenSize: topK * 200, // 估算：每个画像约200字符
+	})
+	if err != nil {
+		log.Log().Warnf("从Memobase获取用户画像失败, userID: %s, error: %v", userID, err)
+	} else {
+		for _, profile := range profileList {
+			if profile.Content != "" {
+				topic := profile.Attributes.Topic
+				if topic == "" {
+					topic = "general"
+				}
+				results = append(results, fmt.Sprintf("- [画像-%s] %s", topic, profile.Content))
+			}
+		}
+		log.Log().Debugf("从Memobase获取到 %d 个画像, userID: %s", len(profileList), userID)
+	}
+
+	// 3. 如果没有搜索结果，返回空字符串（不报错）
+	if len(results) == 0 {
+		log.Log().Debugf("Memobase 未找到匹配的记忆, userID: %s, query: %s", userID, query)
+		return "", nil
 	}
 
 	// 转换为字符串
-	userEventStr := strings.Join(eventList, "\n")
-
-	log.Log().Debugf("成功从Memobase搜索事件, userID: %s, event数量: %d", userID, len(eventList))
-	return userEventStr, nil
+	resultStr := strings.Join(results, "\n")
+	if len(results) > 0 {
+		log.Log().Infof("[Memobase] 搜索记忆结果, userID: %s, query: %s, 共%d条:", userID, query, len(results))
+		for i, r := range results {
+			log.Log().Infof("[Memobase] 搜索结果[%d]: %s", i+1, r)
+		}
+	} else {
+		log.Log().Infof("[Memobase] 未搜索到匹配记忆, userID: %s, query: %s", userID, query)
+	}
+	log.Log().Debugf("成功从Memobase搜索记忆, userID: %s, 结果数量: %d", userID, len(results))
+	return resultStr, nil
 }
 
 // AddBatchMessages 批量添加消息到Memobase

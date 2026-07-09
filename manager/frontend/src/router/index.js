@@ -194,6 +194,12 @@ const routes = [
             meta: { title: '设备长期记忆' }
           },
           {
+            path: 'devices/:id/stories',
+            name: 'AdminDeviceStories',
+            component: () => import('../views/admin/DeviceStories.vue'),
+            meta: { title: '设备故事' }
+          },
+          {
             path: 'agents',
             name: 'AdminAgents',
             component: () => import('../views/admin/Agents.vue'),

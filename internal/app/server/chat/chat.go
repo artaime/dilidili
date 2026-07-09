@@ -26,6 +26,7 @@ import (
 	userconfig "dili-esp32-server-golang/internal/domain/config"
 	"dili-esp32-server-golang/internal/domain/mcp"
 	"dili-esp32-server-golang/internal/domain/openclaw"
+	"dili-esp32-server-golang/internal/domain/story"
 	pkghooks "dili-esp32-server-golang/internal/pkg/hooks"
 	log "dili-esp32-server-golang/logger"
 )
@@ -39,6 +40,10 @@ type ChatManager struct {
 	mcpTransport      *McpTransport
 	hookHub           *chathooks.Hub
 	transformRegistry *streamtransform.Registry
+
+	storyService *story.Service
+
+	storyStreamGuard storyStreamGuard
 
 	sessionMu sync.RWMutex
 	session   *ChatSession
@@ -818,6 +823,7 @@ func (c *ChatManager) ensureSessionInternal(allowFreshHello bool) (*ChatSession,
 			c.transformRegistry,
 			WithChatSessionCloseHandler(c.handleSessionClosed),
 			WithIntentRouter(c.RouteUserIntent),
+			WithStoryProgressUpdater(c),
 		)
 		c.startingSession = session
 		c.startingSessionDone = make(chan struct{})

@@ -59,7 +59,7 @@
           {{ new Date(row.created_at).toLocaleString() }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="460">
+      <el-table-column label="操作" width="540">
         <template #default="{ row }">
           <el-button size="small" @click="editDevice(row)">
             编辑
@@ -79,6 +79,14 @@
             @click="openDeviceMemory(row)"
           >
             设备记忆
+          </el-button>
+          <el-button
+            size="small"
+            type="info"
+            :disabled="!row.device_name"
+            @click="openDeviceStories(row)"
+          >
+            故事
           </el-button>
           <el-button size="small" type="primary" @click="showDeviceMcp(row)">
             MCP
@@ -206,6 +214,14 @@ const openDeviceMemory = (device) => {
     return
   }
   router.push({ name: 'AdminDeviceMemory', params: { id: device.id } })
+}
+
+const openDeviceStories = (device) => {
+  if (!device.device_name) {
+    ElMessage.warning('设备须具备 SN 方可查看故事记录')
+    return
+  }
+  router.push({ name: 'AdminDeviceStories', params: { id: device.id } })
 }
 
 const editDevice = (device) => {

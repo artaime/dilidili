@@ -5,6 +5,7 @@ import (
 	"dili-esp32-server-golang/internal/app/server/auth"
 	redisdb "dili-esp32-server-golang/internal/db/redis"
 	user_config "dili-esp32-server-golang/internal/domain/config"
+	"dili-esp32-server-golang/internal/domain/story"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -326,6 +327,7 @@ func initRedis() error {
 		fmt.Printf("init redis error: %v\n", err)
 		return err
 	}
+	story.SetDefaultRedisClient(redisdb.GetClient())
 
 	return nil
 }

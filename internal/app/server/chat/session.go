@@ -29,6 +29,7 @@ import (
 	"dili-esp32-server-golang/internal/domain/memory/llm_memory"
 	"dili-esp32-server-golang/internal/domain/openclaw"
 	"dili-esp32-server-golang/internal/domain/speaker"
+	"dili-esp32-server-golang/internal/domain/story"
 	"dili-esp32-server-golang/internal/util"
 	log "dili-esp32-server-golang/logger"
 )
@@ -112,6 +113,11 @@ type ChatSession struct {
 
 	hookHub      *chathooks.Hub
 	closeHandler func(session *ChatSession, reason string)
+
+	storyPlaybackMu      sync.Mutex
+	storyPlayback        *StoryPlaybackTracker
+	storyPlaybackActive  atomic.Bool
+	storyProgressUpdater storyProgressUpdater
 }
 
 type IntentRouterFunc func(ctx context.Context, text string, speakerResult *speaker.IdentifyResult) (handled bool, err error)
@@ -127,6 +133,17 @@ func WithIntentRouter(handler IntentRouterFunc) ChatSessionOption {
 func WithChatSessionCloseHandler(handler func(session *ChatSession, reason string)) ChatSessionOption {
 	return func(s *ChatSession) {
 		s.closeHandler = handler
+	}
+}
+
+type storyProgressUpdater interface {
+	LocalMcpUpdateStoryProgress(ctx context.Context, storyID string, pos story.PlayPosition, interrupted, completed bool) error
+	RememberStoryForFollowUp(ctx context.Context, session *ChatSession, storyID, spokenText string, completed bool)
+}
+
+func WithStoryProgressUpdater(updater storyProgressUpdater) ChatSessionOption {
+	return func(s *ChatSession) {
+		s.storyProgressUpdater = updater
 	}
 }
 

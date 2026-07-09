@@ -88,6 +88,7 @@ flowchart LR
 | RAG | `Searcher` | `internal/domain/rag/`（Dify、RAGFlow、WeKnora） | manager 知识库 |
 | 用户配置 | `config_provider` | `internal/domain/config/manager/`、`redis/` | `config.yaml` |
 | Chat Hooks | `hooks.Hub` | `internal/domain/chat/hooks/` | `config.yaml` chat_hooks |
+| 儿童故事 | `story.Service` / `create_child_story` | `internal/domain/story/`、`internal/app/server/chat/child_story_mcp_tool.go` | `config.yaml` story / local_mcp |
 | OpenClaw | `internal/domain/openclaw/` | 智能体 Endpoint / 关键词路由 | manager 智能体配置 |
 
 新增 provider 时：实现接口 → 注册工厂 → 配置样例 → L2 FEATURE.md → 更新本表。

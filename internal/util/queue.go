@@ -48,8 +48,29 @@ func safeQueueSendWithTimeout[T any](ch chan T, val T, timeout time.Duration) (s
 	}
 }
 
+func safeQueueSendWithContext[T any](ch chan T, val T, ctx context.Context) (sent bool, closed bool) {
+	defer func() {
+		if recover() != nil {
+			sent = false
+			closed = true
+		}
+	}()
+
+	select {
+	case ch <- val:
+		return true, false
+	case <-ctx.Done():
+		return false, false
+	}
+}
+
 // Push adds an item to the queue. Returns error if queue is closed.
 func (q *Queue[T]) Push(val T) error {
+	return q.PushWithTimeout(val, 10*time.Second)
+}
+
+// PushWithTimeout waits up to timeout for queue space.
+func (q *Queue[T]) PushWithTimeout(val T, timeout time.Duration) error {
 	for {
 		q.mu.Lock()
 		if q.closed {
@@ -60,12 +81,53 @@ func (q *Queue[T]) Push(val T) error {
 		gen := q.gen
 		q.mu.Unlock()
 
-		sent, closed := safeQueueSendWithTimeout(ch, val, 10*time.Second)
+		sent, closed := safeQueueSendWithTimeout(ch, val, timeout)
 		if sent {
 			return nil
 		}
 		if !closed {
-			return errors.New("push timeout (10s)")
+			return errors.New("push timeout (" + timeout.String() + ")")
+		}
+
+		q.mu.Lock()
+		queueClosed := q.closed
+		shouldRetry := !queueClosed && q.gen != gen
+		q.mu.Unlock()
+
+		if queueClosed {
+			return ErrQueueClosed
+		}
+		if shouldRetry {
+			continue
+		}
+		return ErrQueueClosed
+	}
+}
+
+// PushBlocking enqueues until sent, ctx cancelled, or queue closed.
+func (q *Queue[T]) PushBlocking(ctx context.Context, val T) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	for {
+		q.mu.Lock()
+		if q.closed {
+			q.mu.Unlock()
+			return ErrQueueClosed
+		}
+		ch := q.ch
+		gen := q.gen
+		q.mu.Unlock()
+
+		sent, closed := safeQueueSendWithContext(ch, val, ctx)
+		if sent {
+			return nil
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if !closed {
+			continue
 		}
 
 		q.mu.Lock()

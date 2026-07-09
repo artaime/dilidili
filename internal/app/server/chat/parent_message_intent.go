@@ -13,6 +13,8 @@ import (
 	log "dili-esp32-server-golang/logger"
 
 	"github.com/cloudwego/eino/schema"
+	"github.com/google/uuid"
+	"github.com/spf13/viper"
 )
 
 type parentMessageIntent int
@@ -152,4 +154,94 @@ func (c *ChatManager) callLLMSyncText(ctx context.Context, systemPrompt, userPro
 		builder.WriteString(msg.Content)
 	}
 	return strings.TrimSpace(builder.String()), nil
+}
+
+func (c *ChatManager) callLLMSyncTextForStory(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	var builder strings.Builder
+	err := c.callLLMStreamForStory(ctx, systemPrompt, userPrompt, func(chunk string) error {
+		builder.WriteString(chunk)
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(builder.String()), nil
+}
+
+func (c *ChatManager) callLLMStreamForStory(ctx context.Context, systemPrompt, userPrompt string, onChunk func(chunk string) error) error {
+	if c.clientState == nil || c.clientState.DeviceConfig.Llm.Provider == "" {
+		return fmt.Errorf("LLM 未配置")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if onChunk == nil {
+		return fmt.Errorf("onChunk is nil")
+	}
+	callCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+
+	llmConfig := cloneLLMConfigForStory(c.clientState.DeviceConfig.Llm.Config)
+
+	llmWrapper, err := pool.Acquire[llm.LLMProvider](
+		"llm",
+		c.clientState.DeviceConfig.Llm.Provider,
+		llmConfig,
+	)
+	if err != nil {
+		return err
+	}
+	defer pool.Release(llmWrapper)
+
+	dialogue := []*schema.Message{
+		schema.SystemMessage(systemPrompt),
+		schema.UserMessage(userPrompt),
+	}
+	storySessionID := fmt.Sprintf("%s:story-gen:%s", c.clientState.SessionID, uuid.NewString())
+	msgChan := llmWrapper.GetProvider().ResponseWithContext(callCtx, storySessionID, dialogue, nil)
+
+	chunkCount := 0
+	for msg := range msgChan {
+		if msg == nil || msg.Content == "" {
+			continue
+		}
+		chunkCount++
+		if err := onChunk(msg.Content); err != nil {
+			log.Warnf("设备 %s 故事 LLM 流中断 session=%s chunks=%d err=%v",
+				c.DeviceID, storySessionID, chunkCount, err)
+			return err
+		}
+	}
+	if chunkCount == 0 {
+		log.Warnf("设备 %s 故事 LLM 流无内容 session=%s", c.DeviceID, storySessionID)
+	}
+	return nil
+}
+
+func cloneLLMConfigForStory(base map[string]interface{}) map[string]interface{} {
+	cfg := make(map[string]interface{}, len(base)+1)
+	for k, v := range base {
+		cfg[k] = v
+	}
+	minStoryTokens := 2048
+	if viper.IsSet("story.generate_max_tokens") {
+		minStoryTokens = viper.GetInt("story.generate_max_tokens")
+	}
+	for _, key := range []string{"max_tokens", "max_token"} {
+		if v, ok := cfg[key]; ok {
+			switch n := v.(type) {
+			case int:
+				if n < minStoryTokens {
+					cfg[key] = minStoryTokens
+				}
+			case float64:
+				if int(n) < minStoryTokens {
+					cfg[key] = minStoryTokens
+				}
+			}
+			return cfg
+		}
+	}
+	cfg["max_tokens"] = minStoryTokens
+	return cfg
 }

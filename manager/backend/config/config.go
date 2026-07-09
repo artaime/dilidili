@@ -18,6 +18,15 @@ type Config struct {
 	History           HistoryConfig        `json:"history"`
 	WeChat            WeChatConfig         `json:"wechat"`
 	ParentMessage     ParentMessageConfig  `json:"parent_message"`
+	Redis             *RedisConfig         `json:"redis,omitempty"`
+}
+
+type RedisConfig struct {
+	Host      string `json:"host"`
+	Port      int    `json:"port"`
+	Password  string `json:"password"`
+	DB        int    `json:"db"`
+	KeyPrefix string `json:"key_prefix"`
 }
 
 type WeChatConfig struct {

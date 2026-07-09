@@ -52,6 +52,9 @@ type interruptRequest struct {
 	reason string
 }
 
+// ttsQueueCap 单条 TTS 任务队列容量；长故事按句入队时需足够大避免 push timeout。
+const ttsQueueCap = 128
+
 // SessionAudioQueueCap 会话级音频队列容量，足够大以吸收预取并避免阻塞
 const SessionAudioQueueCap = 150
 
@@ -134,7 +137,7 @@ func NewTTSManager(clientState *ClientState, serverTransport *ServerTransport, s
 		clientState:               clientState,
 		session:                   session,
 		serverTransport:           serverTransport,
-		ttsQueue:                  util.NewQueue[TTSQueueItem](10),
+		ttsQueue:                  util.NewQueue[TTSQueueItem](ttsQueueCap),
 		sessionAudioQueue:         make(chan AudioQueueElem, SessionAudioQueueCap),
 		delayedSentenceQueue:      make(chan delayedSentenceTask, SessionAudioQueueCap),
 		delayedSentenceReadyQueue: make(chan AudioQueueElem, SessionAudioQueueCap),
@@ -727,7 +730,11 @@ func (t *TTSManager) finalizeTtsMetricLocked(err error) ttsMetricCompletion {
 
 func (t *TTSManager) pushTTSQueueItem(item TTSQueueItem) error {
 	item.enqueueSeq = t.ttsQueueSeq.Add(1)
-	if err := t.ttsQueue.Push(item); err != nil {
+	ctx := item.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := t.ttsQueue.PushBlocking(ctx, item); err != nil {
 		return err
 	}
 	t.registerTtsMetricItem(item.metricCycle)
@@ -1559,7 +1566,7 @@ func (t *TTSManager) handleTextResponseWithHooks(ctx context.Context, llmRespons
 		t.dualStreamMu.Unlock()
 		safeCloseLLMResponseStream(oldStreamChan)
 
-		streamChan = make(chan llm_common.LLMResponseStruct, 16)
+		streamChan = make(chan llm_common.LLMResponseStruct, 64)
 		var done chan struct{}
 		var onEndFunc func(error)
 		if onTTSItemEnqueued != nil {

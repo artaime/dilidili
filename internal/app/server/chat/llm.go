@@ -62,16 +62,18 @@ func (l *LLMManager) GetLastMessageID(role string) (string, bool) {
 }
 
 type LLMResponseChannelItem struct {
-	ctx          context.Context
-	userMessage  *schema.Message
-	responseChan chan llm_common.LLMResponseStruct
-	onStartFunc  func(args ...any)
-	onEndFunc    func(err error, args ...any)
+	ctx                       context.Context
+	userMessage               *schema.Message
+	responseChan              chan llm_common.LLMResponseStruct
+	onStartFunc               func(args ...any)
+	onEndFunc                 func(err error, args ...any)
+	waitTtsDrainWithoutCancel bool
 }
 
 type llmHandleResult struct {
 	ok                      bool
 	suppressProtocolTtsStop bool
+	deferTtsTurnEnd         bool
 }
 
 func llmHandleResultFromArgs(args []any) llmHandleResult {
@@ -94,6 +96,11 @@ func (l *LLMManager) finishTTSTurnWithReason(ctx context.Context, stopErr error,
 		return
 	}
 
+	if result.deferTtsTurnEnd {
+		log.Debugf("故事流式播报进行中，延后 TTS 收尾: %s", reason)
+		return
+	}
+
 	if result.suppressProtocolTtsStop {
 		// 媒体工具会等待播放完成后再回到这里收尾，此时仍需补发协议级 tts_stop，
 		// 否则客户端会停留在“说话中”状态。
@@ -110,6 +117,10 @@ type llmResponseChannelOptions struct {
 	onEndFunc          func(err error, args ...any)
 	onTTSPlaybackStart func()
 	ttsTurnEndPolicy   ttsTurnEndPolicy
+	// deferProtocolTtsStop 为 true 时默认 onEnd 不发送 tts_stop，由自定义 onEndFunc 在播报真正结束后收尾。
+	deferProtocolTtsStop bool
+	// waitTtsDrainWithoutCancel 为 true 时 TTS 排空等待不受 ctx 取消影响（故事流：生成失败仍须播完已入队音频）。
+	waitTtsDrainWithoutCancel bool
 }
 
 type ttsPlaybackStartHook func()
@@ -563,7 +574,11 @@ func (l *LLMManager) processLLMResponseQueue(ctx context.Context) {
 
 		// 调用 handleLLMResponse，它会从 context 中获取 fullText 和 toolCalls 并填充
 		result, err := l.handleLLMResponse(item.ctx, item.userMessage, item.responseChan)
-		if waitErr := waitForTTSTurnDrainIfRoot(item.ctx); err == nil && waitErr != nil {
+		waitCtx := item.ctx
+		if item.waitTtsDrainWithoutCancel && item.ctx != nil {
+			waitCtx = context.WithoutCancel(item.ctx)
+		}
+		if waitErr := waitForTTSTurnDrain(waitCtx, item.ctx); err == nil && waitErr != nil {
 			err = waitErr
 		}
 
@@ -694,8 +709,12 @@ func (l *LLMManager) handleLLMResponseChannelAsync(ctx context.Context, userMess
 			}
 			l.ttsManager.EnqueueTtsStartWithReason(ctx, "LLMManager.handleLLMResponseChannelAsync onStart")
 		}
+		deferProtocolTtsStop := options.deferProtocolTtsStop
 		onEndFunc = func(err error, args ...any) {
 			handleResult := llmHandleResultFromArgs(args)
+			if deferProtocolTtsStop {
+				handleResult.deferTtsTurnEnd = true
+			}
 			l.clientState.MarkLlmEnd()
 			if l.session != nil {
 				l.session.TraceLlmEnd(ctx, time.Now().UnixMilli(), err)
@@ -744,11 +763,12 @@ func (l *LLMManager) handleLLMResponseChannelAsync(ctx context.Context, userMess
 	onEndFunc = chainLLMResponseEndHooks(onEndFunc, options.onEndFunc)
 
 	item := LLMResponseChannelItem{
-		ctx:          ctx,
-		userMessage:  userMessage,
-		responseChan: responseChan,
-		onStartFunc:  onStartFunc,
-		onEndFunc:    onEndFunc,
+		ctx:                       ctx,
+		userMessage:               userMessage,
+		responseChan:              responseChan,
+		onStartFunc:               onStartFunc,
+		onEndFunc:                 onEndFunc,
+		waitTtsDrainWithoutCancel: options.waitTtsDrainWithoutCancel,
 	}
 
 	err := l.llmResponseQueue.Push(item)
@@ -890,6 +910,9 @@ func (l *LLMManager) handleLLMResponse(ctx context.Context, userMessage *schema.
 		if text == "" {
 			return
 		}
+		if l.session != nil && l.session.IsStoryPlaybackActive() {
+			l.session.OnStoryPlaybackInterrupted()
+		}
 		msg := schema.AssistantMessage(text, nil)
 		msg.Extra = map[string]any{
 			interruptExtraKey:      true,
@@ -952,10 +975,15 @@ func (l *LLMManager) handleLLMResponse(ctx context.Context, userMessage *schema.
 				}
 				if hasText {
 					fullText.WriteString(llmResponse.Text)
+					if l.session != nil && l.session.IsStoryPlaybackActive() {
+						l.session.OnStoryTextSent(llmResponse.Text)
+					}
 				}
 
 				if llmResponse.IsEnd {
 					if len(toolCalls) == 0 {
+						// 故事流式播报的进度与 tts_stop 由 child_story_stream 的 onEndFunc 在 TTS 排空后统一收尾，
+						// 此处不可提前标记完成，否则设备会过早收到 tts_stop 且续讲进度错误。
 						//写到redis中
 						if userMessage != nil {
 							if userMessage.Role == schema.User {
@@ -995,6 +1023,7 @@ func (l *LLMManager) handleLLMResponse(ctx context.Context, userMessage *schema.
 							return result, fmt.Errorf("处理工具调用响应失败: %v", err)
 						}
 						result.suppressProtocolTtsStop = toolSummary.hasMediaOutput
+						result.deferTtsTurnEnd = toolSummary.deferTtsTurnEnd
 						if !toolSummary.invokeToolSuccess && strings.TrimSpace(llmResponse.Text) != "" {
 							if err := l.ttsManager.handleTextResponseWithHooks(ctx, llmResponse, false, nil, onTTSPlaybackStart); err != nil {
 								result.ok = true
@@ -1180,6 +1209,12 @@ func (l *LLMManager) GetMessages(ctx context.Context, userMessage *schema.Messag
 
 	if memoryMode == MemoryModeLong && l.clientState.MemoryContext != "" {
 		systemPrompt += fmt.Sprintf("\n用户个性化信息: \n%s", l.clientState.MemoryContext)
+		log.Infof("[SystemPrompt] 注入用户个性化信息 (%d 字符): %s", len(l.clientState.MemoryContext), l.clientState.MemoryContext)
+	} else {
+		log.Infof("[SystemPrompt] 未注入用户个性化信息: memoryMode=%s, MemoryContext为空=%v", memoryMode, l.clientState.MemoryContext == "")
+	}
+	if brief := l.clientState.RecentStoryContextForPrompt(); brief != "" {
+		systemPrompt += fmt.Sprintf("\n\n最近刚讲过的故事（用户可能会追问情节、角色或寓意，请基于下文回答，勿说不知道刚才讲了什么）:\n%s", brief)
 	}
 
 	log.Debugf("speakerResult: %+v, voiceIdentify: %+v", speakerResult, l.clientState.DeviceConfig.VoiceIdentify)
@@ -1204,14 +1239,22 @@ func (l *LLMManager) GetMessages(ctx context.Context, userMessage *schema.Messag
 		if err != nil {
 			log.Errorf("搜索记忆失败: %v", err)
 		}
-		log.Debugf("搜索记忆成功, 输入内容: %s, 记忆内容: %s", userMessage.Content, memoryContext)
 		if memoryContext != "" {
 			systemPrompt += fmt.Sprintf("\n历史关联信息: \n%s", memoryContext)
+			log.Infof("[SystemPrompt] 注入历史关联信息 (%d 字符): %s", len(memoryContext), memoryContext)
+		} else {
+			log.Infof("[SystemPrompt] 未搜索到历史关联信息, query: %s", userMessage.Content)
 		}
 	}
 
 	systemPrompt += buildKnowledgeSearchRoutingPolicy(l.clientState.DeviceConfig.KnowledgeBases)
-	systemPrompt = llm_common.AppendVoiceReplyStylePrompt(systemPrompt)
+	systemPrompt += buildStoryRoutingPolicy()
+	storyPlayback := l.session != nil && l.session.IsStoryPlaybackActive()
+	if !storyPlayback {
+		systemPrompt = llm_common.AppendVoiceReplyStylePrompt(systemPrompt)
+	} else {
+		systemPrompt += "\n\n当前处于故事朗读模式：请完整朗读工具返回的故事正文，使用口语化表达，允许较长篇幅，不要使用 Markdown 或列表格式。"
+	}
 
 	retMessage := make([]*schema.Message, 0)
 	retMessage = append(retMessage, &schema.Message{
@@ -1295,6 +1338,18 @@ func buildKnowledgeSearchRoutingPolicy(knowledgeBases []config_types.KnowledgeBa
 			"6. 输出要求: 回答时禁止提及“知识库”“检索”“MCP”“工具调用”“命中结果”等来源或过程信息。",
 		strings.Join(availableKBs, "、"),
 	)
+}
+
+func buildStoryRoutingPolicy() string {
+	return "\n儿童故事规则（工具: create_child_story）:\n" +
+		"1. 触发：用户要求讲故事、编故事、睡前故事、再讲一遍、昨晚的故事、接着讲，或点名具体故事/神话/寓言（不必含「故事」二字）。\n" +
+		"2. 必须立即调用 create_child_story，禁止在调用工具前口头铺垫或重复过渡语；不要自行编造长篇故事正文。\n" +
+		"3. 调用时填写 theme、request_type、narration_mode：经典/神话/寓言正篇用 canonical；编故事/原创主题用 creative。\n" +
+		"4. action：generate 新故事；replay（story_ref: last|last_night|favorite）；resume 续讲；list_recent 消歧。\n" +
+		"5. 若工具返回 need_params/candidates/not_found，用一两句口语追问或说明，不要假装已讲故事。\n" +
+		"6. 若返回 text_to_speak，进入朗读模式完整播报，不要摘要或改写。\n" +
+		"7. 纯闲聊、非故事创作不要调用本工具；事实类问题用 search_knowledge。\n" +
+		"8. 用户问「刚才/刚刚讲了什么故事、什么内容」→ 不要调用本工具，根据 system 中的「最近刚讲过的故事」直接口语回答。"
 }
 
 func trimTrailingUserMessages(messages []*schema.Message) []*schema.Message {
@@ -1387,19 +1442,45 @@ func ensureTTSTurnTrackerInContext(ctx context.Context) context.Context {
 }
 
 func waitForTTSTurnDrainIfRoot(ctx context.Context) error {
-	if ctx == nil {
-		return nil
+	return waitForTTSTurnDrain(ctx, ctx)
+}
+
+func waitForTTSTurnDrain(waitCtx, rootCtx context.Context) error {
+	if rootCtx == nil {
+		rootCtx = waitCtx
 	}
-	if nest, ok := ctx.Value("nest").(int); ok && nest > 1 {
-		return nil
+	if rootCtx != nil {
+		if nest, ok := rootCtx.Value("nest").(int); ok && nest > 1 {
+			return nil
+		}
 	}
 
-	tracker := ttsTurnTrackerFromContext(ctx)
+	tracker := ttsTurnTrackerFromContext(rootCtx)
+	if tracker == nil && waitCtx != rootCtx {
+		tracker = ttsTurnTrackerFromContext(waitCtx)
+	}
 	if tracker == nil {
 		return nil
 	}
 
-	return tracker.Wait(ctx)
+	pending := trackerPending(tracker)
+	if pending > 0 {
+		log.Debugf("等待 TTS 排空 pending=%d", pending)
+	}
+	err := tracker.Wait(waitCtx)
+	if pending > 0 {
+		log.Debugf("TTS 排空完成 pending_was=%d err=%v", pending, err)
+	}
+	return err
+}
+
+func trackerPending(t *ttsTurnTracker) int {
+	if t == nil {
+		return 0
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.pending
 }
 
 func appendToolRoundMessagesToContext(ctx context.Context, messages []*schema.Message) context.Context {

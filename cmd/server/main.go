@@ -18,6 +18,9 @@ import (
 )
 
 func main() {
+	// 设置默认时区为北京时间（UTC+8）
+	os.Setenv("TZ", "Asia/Shanghai")
+
 	// 解析命令行参数
 	configFile := flag.String("c", defaultConfigFilePath, "配置文件路径")
 	managerEnable := flag.Bool("manager-enable", defaultManagerEnable, "是否启用内嵌 manager")

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	config_types "dili-esp32-server-golang/internal/domain/config/types"
+	"dili-esp32-server-golang/internal/domain/story"
 )
 
 // ChatSessionOperator 定义 local mcp tool 需要的 ChatSession 操作接口
@@ -29,6 +30,12 @@ type ChatSessionOperator interface {
 
 	// LocalMcpControlMusicPlayback 控制当前会话级媒体播放
 	LocalMcpControlMusicPlayback(ctx context.Context, params *MusicPlaybackControlParams) (*MusicPlaybackControlResult, error)
+
+	// LocalMcpCreateChildStory 儿童故事生成/复播/续讲
+	LocalMcpCreateChildStory(ctx context.Context, params *CreateChildStoryParams) (*story.ToolResult, error)
+
+	// LocalMcpUpdateStoryProgress 更新故事播放进度
+	LocalMcpUpdateStoryProgress(ctx context.Context, storyID string, pos story.PlayPosition, interrupted, completed bool) error
 
 	// 未来可以根据需要添加其他操作
 	// GetDeviceID() string

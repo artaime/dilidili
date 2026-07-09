@@ -62,8 +62,11 @@ type MCPAudioResponse struct {
 // MCPContentResponse 内容类响应 - 用于获取时间、查询信息等返回数据的场景
 type MCPContentResponse struct {
 	MCPResponseBase
-	Data    interface{} `json:"data"`
-	Message string      `json:"message"`
+	Data             interface{} `json:"data"`
+	Message          string      `json:"message"`
+	DirectNarration  bool        `json:"direct_narration,omitempty"`
+	NarrationText    string      `json:"narration_text,omitempty"`
+	StopLLMFollowUp  bool        `json:"stop_llm_follow_up,omitempty"`
 }
 
 // MCPErrorResponse 错误类响应 - 统一的错误处理
@@ -120,7 +123,9 @@ func (r *MCPAudioResponse) GetContent() []mcp_go.Content {
 
 func (r *MCPContentResponse) GetType() MCPResponseType { return MCPResponseTypeContent }
 func (r *MCPContentResponse) GetSuccess() bool         { return r.Success }
-func (r *MCPContentResponse) IsTerminal() bool         { return false } // 内容类通常不终止
+func (r *MCPContentResponse) IsTerminal() bool {
+	return r.DirectNarration && r.StopLLMFollowUp
+}
 func (r *MCPContentResponse) GetAction() string        { return "" }    // 内容类没有动作
 func (r *MCPContentResponse) GetContent() []mcp_go.Content {
 	return []mcp_go.Content{
@@ -213,6 +218,39 @@ func NewContentResponse(toolName string, data interface{}, message string) *MCPC
 		},
 		Data:    data,
 		Message: message,
+	}
+}
+
+// NewStoryStreamingResponse 流式故事已在服务端启动 TTS，跳过第二轮 LLM。
+func NewStoryStreamingResponse(toolName string, data interface{}) *MCPContentResponse {
+	return &MCPContentResponse{
+		MCPResponseBase: MCPResponseBase{
+			Type:      MCPResponseTypeContent,
+			Success:   true,
+			Timestamp: time.Now().Unix(),
+			ToolName:  toolName,
+		},
+		Data:            data,
+		Message:         "故事开始播放",
+		DirectNarration: true,
+		StopLLMFollowUp: true,
+	}
+}
+
+// NewStoryNarrationResponse 创建故事直播响应：跳过第二轮 LLM，直接 TTS 朗读全文。
+func NewStoryNarrationResponse(toolName string, data interface{}, narrationText string) *MCPContentResponse {
+	return &MCPContentResponse{
+		MCPResponseBase: MCPResponseBase{
+			Type:      MCPResponseTypeContent,
+			Success:   true,
+			Timestamp: time.Now().Unix(),
+			ToolName:  toolName,
+		},
+		Data:            data,
+		Message:         narrationText,
+		NarrationText:   narrationText,
+		DirectNarration: true,
+		StopLLMFollowUp: true,
 	}
 }
 
