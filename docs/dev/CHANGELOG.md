@@ -6,12 +6,13 @@
 
 ### Added
 
+- 主服务运行时监控自研看板：多节点自动注册、`runtime_report` 上报、Admin SSE 实时看板（CPU/内存/磁盘/带宽、连接在线、会话活跃、资源池）；详见 `docs/features/SERVER_RUNTIME_MONITOR.md`
 - 小程序解绑出厂重置：删除设备全部记忆/故事/对话/留言数据，恢复出厂登记状态（保留 SN、激活码、出厂智能体）；详见 `docs/features/DEVICE_UNBIND_RESET.md`
 - 管理端设备出厂重置：`POST /api/admin/devices/:id/factory-reset`；删除设备前先清理业务数据；编辑禁止静默解绑
 
 ### Changed
 
-- 移除激活码生成与展示：设备绑定仅通过小程序 SN 绑定；OTA/activation-info 不再返回 code
+- MQTT/UDP 主动播报（`auto_listen=false`）TTS 结束后不再立即发送 goodbye，改为等待 `chat.max_idle_duration` 空闲超时；客户端上传音频/信令会重置计时，`listen start` 会取消等待
 - 未激活设备 TTS 提示改为「请在小程序上绑定我，双击电源键进入配网模式」
 - 小程序解绑：由仅清 `user_id`/`activated` 改为全量数据清理 + 重置 `nick_name`/`role_id`/`last_active_at`
 - 管理端设备列表：绑定用户列、筛选、出厂重置按钮；设备记忆页「清空 Memobase 长期记忆」文案与全量重置区分

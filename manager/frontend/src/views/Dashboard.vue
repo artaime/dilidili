@@ -17,7 +17,7 @@
           <span class="metric-icon devices">
             <el-icon><Monitor /></el-icon>
           </span>
-          <span class="metric-trend">在线 {{ stats.onlineDevices }}</span>
+          <span class="metric-trend">业务活跃 {{ stats.onlineDevices }}</span>
         </div>
         <strong>{{ stats.totalDevices }}</strong>
         <p>{{ authStore.isAdmin ? '设备总数' : '我的设备' }}</p>
@@ -34,7 +34,18 @@
         <p>{{ authStore.isAdmin ? '智能体数量' : '我的智能体' }}</p>
       </article>
 
-      <article class="metric-card">
+      <article v-if="authStore.isAdmin" class="metric-card">
+        <div class="metric-top">
+          <span class="metric-icon status">
+            <el-icon><Connection /></el-icon>
+          </span>
+          <span class="metric-trend">节点 {{ runtimeSummary.online_nodes }}/{{ runtimeSummary.total_nodes }}</span>
+        </div>
+        <strong>{{ runtimeSummary.total_chat_managers }}</strong>
+        <p>连接在线</p>
+      </article>
+
+      <article v-else class="metric-card">
         <div class="metric-top">
           <span class="metric-icon status">
             <el-icon><Connection /></el-icon>
@@ -43,6 +54,21 @@
         </div>
         <strong>{{ stats.onlineDevices }}</strong>
         <p>在线设备</p>
+      </article>
+    </section>
+
+    <section v-if="authStore.isAdmin" class="runtime-summary-grid">
+      <article class="metric-card compact">
+        <strong>{{ runtimeSummary.total_active_sessions }}</strong>
+        <p>会话活跃</p>
+      </article>
+      <article class="metric-card compact">
+        <strong>{{ runtimeSummary.devices_active_5m }}</strong>
+        <p>设备活跃(5min)</p>
+      </article>
+      <article class="metric-card compact link-card" @click="goServerMonitor">
+        <strong>查看</strong>
+        <p>服务监控详情</p>
       </article>
     </section>
 
@@ -229,6 +255,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/utils/api'
 import { ElMessage } from 'element-plus'
@@ -245,6 +272,15 @@ import {
 } from '@element-plus/icons-vue'
 
 const authStore = useAuthStore()
+const router = useRouter()
+
+const runtimeSummary = ref({
+  total_nodes: 0,
+  online_nodes: 0,
+  total_chat_managers: 0,
+  total_active_sessions: 0,
+  devices_active_5m: 0
+})
 
 const addressLoading = ref(false)
 const serviceAddress = ref({
@@ -398,8 +434,28 @@ onMounted(async () => {
   await loadStats()
   if (authStore.isAdmin) {
     loadServiceAddress()
+    loadRuntimeSummary()
   }
 })
+
+const loadRuntimeSummary = async () => {
+  try {
+    const response = await api.get('/admin/runtime/summary')
+    runtimeSummary.value = {
+      total_nodes: response.data?.data?.total_nodes || 0,
+      online_nodes: response.data?.data?.online_nodes || 0,
+      total_chat_managers: response.data?.data?.total_chat_managers || 0,
+      total_active_sessions: response.data?.data?.total_active_sessions || 0,
+      devices_active_5m: response.data?.data?.devices_active_5m || 0
+    }
+  } catch (error) {
+    console.error('加载运行时汇总失败:', error)
+  }
+}
+
+const goServerMonitor = () => {
+  router.push('/admin/server-monitor')
+}
 
 const loadStats = async () => {
   try {
@@ -515,6 +571,21 @@ const handleFileChange = async (event) => {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
+}
+
+.runtime-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.metric-card.compact {
+  padding: 18px 22px;
+}
+
+.metric-card.link-card {
+  cursor: pointer;
 }
 
 .metric-card {

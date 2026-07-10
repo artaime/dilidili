@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"sync"
+	"sync/atomic"
 
 	utypes "dili-esp32-server-golang/internal/domain/config/types"
 	"dili-esp32-server-golang/internal/domain/llm"
@@ -134,7 +135,8 @@ type ClientState struct {
 	AsrAudioBuffer *AsrAudioBuffer
 
 	VoiceStatus
-	AudioIdle AudioIdleClock
+	AudioIdle         AudioIdleClock
+	goodbyeIdleArmed  atomic.Bool
 
 	UdpSendAudioData SendAudioData //发送音频数据
 	Statistic        Statistic     //耗时统计
@@ -389,7 +391,41 @@ func (c *ClientState) UsesAudioIdleClock() bool {
 	if c == nil {
 		return false
 	}
+	if c.GoodbyeIdleArmed() {
+		return true
+	}
 	return c.ListenMode == "auto" || c.IsRealTime()
+}
+
+func (c *ClientState) GoodbyeIdleArmed() bool {
+	if c == nil {
+		return false
+	}
+	return c.goodbyeIdleArmed.Load()
+}
+
+func (c *ClientState) ArmGoodbyeIdleWindow(now time.Time) {
+	if c == nil {
+		return
+	}
+	c.goodbyeIdleArmed.Store(true)
+	c.AudioIdle.Start(now)
+	c.SetClientVoiceStop(false)
+}
+
+func (c *ClientState) DisarmGoodbyeIdleWindow() {
+	if c == nil {
+		return
+	}
+	c.goodbyeIdleArmed.Store(false)
+}
+
+func (c *ClientState) ResetGoodbyeIdleWindow(now time.Time) {
+	if c == nil || !c.GoodbyeIdleArmed() {
+		return
+	}
+	c.AudioIdle.Start(now)
+	c.SetClientVoiceStop(false)
 }
 
 func (c *ClientState) ShouldCountAudioIdleTimeout() bool {
@@ -635,6 +671,7 @@ func (s *ClientState) InitAsr() error {
 func (c *ClientState) Destroy() {
 	c.Asr.StopWithReason("ClientState.Destroy")
 	c.Vad.Reset()
+	c.DisarmGoodbyeIdleWindow()
 	c.ResetAudioIdleWindow()
 	c.ClearAudioIdleTimeoutPending()
 

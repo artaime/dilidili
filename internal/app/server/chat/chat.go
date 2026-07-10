@@ -423,6 +423,10 @@ func (c *ChatManager) audioMessageLoop(ctx context.Context) {
 			continue
 		}
 
+		if c.clientState != nil {
+			c.clientState.ResetGoodbyeIdleWindow(time.Now())
+		}
+
 		log.Debugf("收到音频数据，大小: %d 字节", len(message))
 		isAuth := viper.GetBool("auth.enable")
 		if isAuth && !c.clientState.IsActivated {
@@ -449,6 +453,9 @@ func (c *ChatManager) handleTextMessage(message []byte) error {
 
 	if clientMsg.Type != MessageTypeGoodBye {
 		c.cancelRetainedSessionCleanup("收到设备活动消息")
+		if c.clientState != nil {
+			c.clientState.ResetGoodbyeIdleWindow(time.Now())
+		}
 	}
 
 	switch clientMsg.Type {
@@ -687,6 +694,9 @@ func (c *ChatManager) buildMqttHelloUdpConfig() (*UdpConfig, error) {
 
 func (c *ChatManager) HandleListenMessage(msg *ClientMessage) error {
 	log.DeviceInfof(log.DeviceTagProto, c.DeviceID, "收到 listen state=%s mode=%s", msg.State, msg.Mode)
+	if msg != nil && msg.State == MessageStateStart && c.clientState != nil {
+		c.clientState.DisarmGoodbyeIdleWindow()
+	}
 	if c.requiresHelloBootstrapForSession() {
 		log.Infof(
 			"设备 %s 当前会话已关闭或尚未完成 hello，忽略 listen %s，等待新 hello",
@@ -1083,6 +1093,9 @@ func (c *ChatManager) handleSessionClosed(session *ChatSession, reason string) {
 	var waitCh chan struct{}
 
 	c.cancelRetainedSessionCleanup("session_closed")
+	if c.clientState != nil {
+		c.clientState.DisarmGoodbyeIdleWindow()
+	}
 
 	c.sessionMu.Lock()
 	switch {
@@ -1259,6 +1272,9 @@ func (c *ChatManager) InjectMessage(message string, skipLlm bool, autoListen boo
 // injectSpeechSegment 注入一段主动播报，可显式指定 TTS 结束策略（多段留言播报时中间段应保持 ttsTurnEndPolicyNone）。
 func (c *ChatManager) injectSpeechSegment(message string, skipLlm bool, turnEndPolicy ttsTurnEndPolicy) error {
 	c.cancelRetainedSessionCleanup("inject_message")
+	if c.clientState != nil {
+		c.clientState.DisarmGoodbyeIdleWindow()
+	}
 	if err := c.prepareSpeakPathForInjectedSpeech(message, false); err != nil {
 		return err
 	}
@@ -1677,7 +1693,15 @@ func (c *ChatManager) handleTTSTurnEndPolicy(ctx context.Context, policy ttsTurn
 			log.Debugf("设备 %s TTS turn end policy skipped: session already closed", c.DeviceID)
 			return
 		}
-		session.CloseWithReason(chatSessionCloseReasonExplicitExit)
+		if c.clientState == nil {
+			return
+		}
+		log.Infof(
+			"设备 %s TTS 结束，等待空闲超过 max_idle_duration=%dms 后发送 goodbye",
+			c.DeviceID,
+			c.clientState.GetMaxIdleDuration(),
+		)
+		c.clientState.ArmGoodbyeIdleWindow(time.Now())
 	}
 }
 

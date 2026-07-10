@@ -104,6 +104,8 @@ flowchart LR
 | 小程序 API | `/api/mp/*` | `manager/backend/controllers/mp_*.go` |
 | 家长留言内部 API | `/api/internal/.../parent-messages` | `manager/backend/controllers/parent_message_internal.go` |
 | 内部服务 API | `/api/internal/*` | `manager/backend/controllers/` |
+| 运行时监控上报 | `POST /api/internal/runtime/report` | `internal/observability/reporter.go` |
+| 运行时监控 Admin | `GET /api/admin/runtime/*`、SSE `/api/admin/runtime/stream` | `manager/backend/controllers/runtime_report.go` |
 | Open API | `/api/open/v1/*` | `manager/backend/router/router.go` |
 | MCP Endpoint | 按智能体/设备生成 | `internal/app/server/websocket/mcp.go` |
 | OpenClaw | WebSocket Endpoint | `internal/app/server/websocket/openclaw.go` |

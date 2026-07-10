@@ -1,9 +1,16 @@
 # 服务器配置
 server:
+  node_id: "main-01"
+  node_name: "主服务-01"
   # 性能分析工具配置
   pprof:
     enable: false  # 是否启用pprof性能分析
     port: 6060     # pprof监听端口
+
+runtime_report:
+  enabled: true
+  interval: 5s
+  disk_path: "/"
 
 # 身份验证配置
 auth:

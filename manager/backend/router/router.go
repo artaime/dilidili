@@ -48,6 +48,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	speakerGroupController := controllers.NewSpeakerGroupController(db, cfg)
 	voiceCloneController := controllers.NewVoiceCloneController(db, cfg)
 	poolStatsController := controllers.NewPoolStatsController()
+	runtimeReportController := controllers.NewRuntimeReportController(db, webSocketController)
 
 	// 初始化聊天历史控制器（使用传入的 cfg，不重新 Load 避免内嵌时读错路径）
 	audioBasePath := "./storage/chat_history/audio"
@@ -107,6 +108,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			internal.PUT("/internal/history/messages/:message_id/audio", chatHistoryController.UpdateMessageAudio) // 更新消息音频（内部服务接口）
 			internal.GET("/internal/history/messages", chatHistoryController.GetMessagesForInit)                   // 获取消息（用于初始化加载，内部服务接口）
 			internal.POST("/internal/pool/stats", poolStatsController.ReportPoolStats)                             // 上报资源池统计数据（内部服务接口）
+			internal.POST("/internal/runtime/report", runtimeReportController.ReportRuntime)                     // 上报主服务运行时监控数据
 			internal.POST("/internal/devices/:device_name/switch-role", adminController.SwitchDeviceRoleByNameInternal)
 			internal.POST("/internal/devices/:device_name/restore-default-role", adminController.RestoreDeviceDefaultRoleInternal)
 			internal.GET("/internal/devices/:device_name/parent-messages/pending", parentMessageInternalController.GetPendingMessage)
@@ -459,12 +461,22 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				// 资源池统计
 				admin.GET("/pool/stats", poolStatsController.GetPoolStats)
 				admin.GET("/pool/stats/summary", poolStatsController.GetPoolStatsSummary)
+
+				// 主服务运行时监控
+				admin.GET("/runtime/nodes", runtimeReportController.ListNodes)
+				admin.GET("/runtime/nodes/:node_id", runtimeReportController.GetNode)
+				admin.GET("/runtime/summary", runtimeReportController.GetSummary)
+				admin.GET("/runtime/stream-token", runtimeReportController.IssueStreamToken)
+				admin.GET("/runtime/ws-clients", runtimeReportController.ListWSClients)
 			}
 		}
 	}
 
 	// WebSocket路由
 	r.GET("/ws", webSocketController.HandleWebSocket)
+
+	// 运行时监控 SSE（使用短期 stream token，不经过 JWT 中间件）
+	r.GET("/api/admin/runtime/stream", runtimeReportController.StreamNodes)
 
 	// 发版时嵌入的前端静态资源（-tags embed_ui）：NoRoute 时先尝试静态文件，再 SPA 回退
 	if sub, err := fs.Sub(static.FS, "dist"); err == nil {

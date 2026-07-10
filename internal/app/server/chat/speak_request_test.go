@@ -711,9 +711,17 @@ func TestAddTextToTTSQueueWithOptionsCarriesTurnEndPolicy(t *testing.T) {
 }
 
 func TestTTSManagerFinishTtsStopDispatchesTurnEndPolicy(t *testing.T) {
+	viper.Set("chat.max_idle_duration", 50)
+	defer viper.Set("chat.max_idle_duration", nil)
+
 	manager, conn := newSpeakRequestTestManager(types_conn.TransportTypeMqttUdp)
 	session := NewChatSession(manager.clientState, manager.serverTransport, nil, nil, WithChatSessionCloseHandler(manager.handleSessionClosed))
 	manager.session = session
+	manager.clientState.ListenMode = "auto"
+	if got := manager.clientState.GetMaxIdleDuration(); got != 50 {
+		t.Fatalf("expected test max_idle_duration override, got %d", got)
+	}
+	go session.asrManager.runAudioIdleTimeoutWatchdog(manager.clientState.Ctx)
 
 	manager.lastSpeakPathWarmAt.Store(time.Now().UnixMilli())
 	manager.clientState.Abort = true
@@ -732,7 +740,15 @@ func TestTTSManagerFinishTtsStopDispatchesTurnEndPolicy(t *testing.T) {
 		t.Fatal("expected finishTtsStop to report an active TTS turn")
 	}
 
-	waitForServerMessageType(t, conn, msgdata.ServerMessageTypeGoodBye, time.Second)
+	waitForGoodbyeIdleArmed(t, manager.clientState, time.Second)
+	if hasServerMessageType(conn, msgdata.ServerMessageTypeGoodBye) {
+		t.Fatal("expected goodbye to wait until max_idle_duration elapses")
+	}
+	if manager.GetSession() == nil {
+		t.Fatal("expected session to stay open until idle timeout")
+	}
+
+	waitForServerMessageType(t, conn, msgdata.ServerMessageTypeGoodBye, 2*time.Second)
 	if manager.GetSession() != nil {
 		t.Fatal("expected turn-end policy to close the current session through the existing service-side goodbye flow")
 	}
@@ -752,10 +768,15 @@ func TestTTSManagerFinishTtsStopDispatchesTurnEndPolicy(t *testing.T) {
 	}
 }
 
-func TestTTSManagerFinishTtsStopWaitsPlaybackGraceBeforeTurnEndGoodbye(t *testing.T) {
+func TestTTSManagerFinishTtsStopWaitsPlaybackGraceBeforeGoodbyeIdle(t *testing.T) {
+	viper.Set("chat.max_idle_duration", 50)
+	defer viper.Set("chat.max_idle_duration", nil)
+
 	manager, conn := newSpeakRequestTestManager(types_conn.TransportTypeMqttUdp)
 	session := NewChatSession(manager.clientState, manager.serverTransport, nil, nil, WithChatSessionCloseHandler(manager.handleSessionClosed))
 	manager.session = session
+	manager.clientState.ListenMode = "auto"
+	go session.asrManager.runAudioIdleTimeoutWatchdog(manager.clientState.Ctx)
 
 	ttsManager := session.ttsManager
 	ctx := withTTSTurnEndPolicy(manager.clientState.Ctx, ttsTurnEndPolicyGoodbyeAndIdle)
@@ -769,12 +790,59 @@ func TestTTSManagerFinishTtsStopWaitsPlaybackGraceBeforeTurnEndGoodbye(t *testin
 
 	time.Sleep(ttsPlaybackCompletionGrace - 40*time.Millisecond)
 	if hasServerMessageType(conn, msgdata.ServerMessageTypeGoodBye) {
-		t.Fatal("expected goodbye to wait until playback completion grace elapses")
+		t.Fatal("expected goodbye idle arming to wait until playback completion grace elapses")
+	}
+	waitForGoodbyeIdleArmed(t, manager.clientState, time.Second)
+	if elapsed := time.Since(startedAt); elapsed < ttsPlaybackCompletionGrace {
+		t.Fatalf("expected goodbye idle arming after at least %v, got %v", ttsPlaybackCompletionGrace, elapsed)
 	}
 
-	waitForServerMessageType(t, conn, msgdata.ServerMessageTypeGoodBye, time.Second)
-	if elapsed := time.Since(startedAt); elapsed < ttsPlaybackCompletionGrace {
-		t.Fatalf("expected goodbye after at least %v, got %v", ttsPlaybackCompletionGrace, elapsed)
+	waitForServerMessageType(t, conn, msgdata.ServerMessageTypeGoodBye, 2*time.Second)
+}
+
+func TestGoodbyeIdleResetsOnClientUpload(t *testing.T) {
+	viper.Set("chat.max_idle_duration", 120)
+	defer viper.Set("chat.max_idle_duration", nil)
+
+	manager, conn := newSpeakRequestTestManager(types_conn.TransportTypeMqttUdp)
+	session := NewChatSession(manager.clientState, manager.serverTransport, nil, nil, WithChatSessionCloseHandler(manager.handleSessionClosed))
+	manager.session = session
+	manager.clientState.ListenMode = "manual"
+	go session.asrManager.runAudioIdleTimeoutWatchdog(manager.clientState.Ctx)
+
+	manager.clientState.ArmGoodbyeIdleWindow(time.Now().Add(-100 * time.Millisecond))
+	time.Sleep(30 * time.Millisecond)
+	manager.clientState.ResetGoodbyeIdleWindow(time.Now())
+
+	time.Sleep(80 * time.Millisecond)
+	if hasServerMessageType(conn, msgdata.ServerMessageTypeGoodBye) {
+		t.Fatal("expected client upload to reset goodbye idle timer")
+	}
+
+	waitForServerMessageType(t, conn, msgdata.ServerMessageTypeGoodBye, 2*time.Second)
+}
+
+func TestGoodbyeIdleDisarmsOnListenStart(t *testing.T) {
+	manager, conn := newSpeakRequestTestManager(types_conn.TransportTypeMqttUdp)
+	manager.helloInited = true
+	manager.needFreshHello = true
+
+	manager.clientState.ArmGoodbyeIdleWindow(time.Now())
+	if err := manager.HandleListenMessage(&data_client.ClientMessage{
+		Type:     msgdata.MessageTypeListen,
+		State:    msgdata.MessageStateStart,
+		Mode:     "manual",
+		DeviceID: manager.DeviceID,
+	}); err != nil {
+		t.Fatalf("HandleListenMessage returned error: %v", err)
+	}
+	if manager.clientState.GoodbyeIdleArmed() {
+		t.Fatal("expected listen start to disarm goodbye idle")
+	}
+
+	time.Sleep(150 * time.Millisecond)
+	if hasServerMessageType(conn, msgdata.ServerMessageTypeGoodBye) {
+		t.Fatal("expected disarmed goodbye idle not to send goodbye")
 	}
 }
 
@@ -1153,6 +1221,19 @@ func (c *speakRequestTestConn) sentCmdCount() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return len(c.sentCmds)
+}
+
+func waitForGoodbyeIdleArmed(t *testing.T, state *data_client.ClientState, timeout time.Duration) {
+	t.Helper()
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if state.GoodbyeIdleArmed() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("timed out waiting for goodbye idle to be armed")
 }
 
 func waitForServerMessage(t *testing.T, conn *speakRequestTestConn, index int) msgdata.ServerMessage {

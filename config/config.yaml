@@ -1,9 +1,17 @@
 # 服务器配置
 server:
+  node_id: "main-01"           # 主服务节点唯一 ID（多节点部署必填；可用环境变量 DILI_NODE_ID 覆盖）
+  node_name: "主服务-01"        # 管理端监控看板展示名称
   # 性能分析工具配置
   pprof:
     enable: false  # 是否启用pprof性能分析
     port: 6060     # pprof监听端口
+
+# 运行时监控上报（管理端自研看板）
+runtime_report:
+  enabled: true
+  interval: 5s
+  disk_path: "/"
 
 # 身份验证配置
 auth:

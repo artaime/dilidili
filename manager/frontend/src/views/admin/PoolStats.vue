@@ -5,6 +5,7 @@
         <div class="card-header">
           <span>资源池统计</span>
           <div class="header-actions">
+            <el-link type="primary" :underline="false" @click="$router.push('/admin/server-monitor')">已迁移至服务监控</el-link>
             <el-button type="primary" size="small" @click="refreshStats">
               <el-icon><Refresh /></el-icon>
               刷新

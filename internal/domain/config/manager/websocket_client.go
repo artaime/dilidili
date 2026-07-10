@@ -105,7 +105,7 @@ func NewWebSocketClient() *WebSocketClient {
 		callbacks:      make(map[string]func(*WebSocketResponse)),
 		messageQueue:   make(chan *WebSocketRequest, 100),
 		messageHandle:  cmap.New[MessageHandleFunc](),
-		uuid:           uuid.New().String(),
+		uuid:           util.GetNodeID(),
 		retryStopChan:  make(chan struct{}),
 		isRetrying:     false,
 	}

@@ -164,6 +164,12 @@ const routes = [
             meta: { title: '资源池统计' }
           },
           {
+            path: 'server-monitor',
+            name: 'ServerMonitor',
+            component: () => import('../views/admin/ServerMonitor.vue'),
+            meta: { title: '服务监控' }
+          },
+          {
             path: 'global-roles',
             name: 'GlobalRoles',
             component: () => import('../views/admin/GlobalRoles.vue'),

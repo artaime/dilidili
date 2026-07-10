@@ -96,6 +96,11 @@
               <span>声音复刻</span>
             </el-menu-item>
 
+            <el-menu-item v-if="authStore.isAdmin" index="/admin/server-monitor">
+              <el-icon><Monitor /></el-icon>
+              <span>服务监控</span>
+            </el-menu-item>
+
             <el-menu-item v-if="authStore.isAdmin" index="/admin/pool-stats">
               <el-icon><DataAnalysis /></el-icon>
               <span>资源池统计</span>
@@ -166,6 +171,7 @@ import {
   Connection,
   Microphone,
   DataAnalysis,
+  Monitor,
   Document
 } from '@element-plus/icons-vue'
 

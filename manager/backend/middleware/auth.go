@@ -27,6 +27,11 @@ type Claims struct {
 
 var jwtSecret = []byte("dili_admin_secret_key")
 
+// JWTSecret 返回 JWT 签名密钥（供 SSE stream token 等复用）。
+func JWTSecret() []byte {
+	return jwtSecret
+}
+
 // 生成JWT Token
 func GenerateToken(userID uint, username, role string) (string, error) {
 	claims := Claims{

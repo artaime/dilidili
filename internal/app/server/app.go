@@ -2,11 +2,18 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"dili-esp32-server-golang/internal/app/mqtt_server"
 	"dili-esp32-server-golang/internal/app/server/chat"
 	"dili-esp32-server-golang/internal/app/server/mqtt_udp"
 	"dili-esp32-server-golang/internal/app/server/types"
 	"dili-esp32-server-golang/internal/app/server/websocket"
+	"dili-esp32-server-golang/internal/data/client"
 	"dili-esp32-server-golang/internal/data/history"
 	parentmsg "dili-esp32-server-golang/internal/data/parentmessage"
 	user_config "dili-esp32-server-golang/internal/domain/config"
@@ -14,14 +21,10 @@ import (
 	"dili-esp32-server-golang/internal/domain/memory/llm_memory"
 	"dili-esp32-server-golang/internal/domain/mcp"
 	"dili-esp32-server-golang/internal/domain/openclaw"
+	"dili-esp32-server-golang/internal/observability"
 	"dili-esp32-server-golang/internal/pool"
 	"dili-esp32-server-golang/internal/util"
 	log "dili-esp32-server-golang/logger"
-	"encoding/json"
-	"fmt"
-	"strings"
-	"sync"
-	"time"
 
 	cmap "github.com/orcaman/concurrent-map/v2"
 	"github.com/spf13/viper"
@@ -96,8 +99,8 @@ func (a *App) Run() {
 	ctx := context.Background()
 	pool.StartStatsMonitor(ctx, 5*time.Minute)
 
-	// 启动资源池统计上报（每5秒上报一次到 manager backend）
-	pool.StartStatsReporter(ctx)
+	// 启动运行时监控上报（含资源池，并兼容旧 pool/stats 接口）
+	observability.StartRuntimeReporter(ctx, a)
 
 	select {} // 阻塞主线程
 }
@@ -462,6 +465,43 @@ func (a *App) GetAllChatManagers() map[string]*chat.ChatManager {
 // GetChatManagerCount 获取当前活跃的ChatManager数量
 func (a *App) GetChatManagerCount() int {
 	return a.chatManagers.Count()
+}
+
+// GetActiveSessionCount 返回有活跃会话且处于对话态的设备数。
+func (a *App) GetActiveSessionCount() int {
+	count := 0
+	for tuple := range a.chatManagers.IterBuffered() {
+		manager := tuple.Val
+		if manager == nil || manager.GetSession() == nil {
+			continue
+		}
+		state := manager.GetClientState()
+		if state == nil {
+			continue
+		}
+		switch state.GetStatus() {
+		case client.ClientStatusListening, client.ClientStatusLLMStart, client.ClientStatusTTSStart:
+			count++
+		}
+	}
+	return count
+}
+
+// GetTransportBreakdown 按协议统计当前 ChatManager 数量。
+func (a *App) GetTransportBreakdown() (ws, mqttUdp int) {
+	for tuple := range a.chatManagers.IterBuffered() {
+		manager := tuple.Val
+		if manager == nil {
+			continue
+		}
+		switch manager.GetTransportType() {
+		case types.TransportTypeWebsocket:
+			ws++
+		case types.TransportTypeMqttUdp:
+			mqttUdp++
+		}
+	}
+	return ws, mqttUdp
 }
 
 // CloseAllChatManagers 关闭所有ChatManager
