@@ -4,6 +4,7 @@ import (
 	"dili/manager/backend/config"
 	"dili/manager/backend/controllers"
 	"dili/manager/backend/middleware"
+	"dili/manager/backend/services/device_reset"
 	"dili/manager/backend/static"
 	"io/fs"
 	"net/http"
@@ -28,9 +29,11 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	// 初始化控制器
 	authController := &controllers.AuthController{DB: db}
 	webSocketController := controllers.NewWebSocketController(db, endpointAuthToken)
+	deviceResetService := device_reset.NewService(db, cfg, webSocketController)
 	adminController := &controllers.AdminController{
 		DB:                  db,
 		WebSocketController: webSocketController,
+		ResetService:        deviceResetService,
 		InternalAuthToken:   internalAuthToken,
 		EndpointAuthToken:   endpointAuthToken,
 	}
@@ -67,7 +70,10 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	deviceMemoryController := &controllers.DeviceMemoryController{DB: db}
 	deviceStoryController := &controllers.DeviceStoryController{DB: db, Cfg: cfg}
 	mpAuthController := &controllers.MpAuthController{DB: db, Cfg: cfg}
-	mpDeviceController := &controllers.MpDeviceController{DB: db}
+	mpDeviceController := &controllers.MpDeviceController{
+		DB:           db,
+		ResetService: deviceResetService,
+	}
 	mpMessageController := controllers.NewMpMessageController(db, cfg)
 	parentMessageInternalController := &controllers.ParentMessageInternalController{DB: db}
 
@@ -402,8 +408,8 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 
 				// 设备管理
 				admin.GET("/devices", adminController.GetDevices)
-				admin.GET("/devices/validate-code", adminController.ValidateDeviceCode)
 				admin.POST("/devices", adminController.CreateDevice)
+				admin.POST("/devices/:id/factory-reset", adminController.FactoryResetDevice)
 				admin.PUT("/devices/:id", adminController.UpdateDevice)
 				admin.DELETE("/devices/:id", adminController.DeleteDevice)
 				admin.GET("/devices/:id/conversation-records", conversationRecordController.AdminList)

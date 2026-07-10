@@ -70,7 +70,7 @@ func buildConfirmTransitionPrompt(familyRole string, createdAt time.Time, now ti
 func buildAskPromptFallback(familyRole string, createdAt time.Time, now time.Time) string {
 	role := normalizeFamilyRoleLabel(familyRole)
 	timeDesc := formatChildFriendlyTime(createdAt, now)
-	return fmt.Sprintf("%s%s给你留言了，小朋友你现在要听吗？", role, timeDesc)
+	return fmt.Sprintf("%s%s给你留言了，要播放吗？", role, timeDesc)
 }
 
 func normalizeFamilyRoleLabel(role string) string {

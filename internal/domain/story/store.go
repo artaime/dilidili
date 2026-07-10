@@ -453,6 +453,28 @@ func (s *Store) ShouldSuggestNewStory(record *StoryRecord) bool {
 	return record.PlayCount%interval == 0 && record.ReplaySuggestCount < record.PlayCount/interval
 }
 
+// DeleteAllForDevice 删除设备下全部故事记录及索引。
+func (s *Store) DeleteAllForDevice(ctx context.Context, deviceID string) error {
+	deviceID = strings.TrimSpace(deviceID)
+	if deviceID == "" {
+		return nil
+	}
+
+	ids, err := s.backend.ZRevRange(ctx, s.byTimeKey(deviceID), 0, 200)
+	if err != nil && err != redis.Nil {
+		return err
+	}
+
+	keys := []string{s.byTimeKey(deviceID), s.byReplayKey(deviceID)}
+	for _, id := range ids {
+		keys = append(keys, s.recordKey(deviceID, id))
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	return s.backend.Del(ctx, keys...)
+}
+
 func (s *Store) MarkSuggestShown(ctx context.Context, deviceID, storyID string) error {
 	rec, err := s.Get(ctx, deviceID, storyID)
 	if err != nil {

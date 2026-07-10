@@ -1,6 +1,12 @@
 <template>
   <div class="admin-devices">
     <div class="toolbar">
+      <el-select v-model="bindFilter" placeholder="绑定状态" style="width: 140px">
+        <el-option label="全部" value="all" />
+        <el-option label="已绑定" value="bound" />
+        <el-option label="未绑定" value="unbound" />
+        <el-option label="已激活" value="activated" />
+      </el-select>
       <el-button type="primary" @click="openAddDialog">
         <el-icon><Plus /></el-icon>
         添加设备
@@ -11,7 +17,7 @@
       </el-button>
     </div>
 
-    <el-table :data="devices" v-loading="loading" stripe>
+    <el-table :data="filteredDevices" v-loading="loading" stripe>
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column label="设备昵称" min-width="170">
         <template #default="{ row }">
@@ -20,13 +26,20 @@
           </span>
         </template>
       </el-table-column>
-      <el-table-column prop="device_code" label="激活码" width="150" />
       <el-table-column label="设备ID" width="190">
         <template #default="{ row }">
           <span class="device-id-text">{{ row.device_name || '-' }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="user_id" label="用户ID" width="100" />
+      <el-table-column label="绑定用户" min-width="160">
+        <template #default="{ row }">
+          <template v-if="row.user_id > 0">
+            <span class="bind-user">{{ row.username || `用户 #${row.user_id}` }}</span>
+            <div class="bind-meta">ID: {{ row.user_id }}</div>
+          </template>
+          <el-tag v-else type="info" size="small">未绑定</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="关联智能体" width="150">
         <template #default="{ row }">
           <span v-if="row.agent_id > 0">
@@ -59,41 +72,44 @@
           {{ new Date(row.created_at).toLocaleString() }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="540">
+      <el-table-column label="操作" width="320" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="editDevice(row)">
             编辑
           </el-button>
           <el-button
             size="small"
-            type="success"
-            :disabled="!row.agent_id || !row.device_name"
-            @click="openConversationRecords(row)"
-          >
-            对话记录
-          </el-button>
-          <el-button
-            size="small"
             type="warning"
-            :disabled="!row.agent_id || !row.device_name"
-            @click="openDeviceMemory(row)"
+            :disabled="!row.user_id"
+            @click="factoryResetDevice(row)"
           >
-            设备记忆
+            出厂重置
           </el-button>
-          <el-button
-            size="small"
-            type="info"
-            :disabled="!row.device_name"
-            @click="openDeviceStories(row)"
-          >
-            故事
-          </el-button>
-          <el-button size="small" type="primary" @click="showDeviceMcp(row)">
-            MCP
-          </el-button>
-          <el-button size="small" type="danger" @click="deleteDevice(row)">
-            删除
-          </el-button>
+          <el-dropdown trigger="click" @command="(cmd) => handleMoreAction(cmd, row)">
+            <el-button size="small">
+              更多
+              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="conversation" :disabled="!row.agent_id || !row.device_name">
+                  对话记录
+                </el-dropdown-item>
+                <el-dropdown-item command="memory" :disabled="!row.agent_id || !row.device_name">
+                  设备记忆
+                </el-dropdown-item>
+                <el-dropdown-item command="stories" :disabled="!row.device_name">
+                  故事
+                </el-dropdown-item>
+                <el-dropdown-item command="mcp">
+                  MCP
+                </el-dropdown-item>
+                <el-dropdown-item command="delete" divided>
+                  <span class="danger-text">删除</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
@@ -153,10 +169,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh } from '@element-plus/icons-vue'
+import { Plus, Refresh, ArrowDown } from '@element-plus/icons-vue'
 import api from '../../utils/api'
 import DeviceForm from '../../components/common/DeviceForm.vue'
 import { createDefaultDeviceForm, deviceToForm } from '../../composables/useAgentFormOptions'
@@ -165,6 +181,7 @@ import { formatDeviceNickName, getDeviceNickName, getDeviceReferenceLabel } from
 const router = useRouter()
 
 const devices = ref([])
+const bindFilter = ref('all')
 const loading = ref(false)
 const showAddDialog = ref(false)
 const editingDevice = ref(null)
@@ -180,6 +197,20 @@ const mcpTools = ref([])
 const mcpCallResult = ref('')
 const mcpCallForm = ref({ tool_name: '', argumentsText: '{}' })
 const deviceForm = ref(createDefaultDeviceForm({ isAdmin: true }))
+
+const filteredDevices = computed(() => {
+  const list = devices.value || []
+  switch (bindFilter.value) {
+    case 'bound':
+      return list.filter((item) => item.user_id > 0)
+    case 'unbound':
+      return list.filter((item) => !item.user_id)
+    case 'activated':
+      return list.filter((item) => item.activated)
+    default:
+      return list
+  }
+})
 
 const loadDevices = async () => {
   loading.value = true
@@ -260,15 +291,62 @@ const saveDevice = async () => {
   }
 }
 
+const handleMoreAction = (command, device) => {
+  switch (command) {
+    case 'conversation':
+      openConversationRecords(device)
+      break
+    case 'memory':
+      openDeviceMemory(device)
+      break
+    case 'stories':
+      openDeviceStories(device)
+      break
+    case 'mcp':
+      showDeviceMcp(device)
+      break
+    case 'delete':
+      deleteDevice(device)
+      break
+    default:
+      break
+  }
+}
+
+const factoryResetDevice = async (device) => {
+  try {
+    await ElMessageBox.confirm(
+      '将永久删除该设备的 Memobase 记忆、Redis 缓存、对话记录、家长留言与音频，并解除用户绑定。设备出厂登记信息保留。此操作不可恢复。',
+      '确认出厂重置',
+      {
+        confirmButtonText: '出厂重置',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+
+    await api.post(`/admin/devices/${device.id}/factory-reset`)
+    ElMessage.success('设备已出厂重置')
+    loadDevices()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.response?.data?.error || '出厂重置失败')
+      console.error('Error factory resetting device:', error)
+    }
+  }
+}
+
 const deleteDevice = async (device) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除设备 "${getDeviceReferenceLabel(device)}" 吗？`,
+      `将先执行出厂重置清理全部业务数据，再删除设备「${getDeviceReferenceLabel(device)}」的登记记录。不可恢复。`,
       '确认删除',
       {
-        confirmButtonText: '确定',
+        confirmButtonText: '删除',
         cancelButtonText: '取消',
-        type: 'warning'
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
       }
     )
     
@@ -277,7 +355,7 @@ const deleteDevice = async (device) => {
     loadDevices()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('设备删除失败')
+      ElMessage.error(error.response?.data?.error || '设备删除失败')
       console.error('Error deleting device:', error)
     }
   }
@@ -498,6 +576,21 @@ onMounted(() => {
   color: rgba(107, 114, 128, 0.72);
   font-family: monospace;
   font-size: 12px;
+}
+
+.bind-user {
+  font-weight: 600;
+  color: var(--apple-text, #1d1d1f);
+}
+
+.bind-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.danger-text {
+  color: var(--el-color-danger);
 }
 
 .form-tip {

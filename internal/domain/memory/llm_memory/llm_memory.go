@@ -274,10 +274,10 @@ func (m *Memory) ResetMemory(ctx context.Context, deviceID string) error {
 		return nil
 	}
 
-	// 删除对话历史
 	historyKey := m.getMemoryKey(deviceID)
-	if err := m.redisClient.Del(ctx, historyKey).Err(); err != nil {
-		return fmt.Errorf("delete history failed: %w", err)
+	systemKey := m.getSystemPromptKey(deviceID)
+	if err := m.redisClient.Del(ctx, historyKey, systemKey).Err(); err != nil {
+		return fmt.Errorf("delete memory failed: %w", err)
 	}
 
 	return nil

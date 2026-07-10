@@ -18,17 +18,6 @@ type DeviceActivationController struct {
 	DB *gorm.DB
 }
 
-// 生成6位随机数字代码
-func generateCode() string {
-	randomBytes := make([]byte, 3)
-	rand.Read(randomBytes)
-	code := 0
-	for i, b := range randomBytes {
-		code += int(b) << (8 * i)
-	}
-	return fmt.Sprintf("%06d", code%1000000)
-}
-
 // 生成UUID格式的挑战码
 func generateChallenge() string {
 	randomBytes := make([]byte, 16)
@@ -124,31 +113,17 @@ func (dac *DeviceActivationController) GetActivationInfo(c *gin.Context) {
 		return
 	}
 
-	// 如果设备未激活，生成或返回激活信息
+	// 未激活设备：仅生成挑战码（供设备端 HMAC 激活握手），不再生成激活码
 	needUpdate := false
-
-	// 如果没有激活码，生成新的激活码
-	if device.DeviceCode == "" {
-		device.DeviceCode = generateCode()
-		needUpdate = true
-	}
-
-	// 如果没有挑战码，生成新的挑战码
 	if device.Challenge == "" {
 		device.Challenge = generateChallenge()
 		needUpdate = true
 	}
 
-	// 更新数据库
 	if needUpdate {
-		updates := map[string]interface{}{}
-		if device.DeviceCode != "" {
-			updates["device_code"] = device.DeviceCode
-		}
-		if device.Challenge != "" {
-			updates["challenge"] = device.Challenge
-		}
-		if err := updateDeviceColumns(dac.DB, device.ID, updates); err != nil {
+		if err := updateDeviceColumns(dac.DB, device.ID, map[string]interface{}{
+			"challenge": device.Challenge,
+		}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "更新设备信息失败"})
 			return
 		}
@@ -156,9 +131,8 @@ func (dac *DeviceActivationController) GetActivationInfo(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"activated": false,
-		"code":      device.DeviceCode,
 		"challenge": device.Challenge,
-		"message":   "请在后台绑定激活设备，激活码:" + device.DeviceCode,
+		"message":   "请在小程序上绑定我，双击电源键进入配网模式",
 	})
 }
 

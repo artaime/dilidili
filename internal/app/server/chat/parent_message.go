@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	types_conn "dili-esp32-server-golang/internal/app/server/types"
@@ -16,10 +17,10 @@ import (
 type parentMessageItem = parentmsg.PendingMessage
 
 const (
-	parentMessageMaxRetry       = 1
 	parentMessageNotifyAttempts = 60
 	parentMessageRetryDelay     = 3 * time.Second
-	parentMessageDismissPrompt  = "好的，等你准备好了可以跟我说播放留言。"
+	parentMessageDismissPrompt  = "好的，等你准备好了再听留言也可以哦。"
+	parentMessageASRGuardDelay  = 400 * time.Millisecond
 )
 
 // 家长留言通知触发来源（用于日志与重试窗口重置）。
@@ -32,11 +33,13 @@ const (
 )
 
 type parentMessageFlowState struct {
-	messages   []parentMessageItem
-	index      int
-	retryCount int
-	intentCh   chan parentMessageIntent
-	skipAsk    bool
+	messages       []parentMessageItem
+	index          int
+	intentCh       chan parentMessageIntent
+	skipAsk        bool
+	intentMu       sync.Mutex
+	intentResolved bool
+	resolvedIntent parentMessageIntent
 }
 
 type parentMessageReadiness struct {
@@ -162,9 +165,6 @@ func (c *ChatManager) NotifyPendingParentMessages(trigger string) {
 	if !c.parentMessageNotifyOnce.CompareAndSwap(false, true) {
 		log.Infof("设备 %s 家长留言通知已在进行，跳过重复触发 trigger=%s", c.DeviceID, trigger)
 		return
-	}
-	if trigger == ParentMessageNotifyFromHello {
-		c.resetParentMessagePendingSnapshot()
 	}
 
 	gen := c.parentMessageNotifyGen.Load()
@@ -325,6 +325,7 @@ func (c *ChatManager) runParentMessagePlayback(state *parentMessageFlowState) {
 				c.clientState.OnAsrResultInterceptor = nil
 			}
 			if intent != parentMessageIntentAffirmative {
+				log.Infof("设备 %s 家长留言本批中止 batch_aborted_at_index=%d", c.DeviceID, state.index)
 				_ = c.InjectMessage(parentMessageDismissPrompt, true, true)
 				c.finishParentMessageSession(state.index)
 				return
@@ -385,6 +386,7 @@ func (c *ChatManager) resumeParentMessageIntentListeningAfterPrompt(state *paren
 		ctx = c.ctx
 	}
 	c.waitInjectedSpeechSettled(ctx, prompt)
+	c.waitParentMessageASRGuard(ctx)
 
 	c.parentMessageMu.Lock()
 	active := c.parentMessageState == state
@@ -395,21 +397,61 @@ func (c *ChatManager) resumeParentMessageIntentListeningAfterPrompt(state *paren
 	c.enableParentMessageIntentListening()
 }
 
+func (c *ChatManager) waitParentMessageASRGuard(ctx context.Context) {
+	if parentMessageASRGuardDelay <= 0 {
+		return
+	}
+	timer := time.NewTimer(parentMessageASRGuardDelay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+	case <-timer.C:
+	}
+}
+
 func (c *ChatManager) askAndWaitParentMessageIntent(ctx context.Context, state *parentMessageFlowState, msg parentMessageItem) error {
 	c.updateParentMessageStatus(ctx, msg.ID, "notified")
-	state.retryCount = 0
 	c.disableParentMessageIntentListening()
 
 	prompt := c.generateParentMessageAskPrompt(ctx, msg.FamilyRole, msg.CreatedAt)
 	log.Infof("设备 %s 家长留言询问语注入 message_id=%d | %s",
 		c.DeviceID, msg.ID, c.collectParentMessageReadiness().String())
-	if err := c.InjectMessage(prompt, true, true); err != nil {
+	if err := c.InjectMessage(prompt, true, false); err != nil {
 		log.Warnf("设备 %s 家长留言询问语注入失败 message_id=%d: %v", c.DeviceID, msg.ID, err)
 		return err
 	}
 	c.waitInjectedSpeechSettled(ctx, prompt)
+	c.waitParentMessageASRGuard(ctx)
 	c.enableParentMessageIntentListening()
 	return nil
+}
+
+func submitParentMessageIntent(state *parentMessageFlowState, intent parentMessageIntent) {
+	if state == nil || state.intentCh == nil {
+		return
+	}
+	state.intentMu.Lock()
+	defer state.intentMu.Unlock()
+
+	if state.intentResolved {
+		if state.resolvedIntent == parentMessageIntentNegative {
+			return
+		}
+		if intent == parentMessageIntentAffirmative {
+			return
+		}
+		state.resolvedIntent = parentMessageIntentNegative
+		select {
+		case <-state.intentCh:
+		default:
+		}
+		state.intentCh <- parentMessageIntentNegative
+		return
+	}
+
+	state.intentResolved = true
+	state.resolvedIntent = intent
+	state.intentCh <- intent
 }
 
 func (c *ChatManager) handleParentMessageASR(text string) (bool, error) {
@@ -420,40 +462,24 @@ func (c *ChatManager) handleParentMessageASR(text string) (bool, error) {
 		return false, nil
 	}
 
+	msg := state.messages[state.index]
 	ctx := context.Background()
 	if c.ctx != nil {
 		ctx = c.ctx
 	}
 	intent := c.classifyParentMessageIntentWithLLM(ctx, text)
 	switch intent {
-	case parentMessageIntentAffirmative:
-		select {
-		case state.intentCh <- parentMessageIntentAffirmative:
-		default:
-		}
-		return true, nil
-	case parentMessageIntentNegative:
-		select {
-		case state.intentCh <- parentMessageIntentNegative:
-		default:
-		}
+	case parentMessageIntentAffirmative, parentMessageIntentNegative:
+		submitParentMessageIntent(state, intent)
 		return true, nil
 	default:
-		if state.retryCount >= parentMessageMaxRetry {
-			select {
-			case state.intentCh <- parentMessageIntentNegative:
-			default:
-			}
-			return true, nil
-		}
-		state.retryCount++
-		retryPrompt := "没听清呢，如果想听留言就说「好」。"
+		reply := c.generateParentMessageIntentTransition(ctx, text, msg.FamilyRole, msg.CreatedAt)
 		c.disableParentMessageIntentListening()
-		if err := c.InjectMessage(retryPrompt, true, true); err != nil {
+		if err := c.InjectMessage(reply, true, false); err != nil {
 			c.enableParentMessageIntentListening()
 			return true, err
 		}
-		go c.resumeParentMessageIntentListeningAfterPrompt(state, retryPrompt)
+		go c.resumeParentMessageIntentListeningAfterPrompt(state, reply)
 		return true, nil
 	}
 }

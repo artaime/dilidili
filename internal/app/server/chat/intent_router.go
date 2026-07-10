@@ -23,10 +23,7 @@ func (c *ChatManager) RouteUserIntent(ctx context.Context, text string, speakerR
 		return false, nil
 	}
 	if c.parentMessageState != nil {
-		if c.clientState != nil && c.clientState.OnAsrResultInterceptor != nil {
-			return false, nil
-		}
-		return true, nil
+		return false, nil
 	}
 
 	resp, confidence, err := c.classifyUserIntent(ctx, text)

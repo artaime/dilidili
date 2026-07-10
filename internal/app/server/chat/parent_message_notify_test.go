@@ -28,12 +28,12 @@ func TestFilterNewPendingMessages(t *testing.T) {
 	}
 }
 
-func TestResetParentMessagePendingSnapshotOnHello(t *testing.T) {
+func TestHelloDoesNotResetParentMessagePendingSnapshot(t *testing.T) {
 	manager := &ChatManager{DeviceID: "dev"}
 	manager.markParentMessagePendingSnapshot([]parentMessageItem{{ID: 1, TextContent: "x"}})
-	manager.resetParentMessagePendingSnapshot()
+	manager.NotifyPendingParentMessages(ParentMessageNotifyFromHello)
 	newOnes := manager.filterNewPendingMessages([]parentMessageItem{{ID: 1, TextContent: "x"}})
-	if len(newOnes) != 1 {
-		t.Fatalf("expected reset snapshot to treat message as new again")
+	if len(newOnes) != 0 {
+		t.Fatalf("expected hello trigger to keep snapshot, still got %d new messages", len(newOnes))
 	}
 }

@@ -60,7 +60,8 @@ func (c *ChatManager) playPendingParentMessages(ctx context.Context) error {
 	}
 	if len(messages) == 0 {
 		_, _ = c.syncDeviceMessageProfile(ctx)
-		return c.InjectMessage("现在没有待播放的留言哦。", true, true)
+		log.Infof("设备 %s msg_play pending empty, fallback to latest", c.DeviceID)
+		return c.playLatestParentMessage(ctx)
 	}
 	_, _ = c.syncDeviceMessageProfile(ctx)
 	log.Infof("设备 %s msg_play pending count=%d", c.DeviceID, len(messages))

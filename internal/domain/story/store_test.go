@@ -216,3 +216,32 @@ func TestSegmentText(t *testing.T) {
 		t.Fatal("expected segments")
 	}
 }
+
+func TestStoreDeleteAllForDevice(t *testing.T) {
+	cfg := Config{MinRetentionDays: 7, MaxRetentionDays: 90}
+	mem := newMemoryBackend()
+	store := NewStoreWithBackend(mem, "test", cfg)
+	ctx := context.Background()
+
+	rec := &StoryRecord{
+		DeviceID:  "dev1",
+		AgentID:   "agent1",
+		Title:     "待删故事",
+		FullText:  "内容",
+		Segments:  []string{"内容"},
+		CreatedAt: time.Now(),
+	}
+	if err := store.Save(ctx, rec); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := store.DeleteAllForDevice(ctx, "dev1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Get(ctx, "dev1", rec.StoryID); err == nil {
+		t.Fatal("expected story removed")
+	}
+	if _, err := mem.Get(ctx, store.byTimeKey("dev1")); err == nil {
+		t.Fatal("expected by_time key removed")
+	}
+}

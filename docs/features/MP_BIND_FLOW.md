@@ -21,9 +21,11 @@
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| DELETE | `/api/mp/devices/:id` | 软解绑：清零 `user_id`/`agent_id`，`activated=false` |
+| DELETE | `/api/mp/devices/:id` | 出厂重置：删除设备全部数据，清零绑定字段，**保留**出厂 `agent_id` |
 
-小程序「我的设备」页提供二次确认解绑。
+解绑会清理：Memobase 记忆、Redis 故事/短期记忆、对话记录、家长留言及音频；并通过 WebSocket 通知主服务踢线。详见 [DEVICE_UNBIND_RESET.md](./DEVICE_UNBIND_RESET.md)。
+
+小程序「我的设备」页提供二次确认解绑（不可逆删除提示）。
 
 ## 登录资料
 

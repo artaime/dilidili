@@ -24,7 +24,7 @@
         >
           <el-option
             v-for="device in devices"
-            :key="device.id || device.device_code"
+            :key="device.id || device.device_name"
             :label="formatDeviceOptionLabel(device)"
             :value="device.device_name || ''"
           >
@@ -36,7 +36,6 @@
                 </el-tag>
               </div>
               <div class="device-code">设备ID: {{ getDeviceSN(device) || '-' }}</div>
-              <div v-if="device.device_code" class="device-code">激活码: {{ device.device_code }}</div>
               <div class="device-agent">智能体: {{ device.agent_name || '未绑定' }}</div>
             </div>
           </el-option>

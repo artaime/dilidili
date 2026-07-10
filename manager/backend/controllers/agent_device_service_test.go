@@ -146,18 +146,18 @@ func TestDeviceServiceBindingEnrichmentAndCrossUserRejection(t *testing.T) {
 		t.Fatalf("create agent b: %v", err)
 	}
 
-	unbound := models.Device{DeviceCode: "123456", DeviceName: "dev-a", NickName: "dev-a", AgentID: agentA.ID}
+	unbound := models.Device{DeviceName: "dev-a", NickName: "dev-a", AgentID: agentA.ID}
 	if err := db.Create(&unbound).Error; err != nil {
 		t.Fatalf("create unbound device: %v", err)
 	}
-	ownedByB := models.Device{UserID: userB.ID, AgentID: agentB.ID, DeviceCode: "654321", DeviceName: "dev-b", NickName: "dev-b", Activated: true}
+	ownedByB := models.Device{UserID: userB.ID, AgentID: agentB.ID, DeviceName: "dev-b", NickName: "dev-b", Activated: true}
 	if err := db.Create(&ownedByB).Error; err != nil {
 		t.Fatalf("create owned device: %v", err)
 	}
 
 	deviceSvc := NewDeviceService(db)
 	bound, err := deviceSvc.BindToAgent(accessScope{ActorUserID: userA.ID}, agentA.ID, DevicePayload{
-		Code:     "123456",
+		SN:       "dev-a",
 		NickName: "living room",
 	})
 	if err != nil {
@@ -170,19 +170,19 @@ func TestDeviceServiceBindingEnrichmentAndCrossUserRejection(t *testing.T) {
 		t.Fatalf("bound agent name = %q, want agent-a", bound.AgentName)
 	}
 
-	if _, err := deviceSvc.BindToAgent(accessScope{ActorUserID: userA.ID}, agentA.ID, DevicePayload{Code: "654321"}); err == nil {
+	if _, err := deviceSvc.BindToAgent(accessScope{ActorUserID: userA.ID}, agentA.ID, DevicePayload{SN: "dev-b"}); err == nil {
 		t.Fatalf("binding device owned by another user should fail")
 	}
 
-	noAgent := models.Device{DeviceCode: "999999", DeviceName: "dev-no-agent", NickName: "dev-no-agent"}
+	noAgent := models.Device{DeviceName: "dev-no-agent", NickName: "dev-no-agent"}
 	if err := db.Create(&noAgent).Error; err != nil {
 		t.Fatalf("create no-agent device: %v", err)
 	}
-	if _, err := deviceSvc.Bind(accessScope{ActorUserID: userA.ID}, DevicePayload{Code: "999999"}); err == nil || !strings.Contains(err.Error(), "智能体") {
+	if _, err := deviceSvc.Bind(accessScope{ActorUserID: userA.ID}, DevicePayload{SN: "dev-no-agent"}); err == nil || !strings.Contains(err.Error(), "智能体") {
 		t.Fatalf("bind device without agent error = %v, want agent rejection", err)
 	}
 
-	if _, err := deviceSvc.Bind(accessScope{ActorUserID: userA.ID}, DevicePayload{Code: "000000"}); err == nil || !strings.Contains(err.Error(), "未登记") {
+	if _, err := deviceSvc.Bind(accessScope{ActorUserID: userA.ID}, DevicePayload{SN: "SN-NOT-REGISTERED"}); err == nil || !strings.Contains(err.Error(), "未登记") {
 		t.Fatalf("bind unregistered device error = %v, want not registered", err)
 	}
 
@@ -197,7 +197,6 @@ func TestDeviceServiceBindingEnrichmentAndCrossUserRejection(t *testing.T) {
 	updated, err := deviceSvc.Update(accessScope{ActorUserID: userA.ID, IsAdmin: true}, bound.ID, DevicePayload{
 		UserID:     userB.ID,
 		NickName:   "moved",
-		DeviceCode: "123456",
 		DeviceName: "dev-a",
 		AgentID:    agentB.ID,
 	})
@@ -278,5 +277,68 @@ func TestDeviceServiceCreateDuplicateDeviceName(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "设备已添加") {
 		t.Fatalf("duplicate create error = %v, want 设备已添加", err)
+	}
+}
+
+func TestDeviceServiceAdminUpdateRejectsSilentUnbind(t *testing.T) {
+	db := setupAgentDeviceServiceTestDB(t)
+	user := createServiceTestUser(t, db, "unbind-user", "user")
+	agent := models.Agent{UserID: user.ID, Name: "agent", Nickname: "agent"}
+	if err := db.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	device := models.Device{
+		UserID:     user.ID,
+		AgentID:    agent.ID,
+		DeviceCode: "111111",
+		DeviceName: "SN-UNBIND-001",
+		NickName:   "客厅",
+		Activated:  true,
+	}
+	if err := db.Create(&device).Error; err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	deviceSvc := NewDeviceService(db)
+	_, err := deviceSvc.Update(accessScope{IsAdmin: true, ActorUserID: user.ID}, device.ID, DevicePayload{
+		UserID:     0,
+		NickName:   "客厅",
+		DeviceCode: "111111",
+		DeviceName: "SN-UNBIND-001",
+		AgentID:    agent.ID,
+	})
+	if err == nil || !strings.Contains(err.Error(), "出厂重置") {
+		t.Fatalf("admin silent unbind error = %v, want 出厂重置 rejection", err)
+	}
+}
+
+func TestDeviceServiceAdminUpdateRejectsActivatedWithoutUser(t *testing.T) {
+	db := setupAgentDeviceServiceTestDB(t)
+	admin := createServiceTestUser(t, db, "no-user-admin", "admin")
+	agent := models.Agent{UserID: admin.ID, Name: "agent", Nickname: "agent"}
+	if err := db.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	activated := true
+	device := models.Device{
+		AgentID:    agent.ID,
+		DeviceCode: "222222",
+		DeviceName: "SN-NOUSER-001",
+		Activated:  false,
+	}
+	if err := db.Create(&device).Error; err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	deviceSvc := NewDeviceService(db)
+	_, err := deviceSvc.Update(accessScope{IsAdmin: true}, device.ID, DevicePayload{
+		UserID:     0,
+		DeviceCode: "222222",
+		DeviceName: "SN-NOUSER-001",
+		AgentID:    agent.ID,
+		Activated:  &activated,
+	})
+	if err == nil || !strings.Contains(err.Error(), "未绑定用户") {
+		t.Fatalf("admin activated without user error = %v, want 未绑定用户 rejection", err)
 	}
 }

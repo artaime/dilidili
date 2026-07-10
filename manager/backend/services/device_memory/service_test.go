@@ -2,6 +2,7 @@ package device_memory
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"dili-esp32-server-golang/pkg/memobaseuserid"
@@ -36,5 +37,22 @@ func TestHasMemoryData(t *testing.T) {
 	}
 	if !hasMemoryData([]ProfileItem{{Content: "x"}}, nil, "") {
 		t.Fatal("profile should count")
+	}
+}
+
+func TestIsMemobaseUserNotFound(t *testing.T) {
+	cases := []struct {
+		err  error
+		want bool
+	}{
+		{fmt.Errorf("User 4cf315dc-a5e5-57cd-89e7-256c8ebb1316 not found"), true},
+		{fmt.Errorf("404 Not Found"), true},
+		{nil, false},
+		{fmt.Errorf("connection refused"), false},
+	}
+	for _, tc := range cases {
+		if got := isMemobaseUserNotFound(tc.err); got != tc.want {
+			t.Fatalf("isMemobaseUserNotFound(%v) = %v, want %v", tc.err, got, tc.want)
+		}
 	}
 }

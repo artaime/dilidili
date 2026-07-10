@@ -13,4 +13,5 @@ const (
 // 下行pull事件 管理内控 => 主程序
 const (
 	EventHandleMessageInject = "/api/device/inject_msg" //处理消息注入
+	EventDeviceReset         = "/api/device/reset"      //设备解绑出厂重置
 )

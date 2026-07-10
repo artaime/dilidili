@@ -29,46 +29,28 @@ type parentMessageIntentJSON struct {
 	Intent string `json:"intent"`
 }
 
-var parentMessageIntentJSONPattern = regexp.MustCompile(`\{[^}]*"intent"\s*:\s*"(play|unknown)"[^}]*\}`)
-
-func classifyParentMessageIntent(text string) parentMessageIntent {
-	normalized := strings.ToLower(strings.TrimSpace(text))
-	if normalized == "" {
-		return parentMessageIntentUnknown
-	}
-
-	negativeKeywords := []string{"不要", "不用", "别", "不听", "不想", "算了", "否", "不需要", "不听啦", "不想听", "稍后", "等等", "先不"}
-	for _, kw := range negativeKeywords {
-		if strings.Contains(normalized, kw) {
-			return parentMessageIntentNegative
-		}
-	}
-
-	affirmativeKeywords := []string{"要", "好的", "好", "听", "是", "嗯", "行", "可以", "想听", "听听", "播", "读", "播放"}
-	for _, kw := range affirmativeKeywords {
-		if strings.Contains(normalized, kw) {
-			return parentMessageIntentAffirmative
-		}
-	}
-	return parentMessageIntentUnknown
-}
+var parentMessageIntentJSONPattern = regexp.MustCompile(`\{[^}]*"intent"\s*:\s*"(play|skip|unknown)"[^}]*\}`)
 
 func (c *ChatManager) classifyParentMessageIntentWithLLM(ctx context.Context, asrText string) parentMessageIntent {
 	if c == nil || c.clientState == nil {
-		return classifyParentMessageIntent(asrText)
+		return parentMessageIntentUnknown
+	}
+	asrText = strings.TrimSpace(asrText)
+	if asrText == "" {
+		return parentMessageIntentUnknown
 	}
 	intent, err := c.callLLMSyncText(ctx,
-		"你是意图分类器。用户是儿童，正在决定是否收听家长留言。只输出 JSON，格式为 {\"intent\":\"play\"} 或 {\"intent\":\"unknown\"}，不要输出其它内容。",
-		"用户说："+strings.TrimSpace(asrText),
+		"你是意图分类器。用户是儿童，正在决定是否收听家长留言。根据用户的话判断意愿，只输出 JSON，不要输出其它内容。\n"+
+			"- 明确同意收听（如：好、要、听、播放、可以、嗯）：{\"intent\":\"play\"}\n"+
+			"- 明确拒绝收听（如：不要、不想、不用、算了、不听）：{\"intent\":\"skip\"}\n"+
+			"- 与留言无关、意图不清、在聊别的话题：{\"intent\":\"unknown\"}",
+		"用户说："+asrText,
 	)
 	if err != nil {
-		log.Warnf("设备 %s 家长留言 LLM 意图识别失败，降级关键词: %v", c.DeviceID, err)
-		return classifyParentMessageIntent(asrText)
+		log.Warnf("设备 %s 家长留言 LLM 意图识别失败: %v", c.DeviceID, err)
+		return parentMessageIntentUnknown
 	}
-	if parsed := parseParentMessageIntentJSON(intent); parsed != parentMessageIntentUnknown {
-		return parsed
-	}
-	return classifyParentMessageIntent(asrText)
+	return parseParentMessageIntentJSON(intent)
 }
 
 func parseParentMessageIntentJSON(raw string) parentMessageIntent {
@@ -102,6 +84,35 @@ func mapIntentString(intent string) parentMessageIntent {
 	}
 }
 
+func buildParentMessageIntentTransitionFallback() string {
+	return "好的，等你准备好了再告诉我要不要听留言哦。"
+}
+
+func (c *ChatManager) generateParentMessageIntentTransition(ctx context.Context, userText, familyRole string, createdAt time.Time) string {
+	fallback := buildParentMessageIntentTransitionFallback()
+	if c == nil || c.clientState == nil {
+		return fallback
+	}
+	now := time.Now()
+	systemPrompt := strings.TrimSpace(c.clientState.SystemPrompt)
+	systemPrompt += "\n孩子正在决定是否收听家长留言，但刚才的话没有明确表态。"
+	systemPrompt += "用一两句温柔、简短、适合儿童的话自然回应用户刚说的话。"
+	systemPrompt += "可以轻轻再问要不要听这条留言，但不要告诉孩子该说什么词或口令，不要替孩子做决定，不要播放留言内容。只输出这一句话。"
+
+	userPrompt := fmt.Sprintf(
+		"家长身份：%s。留言时间：%s。用户说：%s",
+		normalizeFamilyRoleLabel(familyRole),
+		formatChildFriendlyTime(createdAt, now),
+		strings.TrimSpace(userText),
+	)
+	reply, err := c.callLLMSyncText(ctx, systemPrompt, userPrompt)
+	if err != nil || strings.TrimSpace(reply) == "" {
+		log.Warnf("设备 %s 家长留言过渡语生成失败，使用模板: %v", c.DeviceID, err)
+		return fallback
+	}
+	return strings.TrimSpace(reply)
+}
+
 func (c *ChatManager) generateParentMessageAskPrompt(ctx context.Context, familyRole string, createdAt time.Time) string {
 	now := time.Now()
 	fallback := buildAskPromptFallback(familyRole, createdAt, now)
@@ -109,8 +120,10 @@ func (c *ChatManager) generateParentMessageAskPrompt(ctx context.Context, family
 		return fallback
 	}
 	systemPrompt := strings.TrimSpace(c.clientState.SystemPrompt)
+	systemPrompt += "\n请用一句温柔、简短、适合儿童的话，告知孩子有家长留言，并自然询问是否要播放。"
+	systemPrompt += "不要告诉孩子该说什么词或口令。只输出这一句话。"
 	prompt, err := c.callLLMSyncText(ctx,
-		systemPrompt+"\n请用一句温柔、简短、适合儿童的话，询问孩子是否要收听家长留言。只输出这一句话，不要解释。",
+		systemPrompt,
 		fmt.Sprintf("家长身份：%s。留言时间：%s。参考句式：%s", normalizeFamilyRoleLabel(familyRole), formatChildFriendlyTime(createdAt, now), fallback),
 	)
 	if err != nil || strings.TrimSpace(prompt) == "" {

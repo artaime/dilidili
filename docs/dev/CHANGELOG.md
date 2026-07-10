@@ -4,7 +4,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- 小程序解绑出厂重置：删除设备全部记忆/故事/对话/留言数据，恢复出厂登记状态（保留 SN、激活码、出厂智能体）；详见 `docs/features/DEVICE_UNBIND_RESET.md`
+- 管理端设备出厂重置：`POST /api/admin/devices/:id/factory-reset`；删除设备前先清理业务数据；编辑禁止静默解绑
+
 ### Changed
+
+- 移除激活码生成与展示：设备绑定仅通过小程序 SN 绑定；OTA/activation-info 不再返回 code
+- 未激活设备 TTS 提示改为「请在小程序上绑定我，双击电源键进入配网模式」
+- 小程序解绑：由仅清 `user_id`/`activated` 改为全量数据清理 + 重置 `nick_name`/`role_id`/`last_active_at`
+- 管理端设备列表：绑定用户列、筛选、出厂重置按钮；设备记忆页「清空 Memobase 长期记忆」文案与全量重置区分
 
 - 儿童故事：LLM 首行输出 `[[meta:title=…|genre=…|theme=…]]` 元信息（不播报），管理端标题/题材分别展示故事名称与类型（童话、神话、寓言、冒险等）
 - 儿童故事：TTS 打断时同步停止 LLM 生成；未完成生成的故事管理端不展示播放进度、提示「故事未完成生成」；续讲 B 方案：过渡语后先按整句补播未听草稿，再从全文末 LLM 自然续写；已完整生成的故事仍从断点 TTS 复播
@@ -12,7 +22,10 @@
 
 ### Fixed
 
-- 儿童故事：管理端标题误显示正文首句 — 落库与列表展示均优先用 LLM meta / 题材生成标题，旧数据在 API 层修正
+- 家长留言：说「播放留言」且无待播时，回退播放最近一条留言（含已播），支持重复收听
+- 小程序/管理端解绑：Memobase 中 primary/legacy 用户不存在时不再阻断解绑（幂等跳过 `User not found`）
+- 家长留言确认：主动询问仅自然提问是否播放（不引导口令）；儿童回复改由 LLM 判断 play/skip/unknown，意图不清时自然过渡聊天并继续等待
+- 小程序语音留言：修复录音启动/结束竞态（`onStart` 前保存、超时晚到 `onStop` 丢录音）、放宽静音检测、录音前补隐私授权；上传 401 跳转登录；对话记录单击播放；留言页保留已选设备
 - 儿童故事：TTS 打断被误判为「已放弃」— 生成取消与 TTS 取消统一记为 interrupted
 - 儿童故事：生成失败/中断时过早 `tts stop` — 故事流 TTS 排空等待不受 ctx 取消影响，须播完已入队音频后再发 stop
 - 儿童故事：生成失败原因不明 — 新增结构化日志（`reason=user_tts_interrupt|llm_timeout|generation_canceled|llm_error:…`、partial_runes、story_id）

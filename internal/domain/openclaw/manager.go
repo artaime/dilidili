@@ -1277,6 +1277,16 @@ func trimOpenClawSegment(text string) string {
 	return strings.TrimSpace(text)
 }
 
+func (m *Manager) ClearOfflineMessages(deviceID string) {
+	deviceID = strings.TrimSpace(deviceID)
+	if deviceID == "" {
+		return
+	}
+	m.offlineMu.Lock()
+	defer m.offlineMu.Unlock()
+	delete(m.offline, deviceID)
+}
+
 func (m *Manager) AddOfflineMessage(deviceID string, text string, correlationID string, isEnd bool) {
 	deviceID = strings.TrimSpace(deviceID)
 	text = strings.TrimSpace(text)

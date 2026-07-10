@@ -120,9 +120,6 @@ func runOTAMetadataCase(serverAddr, deviceID string, _ *protocolTestCase) error 
 		}
 	}
 	if resp.Activation != nil {
-		if strings.TrimSpace(resp.Activation.Code) == "" {
-			return fmt.Errorf("OTA activation.code 为空")
-		}
 		if strings.TrimSpace(resp.Activation.Challenge) == "" {
 			return fmt.Errorf("OTA activation.challenge 为空")
 		}

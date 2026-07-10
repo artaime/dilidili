@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -148,30 +147,8 @@ func (uc *UserController) CreateDevice(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"message": "设备创建成功",
-		"data": gin.H{
-			"device_code": device.DeviceCode,
-			"device":      device,
-		},
+		"data":    device,
 	})
-}
-
-// 生成6位随机数字代码
-func generateRandomCode() string {
-	// 生成6位随机数字
-	code := fmt.Sprintf("%06d", rand.Intn(1000000))
-	return code
-}
-
-func isSixDigitCode(value string) bool {
-	if len(value) != 6 {
-		return false
-	}
-	for _, ch := range value {
-		if ch < '0' || ch > '9' {
-			return false
-		}
-	}
-	return true
 }
 
 func normalizeDeviceSN(value string) string {
@@ -184,19 +161,6 @@ func normalizeDeviceNickName(value string) (string, error) {
 		return "", fmt.Errorf("设备昵称最多 50 个字符")
 	}
 	return nickName, nil
-}
-
-func generateUniqueDeviceCode(db *gorm.DB) string {
-	for i := 0; i < 10; i++ { // 最多尝试10次
-		code := generateRandomCode()
-
-		var count int64
-		if err := db.Model(&models.Device{}).Where("device_code = ?", code).Count(&count).Error; err == nil && count == 0 {
-			return code
-		}
-	}
-
-	return fmt.Sprintf("%06d", time.Now().Unix()%1000000)
 }
 
 // 获取用户所有设备概览（只读）

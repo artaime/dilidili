@@ -1214,6 +1214,37 @@ func (ctrl *WebSocketController) InjectMessageToDevice(ctx context.Context, devi
 	return lastError
 }
 
+// NotifyDeviceReset 广播设备出厂重置请求至已连接的主服务（best-effort）。
+func (ctrl *WebSocketController) NotifyDeviceReset(ctx context.Context, deviceSN string) {
+	deviceSN = strings.TrimSpace(deviceSN)
+	if deviceSN == "" {
+		return
+	}
+
+	request := WebSocketRequest{
+		ID:     uuid.New().String(),
+		Method: "POST",
+		Path:   "/api/device/reset",
+		Body: map[string]interface{}{
+			"device_id": deviceSN,
+		},
+	}
+
+	clientCount := 0
+	for item := range ctrl.clientsMap.IterBuffered() {
+		client := item.Val
+		if client.isConnected {
+			clientCount++
+			if err := client.conn.WriteJSON(request); err != nil {
+				log.Printf("向客户端 %s 广播设备重置失败: %v", client.ID, err)
+			}
+		}
+	}
+	if clientCount == 0 {
+		log.Printf("NotifyDeviceReset: 无已连接主服务，跳过 device=%s", deviceSN)
+	}
+}
+
 // 异步发送请求到客户端（不等待响应）
 func (ctrl *WebSocketController) SendRequestToClientAsync(uuid string, method, path string, body map[string]interface{}) error {
 	if client, exists := ctrl.clientsMap.Get(uuid); exists && client.isConnected {

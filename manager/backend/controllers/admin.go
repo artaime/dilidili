@@ -23,6 +23,7 @@ import (
 
 	"dili/manager/backend/models"
 	"dili/manager/backend/services/configprovider"
+	"dili/manager/backend/services/device_reset"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gin-gonic/gin"
@@ -109,6 +110,7 @@ func ensureAgentNickname(agent *models.Agent) {
 type AdminController struct {
 	DB                  *gorm.DB
 	WebSocketController *WebSocketController
+	ResetService        *device_reset.Service
 	InternalAuthToken   string
 	EndpointAuthToken   string
 }
@@ -2772,26 +2774,6 @@ func (ac *AdminController) GetDevices(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": devices})
 }
 
-// 验证设备代码是否存在
-func (ac *AdminController) ValidateDeviceCode(c *gin.Context) {
-	deviceCode := c.Query("code")
-	if deviceCode == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "激活码不能为空"})
-		return
-	}
-
-	var device models.Device
-	err := ac.DB.Where("device_code = ?", deviceCode).First(&device).Error
-
-	if err == gorm.ErrRecordNotFound {
-		c.JSON(http.StatusOK, gin.H{"exists": false})
-	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询设备失败"})
-	} else {
-		c.JSON(http.StatusOK, gin.H{"exists": true, "device": device})
-	}
-}
-
 func (ac *AdminController) CreateDevice(c *gin.Context) {
 	var req DevicePayload
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -2827,10 +2809,46 @@ func (ac *AdminController) UpdateDevice(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": device})
 }
 
+func (ac *AdminController) FactoryResetDevice(c *gin.Context) {
+	id, ok := parseUintParam(c, "id")
+	if !ok {
+		return
+	}
+	if ac.ResetService == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "出厂重置服务未配置"})
+		return
+	}
+	if err := ac.ResetService.ResetToFactoryByAdmin(c.Request.Context(), id); err != nil {
+		switch {
+		case errors.Is(err, device_reset.ErrDeviceNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "设备不存在"})
+		case errors.Is(err, device_reset.ErrMissingSN):
+			c.JSON(http.StatusBadRequest, gin.H{"error": "设备缺少 SN，无法出厂重置"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "出厂重置失败: " + err.Error()})
+		}
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "设备已出厂重置"})
+}
+
 func (ac *AdminController) DeleteDevice(c *gin.Context) {
 	id, ok := parseUintParam(c, "id")
 	if !ok {
 		return
+	}
+	if ac.ResetService != nil {
+		if err := ac.ResetService.ResetToFactoryByAdmin(c.Request.Context(), id); err != nil {
+			switch {
+			case errors.Is(err, device_reset.ErrDeviceNotFound):
+				c.JSON(http.StatusNotFound, gin.H{"error": "设备不存在"})
+			case errors.Is(err, device_reset.ErrMissingSN):
+				c.JSON(http.StatusBadRequest, gin.H{"error": "设备缺少 SN，无法清理业务数据"})
+			default:
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "清理设备数据失败: " + err.Error()})
+			}
+			return
+		}
 	}
 	if err := NewDeviceService(ac.DB).Delete(scopeFromContext(c), id); err != nil {
 		writeServiceError(c, err, "删除设备失败")

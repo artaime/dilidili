@@ -17,10 +17,18 @@
           :disabled="!memoryData || loading || !!loadError"
           @click="confirmClearMemory"
         >
-          清空长期记忆
+          清空 Memobase 长期记忆
         </el-button>
       </div>
     </div>
+
+    <el-alert
+      type="info"
+      title="此页仅清理 Memobase Profile/Event/Context，不含对话记录、Redis 故事缓存等。全量清理请使用设备列表「出厂重置」。"
+      show-icon
+      :closable="false"
+      class="memory-alert"
+    />
 
     <el-alert
       v-if="loadError"
@@ -32,7 +40,7 @@
     />
 
     <el-alert
-      v-else-if="memoryData?.using_legacy"
+      v-if="!loadError && memoryData?.using_legacy"
       type="info"
       title="当前展示的是历史记忆键（修复前 double-UUID 写入的数据）。新会话写入将使用新键。"
       show-icon
@@ -145,8 +153,8 @@ const loadMemory = async () => {
 const confirmClearMemory = async () => {
   try {
     await ElMessageBox.confirm(
-      '将永久删除该设备在 Memobase 中的 Profile、Event 与 Context，且不可恢复。确定继续？',
-      '清空长期记忆',
+      '将永久删除该设备在 Memobase 中的 Profile、Event 与 Context，且不可恢复。不含对话记录、Redis 与故事；全量清理请使用设备列表「出厂重置」。确定继续？',
+      '清空 Memobase 长期记忆',
       {
         confirmButtonText: '清空',
         cancelButtonText: '取消',
@@ -161,7 +169,7 @@ const confirmClearMemory = async () => {
   loading.value = true
   try {
     await api.delete(`/admin/devices/${deviceId.value}/memory`)
-    ElMessage.success('设备长期记忆已清空')
+    ElMessage.success('Memobase 长期记忆已清空')
     await loadMemory()
   } catch (error) {
     ElMessage.error(error.response?.data?.error || '清空失败')

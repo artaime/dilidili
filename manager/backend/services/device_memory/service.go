@@ -100,12 +100,25 @@ func (s *Service) GetDeviceMemory(ctx context.Context, deviceID uint) (*DeviceMe
 }
 
 func (s *Service) DeleteDeviceMemory(ctx context.Context, deviceID uint) error {
-	device, _, memCfg, err := s.loadDeviceMemoryContext(deviceID)
+	device, _, _, err := s.loadDeviceMemoryContext(deviceID)
 	if err != nil {
 		return err
 	}
+	return s.PurgeByDeviceSN(ctx, device.DeviceName)
+}
 
-	payload, err := parseMemobaseConfig(memCfg.JsonData)
+// PurgeByDeviceSN 删除设备 SN 在 Memobase 中的 primary 与 legacy 用户数据。
+// 未配置 memobase 时静默跳过（解绑场景）。
+func (s *Service) PurgeByDeviceSN(ctx context.Context, deviceSN string) error {
+	deviceSN = strings.TrimSpace(deviceSN)
+	if deviceSN == "" {
+		return nil
+	}
+
+	payload, err := s.loadDefaultMemobaseConfig()
+	if errors.Is(err, ErrMemobaseNotConfigured) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -115,16 +128,42 @@ func (s *Service) DeleteDeviceMemory(ctx context.Context, deviceID uint) error {
 		return fmt.Errorf("连接 Memobase 失败: %w", err)
 	}
 
-	primaryID := memobaseuserid.MemobaseUserID(device.DeviceName)
-	legacyID := memobaseuserid.LegacyMemobaseUserID(device.DeviceName)
+	primaryID := memobaseuserid.MemobaseUserID(deviceSN)
+	legacyID := memobaseuserid.LegacyMemobaseUserID(deviceSN)
 
 	var deleteErr error
 	for _, id := range []string{primaryID, legacyID} {
 		if err := client.DeleteUser(id); err != nil {
+			if isMemobaseUserNotFound(err) {
+				continue
+			}
 			deleteErr = errors.Join(deleteErr, fmt.Errorf("删除用户 %s 失败: %w", id, err))
 		}
 	}
 	return deleteErr
+}
+
+func isMemobaseUserNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "not found") || strings.Contains(msg, "404")
+}
+
+func (s *Service) loadDefaultMemobaseConfig() (*memoryConfigPayload, error) {
+	var memCfg models.Config
+	if err := s.DB.Where("type = ? AND is_default = ? AND enabled = ?", "memory", true, true).
+		First(&memCfg).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrMemobaseNotConfigured
+		}
+		return nil, err
+	}
+	if strings.TrimSpace(memCfg.Provider) != "memobase" {
+		return nil, ErrMemobaseNotConfigured
+	}
+	return parseMemobaseConfig(memCfg.JsonData)
 }
 
 func (s *Service) loadDeviceMemoryContext(deviceID uint) (*models.Device, *models.Agent, *models.Config, error) {

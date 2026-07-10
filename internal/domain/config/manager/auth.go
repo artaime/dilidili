@@ -63,7 +63,7 @@ func (am *ConfigManager) IsDeviceActivated(ctx context.Context, deviceId string,
 // GetActivationInfo 获取设备激活信息
 func (am *ConfigManager) GetActivationInfo(ctx context.Context, deviceId string, clientId string) (string, string, string, int) {
 	// 直接调用后端管理系统的HTTP接口
-	activated, codeStr, challenge, message, err := am.callGetActivationInfoAPI(ctx, deviceId, clientId)
+	activated, _, challenge, message, err := am.callGetActivationInfoAPI(ctx, deviceId, clientId)
 	if err != nil {
 		log.Log().Errorf("获取设备 %s 激活信息失败: %v", deviceId, err)
 		return "", "", "", 0
@@ -81,14 +81,11 @@ func (am *ConfigManager) GetActivationInfo(ctx context.Context, deviceId string,
 		return "", "", "Challenge字段为空，请联系管理员", 0
 	}
 
-	// 设备未激活，返回激活信息
+	// 设备未激活，返回激活信息（不再包含激活码）
 	timeoutMs := 300 // 默认5分钟超时
-	log.Log().Debugf("获取设备 %s 激活信息: code=%s, challenge=%s", deviceId, codeStr, challenge)
-	if codeStr == "" {
-		log.Log().Warnf("设备 %s 激活码为空", deviceId)
-	}
+	log.Log().Debugf("获取设备 %s 激活信息: challenge=%s", deviceId, challenge)
 
-	return codeStr, challenge, message, timeoutMs
+	return "", challenge, message, timeoutMs
 }
 
 // VerifyChallenge 验证挑战码和HMAC

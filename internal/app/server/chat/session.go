@@ -815,30 +815,15 @@ func (s *ChatSession) HandleListenDetect(msg *ClientMessage) error {
 }
 
 func (s *ChatSession) HandleNotActivated() {
-	configProvider, err := user_config.GetProvider(viper.GetString("config_provider.type"))
-	if err != nil {
-		log.Errorf("获取配置提供者失败: %v", err)
-		return
-	}
-
-	code, challenge, message, timeoutMs := configProvider.GetActivationInfo(s.clientState.Ctx, s.clientState.DeviceID, "client_id")
-	if code == "" {
-		log.Errorf("获取激活信息失败: %v", err)
-		return
-	}
-
-	log.Infof("激活码: %s, 挑战码: %s, 消息: %s, 超时时间: %d", code, challenge, message, timeoutMs)
-
 	s.ttsManager.EnqueueTtsStartWithReason(s.clientState.Ctx, "HandleNotActivated")
 	defer s.ttsManager.EnqueueTtsStopWithReason(s.clientState.Ctx, "HandleNotActivated")
 
 	sessionCtx := s.clientState.SessionCtx.Get(s.clientState.Ctx)
 	ctx := s.clientState.AfterAsrSessionCtx.Get(sessionCtx)
-	err = s.ttsManager.handleTextResponse(ctx, llm_common.LLMResponseStruct{
-		Text: fmt.Sprintf("请在后台添加设备，激活码: %s", code),
+	err := s.ttsManager.handleTextResponse(ctx, llm_common.LLMResponseStruct{
+		Text: "请在小程序上绑定我，双击电源键进入配网模式",
 	}, false)
 	s.ttsManager.RequestTurnEnd(ctx, err)
-
 }
 
 func (s *ChatSession) HandleWelcome() {

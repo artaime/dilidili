@@ -12,7 +12,7 @@
         v-model="form.user_id"
         placeholder="请选择所属用户"
         filterable
-        clearable
+        :clearable="!isAdminEditMode"
         style="width: 100%"
         :loading="loading.users"
       >
@@ -23,18 +23,20 @@
           :value="user.id"
         />
       </el-select>
+      <div v-if="isAdminEditMode && originalUserID > 0" class="form-hint">
+        解绑用户请使用设备列表「出厂重置」；此处仅可更换绑定用户，不可清空。
+      </div>
     </el-form-item>
 
-    <el-form-item v-if="isBindMode" label="设备验证码或 SN" prop="identifier">
+    <el-form-item v-if="isBindMode" label="设备 SN" prop="identifier">
       <el-input
         v-model="form.identifier"
-        placeholder="请输入 6 位验证码或设备 SN"
+        placeholder="请输入设备 SN"
         clearable
         autocomplete="off"
       />
       <div class="form-hint">
         <span>示例：</span>
-        <code>123456</code>
         <code>SN-XXXXXXXX-XXXXXXXX</code>
       </div>
       <div class="form-hint">
@@ -64,14 +66,14 @@
             小程序绑定前，管理员需先预录入设备 SN。未登记设备将无法被家长绑定。
           </div>
         </el-form-item>
-        <el-form-item label="激活码" prop="device_code">
-          <el-input v-model="form.device_code" placeholder="设备激活码" clearable />
-        </el-form-item>
       </div>
 
       <div class="device-form-grid">
         <el-form-item v-if="isAdmin" label="激活状态" prop="activated">
-          <el-switch v-model="form.activated" />
+          <el-switch v-model="form.activated" :disabled="!targetUserId" />
+          <div v-if="!targetUserId" class="form-hint">
+            未绑定用户的设备不可设为已激活。
+          </div>
         </el-form-item>
         <el-form-item label="关联智能体" prop="agent_id">
           <el-select
@@ -145,6 +147,8 @@ const formRef = ref(null)
 const targetUserId = computed(() => props.isAdmin ? Number(form.value.user_id || 0) : 0)
 const operatorUserId = computed(() => Number(authStore.user?.id || 0))
 const isBindMode = computed(() => props.mode === 'bind')
+const isAdminEditMode = computed(() => props.isAdmin && props.mode === 'edit')
+const originalUserID = ref(0)
 const hasFixedAgent = computed(() => props.fixedAgentId !== null && props.fixedAgentId !== undefined && props.fixedAgentId !== '')
 
 const {
@@ -187,7 +191,7 @@ const validateIdentifier = (_, value, callback) => {
     return
   }
   if (!String(value || '').trim()) {
-    callback(new Error('请输入设备验证码或设备 SN'))
+    callback(new Error('请输入设备 SN'))
     return
   }
   callback()
@@ -230,8 +234,23 @@ const reloadOptions = async () => {
 }
 
 watch(
+  () => [props.mode, props.modelValue?.user_id],
+  () => {
+    if (isAdminEditMode.value) {
+      originalUserID.value = Number(form.value.user_id || 0)
+    } else {
+      originalUserID.value = 0
+    }
+  },
+  { immediate: true }
+)
+
+watch(
   () => form.value.user_id,
   async (next, prev) => {
+    if (props.isAdmin && !Number(next || 0)) {
+      form.value.activated = false
+    }
     if (!props.isAdmin || next === prev) return
     form.value.agent_id = null
     await loadAgents().catch(() => [])

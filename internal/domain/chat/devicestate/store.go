@@ -46,3 +46,9 @@ func (s *MemoryStore) Upsert(deviceID string, update func(*DeviceMessageProfile)
 	}
 	return profile
 }
+
+func (s *MemoryStore) Delete(deviceID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.data, deviceID)
+}

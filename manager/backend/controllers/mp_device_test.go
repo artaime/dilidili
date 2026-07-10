@@ -1,9 +1,11 @@
 package controllers
 
 import (
+	"context"
 	"testing"
 
 	"dili/manager/backend/models"
+	"dili/manager/backend/services/device_reset"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -103,6 +105,9 @@ func TestMpDeviceBindRejectsOccupiedDevice(t *testing.T) {
 
 func TestMpDeviceUnbindPreservesFactoryAgent(t *testing.T) {
 	db := setupMpDeviceTestDB(t)
+	if err := db.AutoMigrate(&models.ChatMessage{}, &models.ParentMessage{}); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
 	user := createServiceTestUser(t, db, "mp-unbind", "user")
 	admin := createServiceTestUser(t, db, "mp-admin-unbind", "admin")
 	agent := models.Agent{UserID: admin.ID, Name: "factory-agent", Nickname: "狄哩"}
@@ -110,9 +115,12 @@ func TestMpDeviceUnbindPreservesFactoryAgent(t *testing.T) {
 		t.Fatalf("create agent: %v", err)
 	}
 
+	roleID := uint(7)
 	device := models.Device{
 		UserID:     user.ID,
 		AgentID:    agent.ID,
+		RoleID:     &roleID,
+		NickName:   "小明",
 		DeviceName: "SN-TEST-UNBIND",
 		DeviceCode: "333333",
 		Activated:  true,
@@ -121,12 +129,9 @@ func TestMpDeviceUnbindPreservesFactoryAgent(t *testing.T) {
 		t.Fatalf("create device: %v", err)
 	}
 
-	updates := map[string]interface{}{
-		"user_id":   0,
-		"activated": false,
-	}
-	if err := updateDeviceColumns(db, device.ID, updates); err != nil {
-		t.Fatalf("unbind device: %v", err)
+	svc := device_reset.NewService(db, nil, device_resetNoopNotifier{})
+	if err := svc.ResetToFactory(context.Background(), device.ID, user.ID); err != nil {
+		t.Fatalf("ResetToFactory: %v", err)
 	}
 
 	var unbound models.Device
@@ -136,4 +141,11 @@ func TestMpDeviceUnbindPreservesFactoryAgent(t *testing.T) {
 	if unbound.UserID != 0 || unbound.Activated || unbound.AgentID != agent.ID {
 		t.Fatalf("unbound device = user:%d agent:%d activated:%v, want user:0 agent:%d activated:false", unbound.UserID, unbound.AgentID, unbound.Activated, agent.ID)
 	}
+	if unbound.NickName != "" || unbound.RoleID != nil {
+		t.Fatalf("nick_name/role_id not cleared: nick=%q role=%v", unbound.NickName, unbound.RoleID)
+	}
 }
+
+type device_resetNoopNotifier struct{}
+
+func (device_resetNoopNotifier) NotifyDeviceReset(context.Context, string) {}

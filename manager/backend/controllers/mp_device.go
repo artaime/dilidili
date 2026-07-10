@@ -1,17 +1,21 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"dili/manager/backend/models"
+	"dili/manager/backend/services/device_reset"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type MpDeviceController struct {
-	DB *gorm.DB
+	DB           *gorm.DB
+	ResetService *device_reset.Service
 }
 
 func (ctrl *MpDeviceController) CheckDevice(c *gin.Context) {
@@ -157,24 +161,26 @@ func (ctrl *MpDeviceController) ListDevices(c *gin.Context) {
 func (ctrl *MpDeviceController) UnbindDevice(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	currentUID, _ := userID.(uint)
-	deviceID := c.Param("id")
-
-	var device models.Device
-	if err := ctrl.DB.Where("id = ? AND user_id = ?", deviceID, currentUID).First(&device).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "设备不存在"})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询设备失败"})
+	deviceID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || deviceID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "设备 ID 无效"})
 		return
 	}
 
-	updates := map[string]interface{}{
-		"user_id":   0,
-		"activated": false,
+	if ctrl.ResetService == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "解绑服务未配置"})
+		return
 	}
-	if err := updateDeviceColumns(ctrl.DB, device.ID, updates); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "解绑失败"})
+
+	if err := ctrl.ResetService.ResetToFactory(c.Request.Context(), uint(deviceID), currentUID); err != nil {
+		switch {
+		case errors.Is(err, device_reset.ErrDeviceNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": "设备不存在"})
+		case errors.Is(err, device_reset.ErrForbidden):
+			c.JSON(http.StatusForbidden, gin.H{"error": "无权解绑该设备"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "解绑失败: " + err.Error()})
+		}
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "解绑成功"})
@@ -195,4 +201,3 @@ func (ctrl *MpDeviceController) findDeviceBySN(sn string) (models.Device, bool, 
 	}
 	return device, true, nil
 }
-

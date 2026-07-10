@@ -11,6 +11,7 @@ import (
 	parentmsg "dili-esp32-server-golang/internal/data/parentmessage"
 	user_config "dili-esp32-server-golang/internal/domain/config"
 	config_types "dili-esp32-server-golang/internal/domain/config/types"
+	"dili-esp32-server-golang/internal/domain/memory/llm_memory"
 	"dili-esp32-server-golang/internal/domain/mcp"
 	"dili-esp32-server-golang/internal/domain/openclaw"
 	"dili-esp32-server-golang/internal/pool"
@@ -518,7 +519,28 @@ func (a *App) registerHandler() {
 		return
 	}
 	provider.RegisterMessageEventHandler(context.Background(), config_types.EventHandleMessageInject, a.HandleInjectMsg)
-	log.Infof("registerHandler: registered paths=[%s]", config_types.EventHandleMessageInject)
+	provider.RegisterMessageEventHandler(context.Background(), config_types.EventDeviceReset, a.HandleDeviceReset)
+	log.Infof("registerHandler: registered paths=[%s, %s]", config_types.EventHandleMessageInject, config_types.EventDeviceReset)
+}
+
+// HandleDeviceReset 解绑时清理设备会话与运行时状态。
+func (a *App) HandleDeviceReset(ctx context.Context, eventType string, eventData map[string]interface{}) (string, error) {
+	deviceID := strings.TrimSpace(fmt.Sprint(eventData["device_id"]))
+	if deviceID == "" {
+		return "", fmt.Errorf("device_id is required")
+	}
+
+	a.CloseChatManager(deviceID)
+	openclaw.GetManager().ClearOfflineMessages(deviceID)
+	_ = mcp.RemoveDeviceMcpClient(deviceID)
+	if mem := llm_memory.Get(); mem != nil {
+		if err := mem.ResetMemory(ctx, deviceID); err != nil {
+			log.Warnf("HandleDeviceReset: clear llm memory failed device=%s err=%v", deviceID, err)
+		}
+	}
+
+	log.Infof("HandleDeviceReset completed: device=%s", deviceID)
+	return "device reset ok", nil
 }
 
 // 向客户端注入消息

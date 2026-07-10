@@ -502,7 +502,6 @@ func (svc *DeviceService) Create(scope accessScope, payload DevicePayload) (*Dev
 		return nil, err
 	}
 	deviceName := strings.TrimSpace(payload.DeviceName)
-	deviceCode := strings.TrimSpace(payload.DeviceCode)
 	if deviceName == "" {
 		return nil, fmt.Errorf("请填写设备标识")
 	}
@@ -513,55 +512,18 @@ func (svc *DeviceService) Create(scope accessScope, payload DevicePayload) (*Dev
 	if err := svc.assertAgentOwnedByUser(payload.AgentID, agentOwnerID); err != nil {
 		return nil, err
 	}
-	if deviceCode == "" && !scope.IsAdmin {
-		deviceCode = generateUniqueDeviceCode(svc.DB)
-	}
 	activated := false
 	if payload.Activated != nil {
 		activated = *payload.Activated
-	}
-
-	var device models.Device
-	if scope.IsAdmin && deviceCode != "" {
-		if err := svc.DB.Where("device_code = ?", deviceCode).First(&device).Error; err == nil {
-			if deviceName != "" {
-				if err := svc.assertDeviceNameAvailable(deviceName, device.ID); err != nil {
-					return nil, err
-				}
-			}
-			device.UserID = targetUserID
-			device.NickName = nickName
-			device.AgentID = payload.AgentID
-			device.Activated = activated
-			if deviceName != "" {
-				device.DeviceName = deviceName
-			}
-			updates := map[string]interface{}{
-				"user_id":   device.UserID,
-				"nick_name": device.NickName,
-				"agent_id":  device.AgentID,
-				"activated": device.Activated,
-			}
-			if deviceName != "" {
-				updates["device_name"] = device.DeviceName
-			}
-			if err := updateDeviceColumns(svc.DB, device.ID, updates); err != nil {
-				return nil, err
-			}
-			return svc.Get(scope, device.ID)
-		} else if err != gorm.ErrRecordNotFound {
-			return nil, err
-		}
 	}
 
 	if err := svc.assertDeviceNameAvailable(deviceName, 0); err != nil {
 		return nil, err
 	}
 
-	device = models.Device{
+	device := models.Device{
 		UserID:     targetUserID,
 		NickName:   nickName,
-		DeviceCode: deviceCode,
 		DeviceName: deviceName,
 		AgentID:    payload.AgentID,
 		Activated:  activated,
@@ -588,6 +550,16 @@ func (svc *DeviceService) Update(scope accessScope, id uint, payload DevicePaylo
 	nextUserID := device.UserID
 	if scope.IsAdmin {
 		nextUserID = payload.UserID
+		if device.UserID != 0 && nextUserID == 0 {
+			return nil, fmt.Errorf("请使用「出厂重置」解绑设备，不可通过编辑直接清空绑定用户")
+		}
+		nextActivated := device.Activated
+		if payload.Activated != nil {
+			nextActivated = *payload.Activated
+		}
+		if nextUserID == 0 && nextActivated {
+			return nil, fmt.Errorf("未绑定用户的设备不可设为已激活")
+		}
 	}
 	if nextUserID > 0 {
 		if err := svc.assertUserExists(nextUserID); err != nil {
@@ -630,12 +602,10 @@ func (svc *DeviceService) Update(scope accessScope, id uint, payload DevicePaylo
 				return nil, err
 			}
 		}
-		device.DeviceCode = strings.TrimSpace(payload.DeviceCode)
 		device.DeviceName = nextDeviceName
 		if payload.Activated != nil {
 			device.Activated = *payload.Activated
 		}
-		updates["device_code"] = device.DeviceCode
 		updates["device_name"] = device.DeviceName
 		updates["activated"] = device.Activated
 	}
@@ -692,16 +662,12 @@ func (svc *DeviceService) Bind(scope accessScope, payload DevicePayload) (*Devic
 		return nil, fmt.Errorf("未认证")
 	}
 
-	code := strings.TrimSpace(payload.Code)
 	deviceName := normalizeDeviceSN(payload.SN)
 	if deviceName == "" {
 		deviceName = normalizeDeviceSN(payload.DeviceName)
 	}
-	if code == "" && deviceName == "" {
-		return nil, fmt.Errorf("请填写设备验证码或设备 SN")
-	}
-	if code != "" && !isSixDigitCode(code) {
-		return nil, fmt.Errorf("验证码格式错误")
+	if deviceName == "" {
+		return nil, fmt.Errorf("请填写设备 SN")
 	}
 	nickName, err := normalizeDeviceNickName(payload.NickName)
 	if err != nil {
@@ -709,14 +675,7 @@ func (svc *DeviceService) Bind(scope accessScope, payload DevicePayload) (*Devic
 	}
 
 	var device models.Device
-	if code != "" {
-		if err := svc.DB.Where("device_code = ?", code).First(&device).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return nil, fmt.Errorf("设备未登记，请联系厂商")
-			}
-			return nil, err
-		}
-	} else if err := svc.DB.Where("device_name = ?", deviceName).First(&device).Error; err != nil {
+	if err := svc.DB.Where("device_name = ?", deviceName).First(&device).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("设备未登记，请联系厂商")
 		}
@@ -735,9 +694,6 @@ func (svc *DeviceService) Bind(scope accessScope, payload DevicePayload) (*Devic
 	}
 
 	if device.UserID != 0 && device.UserID != targetUserID {
-		if code != "" {
-			return nil, fmt.Errorf("验证码无效或设备已被绑定")
-		}
 		return nil, fmt.Errorf("设备 SN 无效或设备已被绑定")
 	}
 

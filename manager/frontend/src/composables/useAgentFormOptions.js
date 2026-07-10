@@ -124,7 +124,6 @@ export const buildAgentPayload = (form = {}, { isAdmin = false } = {}) => {
 export const createDefaultDeviceForm = ({ isAdmin = false, userId = null, mode = 'create', fixedAgentId = null } = {}) => ({
   user_id: isAdmin ? userId : null,
   nick_name: '',
-  device_code: '',
   device_name: '',
   identifier: '',
   activated: false,
@@ -135,7 +134,6 @@ export const createDefaultDeviceForm = ({ isAdmin = false, userId = null, mode =
 export const deviceToForm = (device = {}, { isAdmin = false } = {}) => ({
   user_id: isAdmin ? device.user_id || null : null,
   nick_name: device.nick_name || '',
-  device_code: device.device_code || '',
   device_name: device.device_name || '',
   identifier: '',
   activated: device.activated !== false,
@@ -145,10 +143,7 @@ export const deviceToForm = (device = {}, { isAdmin = false } = {}) => ({
 
 export const buildDevicePayload = (form = {}, { isAdmin = false, mode = 'create' } = {}) => {
   if (mode === 'bind') {
-    const identifier = String(form.identifier || '').trim()
-    const payload = /^\d{6}$/.test(identifier)
-      ? { code: identifier }
-      : { sn: identifier }
+    const payload = { sn: String(form.identifier || '').trim() }
     const nickName = String(form.nick_name || '').trim()
     if (nickName) payload.nick_name = nickName
     return payload
@@ -156,7 +151,6 @@ export const buildDevicePayload = (form = {}, { isAdmin = false, mode = 'create'
 
   const payload = {
     nick_name: String(form.nick_name || '').trim(),
-    device_code: String(form.device_code || '').trim(),
     device_name: String(form.device_name || '').trim(),
     agent_id: Number(form.agent_id || 0)
   }

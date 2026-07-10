@@ -3,14 +3,11 @@ package redis_config
 import (
 	"context"
 	"dili-esp32-server-golang/internal/domain/config/types"
-	"fmt"
-	"math/rand"
 
 	"github.com/google/uuid"
 )
 
 type activationInfo struct {
-	code      string
 	challenge string
 	msg       string
 }
@@ -26,19 +23,18 @@ func (r *UserConfig) IsDeviceActivated(ctx context.Context, deviceId string, cli
 	return false, nil
 }
 
-// 获取激活需要的信息,  code, challenge, msg, timeoutMs
+// 获取激活需要的信息,  code, challenge, msg, timeoutMs（code 已废弃，恒为空）
 func (r *UserConfig) GetActivationInfo(ctx context.Context, deviceId string, clientId string) (string, string, string, int) {
 	if info, ok := preActivationInfo[deviceId]; ok {
-		return info.code, info.challenge, info.msg, 300
+		return "", info.challenge, info.msg, 300
 	}
 	challenge := uuid.New().String()
-	code := fmt.Sprintf("%06d", rand.Intn(1000000)) // 000000~999999，保留前导0
+	msg := "请在小程序上绑定我，双击电源键进入配网模式"
 	preActivationInfo[deviceId] = activationInfo{
-		code:      code,
 		challenge: challenge,
-		msg:       fmt.Sprintf("dili\n%s", code),
+		msg:       msg,
 	}
-	return code, challenge, preActivationInfo[deviceId].msg, 300
+	return "", challenge, msg, 300
 }
 
 // 验证 challenge和HMAC是否匹配, 设备是否已激活，此处可以省略hmac的校验, 只查询deviceId是否绑定

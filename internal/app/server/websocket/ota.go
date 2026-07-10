@@ -97,14 +97,13 @@ func (s *WebSocketServer) handleOta(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !isActivited {
-			code, challenge, msg, timeoutMs := configProvider.GetActivationInfo(r.Context(), deviceId, clientId)
+			_, challenge, msg, timeoutMs := configProvider.GetActivationInfo(r.Context(), deviceId, clientId)
 			activationInfo = &ActivationInfo{
-				Code:      code,
 				Message:   msg,
 				Challenge: challenge,
 				TimeoutMs: timeoutMs,
 			}
-			log.Infof("激活信息: &{Code:%s Message:%s Challenge:%s TimeoutMs:%d}", code, msg, challenge, timeoutMs)
+			log.Infof("激活信息: &{Message:%s Challenge:%s TimeoutMs:%d}", msg, challenge, timeoutMs)
 		}
 	}
 

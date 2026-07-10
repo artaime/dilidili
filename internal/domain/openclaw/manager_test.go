@@ -451,3 +451,12 @@ func TestExtractOpenClawSentencesGroupsWeatherListIntoLongerSegments(t *testing.
 		t.Fatalf("missing summary in final sentence: %q", sentences[0])
 	}
 }
+
+func TestClearOfflineMessages(t *testing.T) {
+	manager := &Manager{offline: make(map[string][]OfflineMessage)}
+	manager.AddOfflineMessage("dev-1", "hello", "c1", false)
+	manager.ClearOfflineMessages("dev-1")
+	if len(manager.offline["dev-1"]) != 0 {
+		t.Fatalf("offline messages not cleared")
+	}
+}

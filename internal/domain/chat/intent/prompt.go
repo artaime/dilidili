@@ -13,7 +13,7 @@ func BuildClassifierSystemPrompt(agentSystemPrompt string) string {
 可选 intent：
 - msg_inquiry：查询有没有家长留言、几条、谁留的。例：「有留言吗」「还有留言吗」「爸爸留言了吗」。data 可为 {"action":"list"} 或 {}，可选 reply 作为简短确认语。
 - msg_play：播放或重播留言。例：
-  - 「播放留言」「继续播放」→ action=pending
+  - 「播放留言」「继续播放」→ action=pending（有待播则播待播；无待播则播最近一条，含已播）
   - 「播放最近一条留言」「最新留言」→ action=latest
   - 「播放妈妈昨天早上的留言」「播放爸爸下午的留言」「播放下午的留言」→ action=select，填写 family_role、start、end（本地时间，格式 YYYY-MM-DDTHH:MM:SS；能识别多少填多少）。**含已播放留言**，按 created_at 筛选后播放，不因已播而拒绝。
   - 「再播一遍」「重播上一条」→ action=replay_last

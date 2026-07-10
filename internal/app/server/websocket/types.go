@@ -214,7 +214,7 @@ type PdInfo struct {
 }
 
 type ActivationInfo struct {
-	Code      string `json:"code"`
+	Code      string `json:"code,omitempty"`
 	Message   string `json:"message"`
 	Challenge string `json:"challenge"`
 	TimeoutMs int    `json:"timeout_ms"`
