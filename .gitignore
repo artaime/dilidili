@@ -35,3 +35,6 @@ chat_history/
 **/parent_messages/
 
 # manager/backend/storage/parent_messages
+
+manager/backend/data/
+manager/backend/storage/parent_messages

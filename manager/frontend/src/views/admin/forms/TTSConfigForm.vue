@@ -440,6 +440,61 @@
       </el-form-item>
     </template>
 
+    <template v-if="model.provider === 'tencent_tts'">
+      <el-form-item label="AppId" prop="tencent_tts.app_id">
+        <el-input v-model="model.tencent_tts.app_id" placeholder="请输入腾讯云 AppId" />
+      </el-form-item>
+      <el-form-item label="SecretId" prop="tencent_tts.secret_id">
+        <el-input v-model="model.tencent_tts.secret_id" placeholder="请输入 SecretId" type="password" show-password />
+      </el-form-item>
+      <el-form-item label="SecretKey" prop="tencent_tts.secret_key">
+        <el-input v-model="model.tencent_tts.secret_key" placeholder="请输入 SecretKey" type="password" show-password />
+      </el-form-item>
+      <el-form-item label="音色" prop="tencent_tts.voice_type">
+        <el-select
+          v-model="model.tencent_tts.voice_type"
+          placeholder="请选择音色"
+          style="width: 100%"
+          filterable
+          :loading="voiceLoading"
+          :disabled="voiceLoading"
+          allow-create
+          default-first-option
+        >
+          <el-option v-for="option in voiceOptionsList" :key="option.value" :label="option.label" :value="option.value" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="采样率" prop="tencent_tts.sample_rate">
+        <el-select v-model="model.tencent_tts.sample_rate" placeholder="请选择采样率" style="width: 100%">
+          <el-option label="8000 Hz" :value="8000" />
+          <el-option label="16000 Hz" :value="16000" />
+          <el-option label="24000 Hz" :value="24000" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="音频格式" prop="tencent_tts.codec">
+        <el-select v-model="model.tencent_tts.codec" placeholder="请选择音频格式" style="width: 100%">
+          <el-option label="PCM" value="pcm" />
+          <el-option label="MP3" value="mp3" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="语速" prop="tencent_tts.speed">
+        <el-input-number v-model="model.tencent_tts.speed" :min="-2" :max="6" :step="0.1" style="width: 100%" />
+      </el-form-item>
+      <el-form-item label="音量" prop="tencent_tts.volume">
+        <el-input-number v-model="model.tencent_tts.volume" :min="-10" :max="10" :step="0.1" style="width: 100%" />
+      </el-form-item>
+      <el-form-item label="双流式" prop="double_stream">
+        <el-switch v-model="model.double_stream" />
+        <span class="form-item-tip">开启后支持 LLM 边出字边合成（stream_wsv2）</span>
+      </el-form-item>
+      <el-form-item label="WebSocket URL" prop="tencent_tts.ws_url">
+        <el-input v-model="model.tencent_tts.ws_url" placeholder="wss://tts.cloud.tencent.com/stream_wsv2" />
+      </el-form-item>
+      <el-form-item label="帧时长" prop="tencent_tts.frame_duration">
+        <el-input-number v-model="model.tencent_tts.frame_duration" :min="1" :max="1000" style="width: 100%" />
+      </el-form-item>
+    </template>
+
     <template v-if="model.provider === 'cosyvoice'">
       <el-form-item label="API URL" prop="cosyvoice.api_url">
         <el-input v-model="model.cosyvoice.api_url" placeholder="请输入API URL" />
@@ -636,6 +691,25 @@ function getJsonData() {
       config.bitrate = form.minimax?.bitrate || 128000
       config.format = form.minimax?.format || 'mp3'
       config.channel = form.minimax?.channel || 1
+      break
+    case 'tencent_tts':
+      config.provider = 'tencent_tts'
+      config.app_id = Number(form.tencent_tts?.app_id) || undefined
+      config.secret_id = form.tencent_tts?.secret_id
+      config.secret_key = form.tencent_tts?.secret_key
+      config.voice_type = Number(form.tencent_tts?.voice_type) || 101001
+      config.voice = String(form.tencent_tts?.voice_type || 101001)
+      config.codec = form.tencent_tts?.codec || 'pcm'
+      config.sample_rate = form.tencent_tts?.sample_rate || 16000
+      config.speed = form.tencent_tts?.speed ?? 0
+      config.volume = form.tencent_tts?.volume ?? 0
+      config.ws_url = form.tencent_tts?.ws_url || 'wss://tts.cloud.tencent.com/stream_wsv2'
+      config.frame_duration = form.tencent_tts?.frame_duration || 60
+      config.connect_timeout = form.tencent_tts?.connect_timeout || 10
+      config.read_timeout = form.tencent_tts?.read_timeout || 60
+      if (form.double_stream) {
+        config.double_stream = true
+      }
       break
   }
   return JSON.stringify(config)

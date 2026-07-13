@@ -272,6 +272,20 @@ const form = reactive({
     bitrate: 128000,
     format: 'mp3',
     channel: 1
+  },
+  tencent_tts: {
+    app_id: '',
+    secret_id: '',
+    secret_key: '',
+    voice_type: '101001',
+    codec: 'pcm',
+    sample_rate: 16000,
+    speed: 0,
+    volume: 0,
+    ws_url: 'wss://tts.cloud.tencent.com/stream_wsv2',
+    frame_duration: 60,
+    connect_timeout: 10,
+    read_timeout: 60
   }
 })
 
@@ -319,7 +333,11 @@ const rules = {
   'minimax.api_key': [{ required: true, message: '请输入API Key', trigger: 'blur' }],
   // 千问 TTS 验证规则
   'qwen_tts.api_key': [{ required: true, message: '请输入API Key', trigger: 'blur' }],
-  'indextts_vllm.api_url': [{ required: true, message: '请输入API URL', trigger: 'blur' }]
+  'indextts_vllm.api_url': [{ required: true, message: '请输入API URL', trigger: 'blur' }],
+  'tencent_tts.app_id': [{ required: true, message: '请输入 AppId', trigger: 'blur' }],
+  'tencent_tts.secret_id': [{ required: true, message: '请输入 SecretId', trigger: 'blur' }],
+  'tencent_tts.secret_key': [{ required: true, message: '请输入 SecretKey', trigger: 'blur' }],
+  'tencent_tts.voice_type': [{ required: true, message: '请选择音色', trigger: 'change' }]
 }
 
 const loadConfigs = async () => {
@@ -491,6 +509,20 @@ const editConfig = (config) => {
         form.minimax.bitrate = configData.bitrate || 128000
         form.minimax.format = configData.format || 'mp3'
         form.minimax.channel = configData.channel || 1
+        break
+      case 'tencent_tts':
+        form.tencent_tts.app_id = configData.app_id != null ? String(configData.app_id) : ''
+        form.tencent_tts.secret_id = configData.secret_id || ''
+        form.tencent_tts.secret_key = configData.secret_key || ''
+        form.tencent_tts.voice_type = String(configData.voice_type || configData.voice || '101001')
+        form.tencent_tts.codec = configData.codec || 'pcm'
+        form.tencent_tts.sample_rate = configData.sample_rate || 16000
+        form.tencent_tts.speed = configData.speed ?? 0
+        form.tencent_tts.volume = configData.volume ?? 0
+        form.tencent_tts.ws_url = configData.ws_url || 'wss://tts.cloud.tencent.com/stream_wsv2'
+        form.tencent_tts.frame_duration = configData.frame_duration || 60
+        form.tencent_tts.connect_timeout = configData.connect_timeout || 10
+        form.tencent_tts.read_timeout = configData.read_timeout || 60
         break
     }
   } catch (error) {
@@ -827,6 +859,20 @@ const resetForm = () => {
       bitrate: 128000,
       format: 'mp3',
       channel: 1
+    },
+    tencent_tts: {
+      app_id: '',
+      secret_id: '',
+      secret_key: '',
+      voice_type: '101001',
+      codec: 'pcm',
+      sample_rate: 16000,
+      speed: 0,
+      volume: 0,
+      ws_url: 'wss://tts.cloud.tencent.com/stream_wsv2',
+      frame_duration: 60,
+      connect_timeout: 10,
+      read_timeout: 60
     }
   })
 }

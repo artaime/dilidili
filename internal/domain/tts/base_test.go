@@ -8,6 +8,7 @@ import (
 
 	"dili-esp32-server-golang/constants"
 	"dili-esp32-server-golang/internal/domain/tts/openai"
+	"dili-esp32-server-golang/internal/domain/tts/tencent"
 )
 
 type fakeStreamProvider struct {
@@ -45,6 +46,27 @@ func TestGetTTSProviderUsesConfigProviderOverride(t *testing.T) {
 func TestGetTTSProviderRejectsUnknown(t *testing.T) {
 	if _, err := GetTTSProvider("missing_provider", nil); err == nil {
 		t.Fatal("expected unknown provider to fail")
+	}
+}
+
+func TestGetTTSProviderTencent(t *testing.T) {
+	provider, err := GetTTSProvider(constants.TtsTypeTencent, map[string]interface{}{
+		"provider":   constants.TtsTypeTencent,
+		"app_id":     1234567890,
+		"secret_id":  "AKIDTEST",
+		"secret_key": "secret",
+		"voice_type": 101001,
+	})
+	if err != nil {
+		t.Fatalf("GetTTSProvider error = %v", err)
+	}
+
+	adapter, ok := provider.(*ContextTTSAdapter)
+	if !ok {
+		t.Fatalf("provider type = %T", provider)
+	}
+	if _, ok := adapter.Provider.(*tencent.TencentTTSProvider); !ok {
+		t.Fatalf("wrapped provider type = %T", adapter.Provider)
 	}
 }
 

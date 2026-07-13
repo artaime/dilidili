@@ -7,6 +7,7 @@
         <el-option label="豆包" value="doubao" />
         <el-option label="Aliyun Qwen3" value="aliyun_qwen3" />
         <el-option label="讯飞" value="xunfei" />
+        <el-option label="腾讯" value="tencent_asr" />
       </el-select>
     </el-form-item>
     <el-form-item label="配置名称" prop="name">
@@ -186,6 +187,51 @@
         <el-input-number v-model="model.xunfei.timeout" :min="1" style="width: 100%" />
       </el-form-item>
     </div>
+    <div v-if="model.provider === 'tencent_asr'">
+      <el-form-item label="AppId" prop="tencent_asr.app_id">
+        <el-input v-model="model.tencent_asr.app_id" placeholder="请输入腾讯云 AppId" />
+      </el-form-item>
+      <el-form-item label="SecretId" prop="tencent_asr.secret_id">
+        <el-input v-model="model.tencent_asr.secret_id" type="password" show-password placeholder="请输入 SecretId" />
+      </el-form-item>
+      <el-form-item label="SecretKey" prop="tencent_asr.secret_key">
+        <el-input v-model="model.tencent_asr.secret_key" type="password" show-password placeholder="请输入 SecretKey" />
+      </el-form-item>
+      <el-form-item label="引擎模型" prop="tencent_asr.engine_model_type">
+        <el-select v-model="model.tencent_asr.engine_model_type" placeholder="请选择引擎模型" style="width: 100%">
+          <el-option label="16k_zh（中文通用）" value="16k_zh" />
+          <el-option label="16k_zh_en（中英大模型）" value="16k_zh_en" />
+          <el-option label="16k_en（英文）" value="16k_en" />
+          <el-option label="8k_zh（电话场景）" value="8k_zh" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="采样率" prop="tencent_asr.sample_rate">
+        <el-select v-model="model.tencent_asr.sample_rate" placeholder="请选择采样率" style="width: 100%">
+          <el-option label="16000" :value="16000" />
+          <el-option label="8000" :value="8000" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="音频格式" prop="tencent_asr.voice_format">
+        <el-select v-model="model.tencent_asr.voice_format" placeholder="请选择音频格式" style="width: 100%">
+          <el-option label="PCM (1)" :value="1" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="VAD" prop="tencent_asr.needvad">
+        <el-switch v-model="model.tencent_asr.needvad" :active-value="1" :inactive-value="0" />
+      </el-form-item>
+      <el-form-item label="过滤脏词" prop="tencent_asr.filter_dirty">
+        <el-switch v-model="model.tencent_asr.filter_dirty" :active-value="1" :inactive-value="0" />
+      </el-form-item>
+      <el-form-item label="过滤语气词" prop="tencent_asr.filter_modal">
+        <el-switch v-model="model.tencent_asr.filter_modal" :active-value="1" :inactive-value="0" />
+      </el-form-item>
+      <el-form-item label="过滤句末句号" prop="tencent_asr.filter_punc">
+        <el-switch v-model="model.tencent_asr.filter_punc" :active-value="1" :inactive-value="0" />
+      </el-form-item>
+      <el-form-item label="超时时间(秒)" prop="tencent_asr.timeout">
+        <el-input-number v-model="model.tencent_asr.timeout" :min="1" style="width: 100%" />
+      </el-form-item>
+    </div>
     <div v-if="model.provider === 'aliyun_qwen3'">
       <el-form-item label="API Key" prop="aliyun_qwen3.api_key">
         <el-input v-model="model.aliyun_qwen3.api_key" type="password" show-password placeholder="可以为空，读取DASHSCOPE_API_KEY" />
@@ -329,6 +375,24 @@ const ASR_PROVIDER_DEFAULTS = {
       sample_rate: 16000,
       timeout: 30
     }
+  },
+  tencent_asr: {
+    name: '腾讯 ASR',
+    config_id: 'tencent_asr_default',
+    data: {
+      app_id: '',
+      secret_id: '',
+      secret_key: '',
+      engine_model_type: '16k_zh',
+      voice_format: 1,
+      sample_rate: 16000,
+      needvad: 0,
+      filter_dirty: 0,
+      filter_modal: 0,
+      filter_punc: 0,
+      convert_num_mode: 1,
+      timeout: 30
+    }
   }
 }
 
@@ -398,6 +462,23 @@ function getJsonData() {
   if (m.provider === 'doubao') return JSON.stringify(m.doubao || {})
   if (m.provider === 'aliyun_qwen3') return JSON.stringify(m.aliyun_qwen3 || {})
   if (m.provider === 'xunfei') return JSON.stringify(m.xunfei || {})
+  if (m.provider === 'tencent_asr') {
+    return JSON.stringify({
+      provider: 'tencent_asr',
+      app_id: Number(m.tencent_asr?.app_id) || undefined,
+      secret_id: m.tencent_asr?.secret_id,
+      secret_key: m.tencent_asr?.secret_key,
+      engine_model_type: m.tencent_asr?.engine_model_type || '16k_zh',
+      voice_format: m.tencent_asr?.voice_format ?? 1,
+      sample_rate: m.tencent_asr?.sample_rate || 16000,
+      needvad: m.tencent_asr?.needvad ?? 0,
+      filter_dirty: m.tencent_asr?.filter_dirty ?? 0,
+      filter_modal: m.tencent_asr?.filter_modal ?? 0,
+      filter_punc: m.tencent_asr?.filter_punc ?? 0,
+      convert_num_mode: m.tencent_asr?.convert_num_mode ?? 1,
+      timeout: m.tencent_asr?.timeout || 30
+    })
+  }
   return '{}'
 }
 

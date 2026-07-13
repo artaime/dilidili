@@ -371,6 +371,38 @@ var VoiceOptions = map[string][]VoiceOption{
 		{Value: "douji", Label: "动动动物圈douji音色"},
 		{Value: "luodo", Label: "动动动物圈luodo音色"},
 	},
+
+	// 腾讯云 TTS 音色列表（VoiceType ID）
+	// 参考：https://cloud.tencent.com/document/product/1073/92668
+	"tencent_tts": {
+		{Value: "101001", Label: "智瑜（女声）"},
+		{Value: "101002", Label: "智聆（女声）"},
+		{Value: "101003", Label: "智美（女声）"},
+		{Value: "101004", Label: "智云（男声）"},
+		{Value: "101005", Label: "智莉（女声）"},
+		{Value: "101006", Label: "智言（女声）"},
+		{Value: "101007", Label: "智娜（女声）"},
+		{Value: "101008", Label: "智琪（女声）"},
+		{Value: "101009", Label: "智芸（女声）"},
+		{Value: "101010", Label: "智华（男声）"},
+		{Value: "101011", Label: "智燕（女声）"},
+		{Value: "101012", Label: "智丹（女声）"},
+		{Value: "101013", Label: "智辉（男声）"},
+		{Value: "101014", Label: "智宁（男声）"},
+		{Value: "101015", Label: "智萌（男童）"},
+		{Value: "101016", Label: "智甜（女童）"},
+		{Value: "101017", Label: "智蓉（女声）"},
+		{Value: "101018", Label: "智靖（男声）"},
+		{Value: "101019", Label: "智彤（女声）"},
+		{Value: "101020", Label: "智刚（男声）"},
+		{Value: "101021", Label: "智瑞（男声）"},
+		{Value: "101022", Label: "智虹（女声）"},
+		{Value: "101023", Label: "智萱（女声）"},
+		{Value: "101024", Label: "智皓（男声）"},
+		{Value: "101025", Label: "智薇（女声）"},
+		{Value: "101050", Label: "WeJack（英文男声）"},
+		{Value: "101051", Label: "WeRose（英文女声）"},
+	},
 }
 
 // GetVoiceOptionsByProvider 根据provider获取音色列表

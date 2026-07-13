@@ -19,6 +19,7 @@ auth:
 
 # 聊天配置
 chat:
+  debug_log_tts_only: false        # 调试：仅打印 TTS 合成正文，抑制 ASR/LLM 流式调试日志
   max_idle_duration: 30000         # 会话最大空闲时间（毫秒），0 表示不限制
   chat_max_silence_duration: 400   # 句子结束静音阈值（毫秒），默认 400
   first_speech_pre_audio_ms: 800   # 首次检测到语音时保留的前置音频（毫秒），避免句首被 VAD 截断
@@ -155,7 +156,7 @@ vad:
 
 # 自动语音识别（ASR）配置
 asr:
-  provider: "funasr"  # ASR provider: funasr / aliyun_funasr / doubao / aliyun_qwen3 / xunfei
+  provider: "funasr"  # ASR provider: funasr / aliyun_funasr / doubao / aliyun_qwen3 / xunfei / tencent_asr
   # FunASR配置
   funasr:
     host: "127.0.0.1"          # FunASR服务器地址
@@ -443,6 +444,7 @@ story:
   filler_enabled: true
   filler_default: "好呀，我给你讲一个故事。"
   filler_bedtime: "好呀，那我们讲个睡前故事，乖乖听哦。"
+  debug_log_tts_synthesized: false  # 已废弃：请用 chat.debug_log_tts_only（保留兼容）
 
 # Memory 长记忆配置
 memory:

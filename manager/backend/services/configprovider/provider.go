@@ -9,7 +9,7 @@ var knownProviders = map[string]map[string]struct{}{
 		"ten_vad": {}, "webrtc_vad": {}, "silero_vad": {},
 	},
 	"asr": {
-		"funasr": {}, "aliyun_funasr": {}, "doubao": {}, "aliyun_qwen3": {}, "xunfei": {},
+		"funasr": {}, "aliyun_funasr": {}, "doubao": {}, "aliyun_qwen3": {}, "xunfei": {}, "tencent_asr": {},
 	},
 	"llm": {
 		"openai": {}, "ollama": {}, "azure": {}, "anthropic": {}, "zhipu": {}, "aliyun": {},
@@ -18,7 +18,7 @@ var knownProviders = map[string]map[string]struct{}{
 	"tts": {
 		"doubao": {}, "doubao_ws": {}, "cosyvoice": {}, "edge": {}, "edge_offline": {},
 		"dili": {}, "xunfei": {}, "xunfei_super_tts": {}, "openai": {}, "zhipu": {},
-		"minimax": {}, "aliyun_qwen": {}, "indextts_vllm": {},
+		"minimax": {}, "aliyun_qwen": {}, "indextts_vllm": {}, "tencent_tts": {},
 	},
 	"memory": {
 		"nomemo": {}, "memobase": {}, "mem0": {}, "memos": {},
@@ -210,11 +210,14 @@ func inferVADProvider(data map[string]interface{}) string {
 }
 
 func inferASRProvider(data map[string]interface{}) string {
+	wsURL := stringFromMap(data, "ws_url")
+	if containsAny(wsURL, "asr.cloud.tencent.com") || hasAny(data, "secret_id", "engine_model_type") {
+		return "tencent_asr"
+	}
 	if hasAny(data, "appid", "api_secret") {
 		return "xunfei"
 	}
 	model := stringFromMap(data, "model")
-	wsURL := stringFromMap(data, "ws_url")
 	if containsAny(model, "qwen3-asr") || containsAny(wsURL, "/realtime") {
 		return "aliyun_qwen3"
 	}
@@ -288,6 +291,8 @@ func inferTTSProvider(data map[string]interface{}) string {
 		return "zhipu"
 	case containsAny(apiURL, "minimax"):
 		return "minimax"
+	case containsAny(apiURL, "tts.cloud.tencent.com") || hasAny(data, "secret_id", "voice_type"):
+		return "tencent_tts"
 	case containsAny(model, "indextts"):
 		return "indextts_vllm"
 	case containsAny(apiURL, "openspeech", "volces.com", "volcengine"):

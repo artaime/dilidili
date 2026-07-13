@@ -34,15 +34,32 @@ func TestShouldCountAudioIdleTimeoutRealtimeOutputStates(t *testing.T) {
 	}
 }
 
-func TestShouldCountAudioIdleTimeoutNonRealtimeKeepsExistingBehavior(t *testing.T) {
+func TestShouldCountAudioIdleTimeoutAutoModePausesDuringAssistantOutput(t *testing.T) {
 	state := &ClientState{
 		ListenMode: "auto",
 		Status:     ClientStatusTTSStart,
 	}
 	state.SetTtsStart(true)
 
+	if state.ShouldCountAudioIdleTimeout() {
+		t.Fatal("expected auto mode idle timeout to pause during TTS output")
+	}
+
+	state.SetTtsStart(false)
+	state.SetStatus(ClientStatusListening)
 	if !state.ShouldCountAudioIdleTimeout() {
-		t.Fatal("expected non-realtime idle timeout behavior to stay unchanged")
+		t.Fatal("expected auto mode idle timeout to resume after TTS output")
+	}
+}
+
+func TestShouldCountAudioIdleTimeoutNonRealtimeKeepsExistingBehavior(t *testing.T) {
+	state := &ClientState{
+		ListenMode: "auto",
+		Status:     ClientStatusListening,
+	}
+
+	if !state.ShouldCountAudioIdleTimeout() {
+		t.Fatal("expected auto mode idle timeout to count while assistant is idle")
 	}
 }
 

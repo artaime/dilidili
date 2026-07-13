@@ -10,6 +10,7 @@ const (
 	RetryReasonDoubaoWaitingNextPacketTimeout = "doubao_waiting_next_packet_timeout"
 	RetryReasonXunfeiServiceInstanceInvalid   = "xunfei_service_instance_invalid"
 	RetryReasonAliyunQwen3ConnectionClosed    = "aliyun_qwen3_connection_closed"
+	RetryReasonTencentNoAudioTimeout          = "tencent_no_audio_timeout"
 )
 
 // StreamingResult 流式识别结果

@@ -230,6 +230,8 @@ func (t *TTSManager) runSenderLoop(ctx context.Context) {
 					if callbackErr == nil {
 						callbackErr = err
 					}
+				} else if callbackErr == nil && t.session != nil {
+					t.session.LogTTSSynthesizedDebug(elem.Text)
 				}
 			}
 			currentSentenceFrames = 0
@@ -1764,6 +1766,12 @@ func extractVoiceID(config map[string]interface{}) string {
 	// minimax和其他provider：使用voice
 	if voice, ok := config["voice"].(string); ok && voice != "" {
 		return voice
+	}
+	if voiceType, ok := config["voice_type"].(float64); ok && voiceType > 0 {
+		return fmt.Sprintf("%d", int(voiceType))
+	}
+	if voiceType, ok := config["voice_type"].(int); ok && voiceType > 0 {
+		return fmt.Sprintf("%d", voiceType)
 	}
 
 	return ""

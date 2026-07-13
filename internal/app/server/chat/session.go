@@ -85,6 +85,7 @@ type ChatSession struct {
 	vadLoopStarted              bool
 	listenStartSeq              atomic.Uint64
 	realtimeListenSessionActive atomic.Bool
+	lastVoiceRecoverAttempt    atomic.Int64
 
 	// 未激活设备高频触发时，短时间内复用最近一次“未激活”判定，避免频繁打接口。
 	activationCheckMu     sync.Mutex
@@ -276,8 +277,12 @@ func NewChatSession(clientState *ClientState, serverTransport *ServerTransport, 
 		clientState.MarkAsrFirstText()
 		s.TraceAsrFirstText(clientState.Ctx, time.Now().UnixMilli())
 		if clientState.IsRealTime() && viper.GetInt("chat.realtime_mode") == 4 {
-			if s.isRealtimeMcpAudioGateActive() {
-				log.Debugf("设备 %s realtime媒体播放门控激活，跳过ASR首字打断: text=%s", clientState.DeviceID, text)
+			if s.isRealtimeMcpAudioGateActive() || s.isAssistantOutputAudioGateActive() {
+				if s.isAssistantOutputAudioGateActive() {
+					log.Debugf("设备 %s 助手输出门控激活，跳过ASR首字打断: text=%s", clientState.DeviceID, text)
+				} else {
+					log.Debugf("设备 %s realtime媒体播放门控激活，跳过ASR首字打断: text=%s", clientState.DeviceID, text)
+				}
 				return
 			}
 			s.StopAssistantOutputAfterAsrWithReason(true, "ChatSession.OnAsrFirstTextCallback realtime_mode=4")
@@ -1357,8 +1362,13 @@ func (s *ChatSession) OnListenStart(startSeq uint64, shouldStartAudioIdleWindow 
 	}
 
 	s.clientState.SetListenPhase(ListenPhaseListening)
-	if shouldStartAudioIdleWindow {
-		s.clientState.StartAudioIdleWindow(time.Now())
+	s.clientState.SetClientVoiceStop(false)
+	if s.clientState.UsesAudioIdleClock() {
+		if s.clientState.AudioIdleStarted() {
+			s.clientState.ResumeAudioIdleWindow(time.Now())
+		} else if shouldStartAudioIdleWindow {
+			s.clientState.StartAudioIdleWindow(time.Now())
+		}
 	}
 
 	// 定义消息保存回调
@@ -1383,14 +1393,138 @@ func (s *ChatSession) OnListenStart(startSeq uint64, shouldStartAudioIdleWindow 
 			log.Infof("ASR识别循环在重置/退出中结束，忽略 err: %v", err)
 			return
 		}
+		if isTencentASRNoAudioTimeout(err) && s.clientState != nil && (s.clientState.GetTtsStart() || s.IsStoryPlaybackActive()) {
+			chatWarnLogf("设备 %s TTS/故事播报期间腾讯 ASR 空闲超时，不关闭会话: %v", s.clientState.DeviceID, err)
+			return
+		}
+		if shouldIgnoreAsrLoopFatalErrorDuringAssistantOutput(s.clientState, err) {
+			chatWarnLogf("设备 %s 助手输出期间忽略 ASR 循环错误，不关闭会话: %v", s.clientState.DeviceID, err)
+			return
+		}
 		log.Errorf("ASR识别循环错误: %v", err)
 		s.CloseWithReason(chatSessionCloseReasonFatalError)
 	}
 
-	// 启动ASR识别结果处理循环（资源管理在 ASRManager 内部）
-	s.asrManager.StartAsrRecognitionLoop(ctx, onMessageSave, onError)
+	s.startAsrResultLoop(ctx, startSeq, onMessageSave, onError)
 
 	return nil
+}
+
+func (s *ChatSession) startAsrResultLoop(
+	ctx context.Context,
+	startSeq uint64,
+	onMessageSave AsrMessageSaveCallback,
+	onError func(error),
+) {
+	if onMessageSave == nil {
+		onMessageSave = func(userMsg *schema.Message, messageID string, audioData []float32) {
+			eventbus.Get().Publish(eventbus.TopicAddMessage, &eventbus.AddMessageEvent{
+				ClientState: s.clientState,
+				Msg:         *userMsg,
+				MessageID:   messageID,
+				AudioData:   [][]byte{util.Float32SliceToBytes(audioData)},
+				AudioSize:   len(audioData) * 4,
+				SampleRate:  s.clientState.InputAudioFormat.SampleRate,
+				Channels:    s.clientState.InputAudioFormat.Channels,
+				IsUpdate:    false,
+				Timestamp:   time.Now(),
+			})
+		}
+	}
+	if onError == nil {
+		onError = func(err error) {
+			if s.shouldIgnoreAsrLoopError(startSeq, ctx, err) {
+				log.Infof("ASR识别循环在重置/退出中结束，忽略 err: %v", err)
+				return
+			}
+			if isTencentASRNoAudioTimeout(err) && s.clientState != nil && (s.clientState.GetTtsStart() || s.IsStoryPlaybackActive()) {
+				chatWarnLogf("设备 %s TTS/故事播报期间腾讯 ASR 空闲超时，不关闭会话: %v", s.clientState.DeviceID, err)
+				return
+			}
+			if shouldIgnoreAsrLoopFatalErrorDuringAssistantOutput(s.clientState, err) {
+				chatWarnLogf("设备 %s 助手输出期间忽略 ASR 循环错误，不关闭会话: %v", s.clientState.DeviceID, err)
+				return
+			}
+			log.Errorf("ASR识别循环错误: %v", err)
+			s.CloseWithReason(chatSessionCloseReasonFatalError)
+		}
+	}
+	s.asrManager.StartAsrRecognitionLoop(ctx, onMessageSave, onError)
+}
+
+// TryRecoverStuckVoiceCapture 在 auto/realtime 模式下 ASR 结果循环已退出但 VoiceStop 仍为 true 时，尝试恢复拾音。
+func (s *ChatSession) TryRecoverStuckVoiceCapture() bool {
+	if s == nil || s.clientState == nil || s.asrManager == nil {
+		return false
+	}
+	state := s.clientState
+	if !state.GetClientVoiceStop() {
+		return false
+	}
+	if state.ListenMode == "manual" {
+		return false
+	}
+	if state.GetTtsStart() {
+		return false
+	}
+	switch state.GetStatus() {
+	case ClientStatusLLMStart, ClientStatusTTSStart:
+		return false
+	}
+	if s.asrManager.IsRecognitionLoopActive() {
+		return false
+	}
+	if state.Asr.HasOpenAudioInput() {
+		return false
+	}
+
+	nowMs := time.Now().UnixMilli()
+	lastMs := s.lastVoiceRecoverAttempt.Load()
+	if lastMs > 0 && nowMs-lastMs < 3000 {
+		return false
+	}
+	s.lastVoiceRecoverAttempt.Store(nowMs)
+
+	ctx := state.SessionCtx.Get(state.Ctx)
+	if ctx == nil {
+		ctx = state.Ctx
+	}
+	if ctx.Err() != nil {
+		return false
+	}
+
+	startSeq := s.listenStartSeq.Load()
+	if err := s.asrManager.RestartAsrRecognition(ctx); err != nil {
+		log.Warnf(
+			"设备 %s 自动恢复拾音失败: provider=%s mode=%s err=%v",
+			state.DeviceID,
+			state.DeviceConfig.Asr.Provider,
+			state.ListenMode,
+			err,
+		)
+		return false
+	}
+
+	state.SetClientVoiceStop(false)
+	state.SetListenPhase(ListenPhaseListening)
+	state.SetStatus(ClientStatusListening)
+	if state.UsesAudioIdleClock() {
+		if state.AudioIdleStarted() {
+			state.ResumeAudioIdleWindow(time.Now())
+		} else {
+			state.StartAudioIdleWindow(time.Now())
+		}
+	}
+
+	s.startAsrResultLoop(ctx, startSeq, nil, nil)
+	log.Infof(
+		"设备 %s 已自动恢复拾音: provider=%s mode=%s phase=%s",
+		state.DeviceID,
+		state.DeviceConfig.Asr.Provider,
+		state.ListenMode,
+		state.GetListenPhase(),
+	)
+	return true
 }
 
 // startChat 开始对话

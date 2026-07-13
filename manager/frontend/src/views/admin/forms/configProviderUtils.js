@@ -1,6 +1,6 @@
 const providers = {
   vad: new Set(['ten_vad', 'webrtc_vad', 'silero_vad']),
-  asr: new Set(['funasr', 'aliyun_funasr', 'doubao', 'aliyun_qwen3', 'xunfei']),
+  asr: new Set(['funasr', 'aliyun_funasr', 'doubao', 'aliyun_qwen3', 'xunfei', 'tencent_asr']),
   tts: new Set([
     'doubao',
     'doubao_ws',
@@ -14,7 +14,8 @@ const providers = {
     'zhipu',
     'minimax',
     'aliyun_qwen',
-    'indextts_vllm'
+    'indextts_vllm',
+    'tencent_tts'
   ]),
   memory: new Set(['nomemo', 'memobase', 'mem0', 'memos']),
   vision: new Set(['aliyun_vision', 'doubao_vision'])
@@ -63,6 +64,7 @@ export function resolveASRProvider(provider, configId, data = {}) {
   return resolve('asr', provider, configId, data, (value) => {
     const model = stringValue(value, 'model')
     const wsUrl = stringValue(value, 'ws_url')
+    if (includes(wsUrl, 'asr.cloud.tencent.com') || has(value, 'secret_id', 'engine_model_type')) return 'tencent_asr'
     if (has(value, 'appid', 'api_secret')) return 'xunfei'
     if (includes(model, 'qwen3-asr') || includes(wsUrl, '/realtime')) return 'aliyun_qwen3'
     if (includes(model, 'fun-asr') || includes(wsUrl, '/inference')) return 'aliyun_funasr'
@@ -83,6 +85,7 @@ export function resolveTTSProvider(provider, configId, data = {}) {
     if (includes(url, 'dashscope.aliyuncs.com') || includes(model, 'qwen') || has(value, 'language_type', 'region')) return 'aliyun_qwen'
     if (includes(url, 'bigmodel.cn') || includes(model, 'glm-tts')) return 'zhipu'
     if (includes(url, 'minimax')) return 'minimax'
+    if (includes(url, 'tts.cloud.tencent.com') || has(value, 'secret_id', 'voice_type')) return 'tencent_tts'
     if (includes(model, 'indextts')) return 'indextts_vllm'
     if (includes(url, 'openspeech', 'volces.com', 'volcengine')) return has(value, 'ws_url', 'ws_host', 'use_stream', 'resource_id') ? 'doubao_ws' : 'doubao'
     if (has(value, 'api_key', 'model', 'voice', 'response_format')) return 'openai'

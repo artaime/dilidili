@@ -41,7 +41,29 @@ func TestNormalizeProviderInfersKnownProviderInsteadOfConfigID(t *testing.T) {
 			want: "aliyun_qwen",
 		},
 		{
-			name:       "unknown vad falls back to managed default",
+			name:       "asr tencent custom id",
+			configType: "asr",
+			configID:   "tencent_asr_default",
+			data: map[string]interface{}{
+				"provider":          "tencent_asr",
+				"app_id":            1234567890,
+				"secret_id":         "AKIDxxx",
+				"engine_model_type": "16k_zh",
+			},
+			want: "tencent_asr",
+		},
+		{
+			name:       "tts tencent custom id",
+			configType: "tts",
+			configID:   "tencent_tts_default",
+			data: map[string]interface{}{
+				"provider":   "tencent_tts",
+				"secret_id":  "AKIDxxx",
+				"voice_type": 101001,
+			},
+			want: "tencent_tts",
+		},
+		{
 			configType: "vad",
 			configID:   "custom_vad",
 			data:       map[string]interface{}{},

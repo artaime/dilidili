@@ -15,6 +15,7 @@ import (
 	"dili-esp32-server-golang/internal/domain/tts/openai"
 	"dili-esp32-server-golang/internal/domain/tts/qwen"
 	"dili-esp32-server-golang/internal/domain/tts/streaming"
+	"dili-esp32-server-golang/internal/domain/tts/tencent"
 	"dili-esp32-server-golang/internal/domain/tts/xunfei"
 	"dili-esp32-server-golang/internal/domain/tts/xunfei_super_tts"
 	"dili-esp32-server-golang/internal/domain/tts/zhipu"
@@ -83,6 +84,8 @@ func GetTTSProvider(providerName string, config map[string]interface{}) (TTSProv
 		baseProvider = qwen.NewQwenTTSProvider(config)
 	case constants.TtsTypeIndexTTSVLLM:
 		baseProvider = openai.NewOpenAITTSProvider(buildIndexTTSOpenAIConfig(config))
+	case constants.TtsTypeTencent:
+		baseProvider = tencent.NewTencentTTSProvider(config)
 	default:
 		return nil, fmt.Errorf("不支持的TTS提供者: %s", effectiveName)
 	}

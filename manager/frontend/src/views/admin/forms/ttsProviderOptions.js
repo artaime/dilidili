@@ -13,10 +13,11 @@ export const TTS_PROVIDER_OPTIONS = [
   { label: '千问', value: 'aliyun_qwen' },
   { label: '智谱', value: 'zhipu' },
   { label: 'Minimax', value: 'minimax' },
-  { label: 'IndexTTS(vLLM)', value: 'indextts_vllm' }
+  { label: 'IndexTTS(vLLM)', value: 'indextts_vllm' },
+  { label: '腾讯', value: 'tencent_tts' }
 ].map((item) => ({
   ...item,
   supports_voice_clone: voiceCloneProviderSet.has(item.value)
 }))
 
-export const TTS_PROVIDERS_WITH_VOICES = ['minimax', 'edge', 'doubao', 'doubao_ws', 'zhipu', 'openai', 'indextts_vllm', 'xunfei_super_tts']
+export const TTS_PROVIDERS_WITH_VOICES = ['minimax', 'edge', 'doubao', 'doubao_ws', 'zhipu', 'openai', 'indextts_vllm', 'xunfei_super_tts', 'tencent_tts']

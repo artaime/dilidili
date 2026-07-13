@@ -293,6 +293,20 @@ const asrForm = reactive({
     accent: 'mandarin',
     sample_rate: 16000,
     timeout: 30
+  },
+  tencent_asr: {
+    app_id: '',
+    secret_id: '',
+    secret_key: '',
+    engine_model_type: '16k_zh',
+    voice_format: 1,
+    sample_rate: 16000,
+    needvad: 0,
+    filter_dirty: 0,
+    filter_modal: 0,
+    filter_punc: 0,
+    convert_num_mode: 1,
+    timeout: 30
   }
 })
 const asrFormRef = ref()
@@ -346,7 +360,12 @@ const asrFormRules = {
   'xunfei.language': [{ required: true, message: '请输入语言', trigger: 'blur' }],
   'xunfei.accent': [{ required: true, message: '请输入方言', trigger: 'blur' }],
   'xunfei.sample_rate': [{ required: true, message: '请选择采样率', trigger: 'change' }],
-  'xunfei.timeout': [{ required: true, message: '请输入超时时间', trigger: 'blur' }]
+  'xunfei.timeout': [{ required: true, message: '请输入超时时间', trigger: 'blur' }],
+  'tencent_asr.app_id': [{ required: true, message: '请输入 AppId', trigger: 'blur' }],
+  'tencent_asr.secret_id': [{ required: true, message: '请输入 SecretId', trigger: 'blur' }],
+  'tencent_asr.secret_key': [{ required: true, message: '请输入 SecretKey', trigger: 'blur' }],
+  'tencent_asr.engine_model_type': [{ required: true, message: '请选择引擎模型', trigger: 'change' }],
+  'tencent_asr.sample_rate': [{ required: true, message: '请选择采样率', trigger: 'change' }]
 }
 
 const llmForm = reactive({
@@ -538,6 +557,20 @@ const ttsForm = reactive({
     bitrate: 128000,
     format: 'mp3',
     channel: 1
+  },
+  tencent_tts: {
+    app_id: '',
+    secret_id: '',
+    secret_key: '',
+    voice_type: '101001',
+    codec: 'pcm',
+    sample_rate: 16000,
+    speed: 0,
+    volume: 0,
+    ws_url: 'wss://tts.cloud.tencent.com/stream_wsv2',
+    frame_duration: 60,
+    connect_timeout: 10,
+    read_timeout: 60
   }
 })
 const ttsFormRef = ref()
@@ -562,7 +595,11 @@ const ttsFormRules = {
   'xunfei_super_tts.ws_url': [{ required: true, message: '请输入WebSocket URL', trigger: 'blur' }],
   'xunfei_super_tts.voice': [{ required: true, message: '请输入音色', trigger: 'blur' }],
   'minimax.api_key': [{ required: true, message: '请输入API Key', trigger: 'blur' }],
-  'qwen_tts.api_key': [{ required: true, message: '请输入API Key', trigger: 'blur' }]
+  'qwen_tts.api_key': [{ required: true, message: '请输入API Key', trigger: 'blur' }],
+  'tencent_tts.app_id': [{ required: true, message: '请输入 AppId', trigger: 'blur' }],
+  'tencent_tts.secret_id': [{ required: true, message: '请输入 SecretId', trigger: 'blur' }],
+  'tencent_tts.secret_key': [{ required: true, message: '请输入 SecretKey', trigger: 'blur' }],
+  'tencent_tts.voice_type': [{ required: true, message: '请选择音色', trigger: 'change' }]
 }
 
 const finalOtaUrl = computed(() => {
@@ -934,6 +971,10 @@ async function loadAsrIfExists() {
       Object.assign(asrForm.aliyun_qwen3, data.aliyun_qwen3 || data)
     } else if (provider === 'xunfei') {
       Object.assign(asrForm.xunfei, data.xunfei || data)
+    } else if (provider === 'tencent_asr') {
+      const src = data.tencent_asr || data
+      Object.assign(asrForm.tencent_asr, src)
+      if (src.app_id != null) asrForm.tencent_asr.app_id = String(src.app_id)
     } else {
       const obj = data.funasr || data
       const funasr = { ...asrForm.funasr }
@@ -998,6 +1039,11 @@ async function loadTtsIfExists() {
     else if (p === 'xunfei_super_tts') Object.assign(ttsForm.xunfei_super_tts, data)
     else if (p === 'zhipu') Object.assign(ttsForm.zhipu, data)
     else if (p === 'minimax') Object.assign(ttsForm.minimax, data)
+    else if (p === 'tencent_tts') Object.assign(ttsForm.tencent_tts, {
+      ...data,
+      app_id: data.app_id != null ? String(data.app_id) : '',
+      voice_type: String(data.voice_type || data.voice || '101001')
+    })
   } catch (_) {}
 }
 
@@ -1284,7 +1330,7 @@ async function loadTtsVoiceOptions(provider) {
     voiceOptions.value = []
     return
   }
-  const providersWithVoices = ['minimax', 'edge', 'doubao', 'doubao_ws', 'zhipu', 'openai', 'xunfei_super_tts']
+  const providersWithVoices = ['minimax', 'edge', 'doubao', 'doubao_ws', 'zhipu', 'openai', 'xunfei_super_tts', 'tencent_tts']
   if (!providersWithVoices.includes(provider)) {
     voiceOptions.value = []
     return

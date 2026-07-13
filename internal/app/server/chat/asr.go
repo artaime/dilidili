@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -39,6 +40,8 @@ type ASRManager struct {
 	// ASR 资源作为私有字段管理
 	asrResource *pool.ResourceWrapper[asr.AsrProvider]
 	resourceMu  sync.RWMutex // 保护资源访问
+
+	recognitionLoopActive atomic.Bool
 }
 
 func NewASRManager(clientState *ClientState, serverTransport *ServerTransport, opts ...ASRManagerOption) *ASRManager {
@@ -87,6 +90,10 @@ func (a *ASRManager) runAudioIdleTimeoutWatchdog(ctx context.Context) {
 			}
 
 			if !state.Asr.HasOpenAudioInput() {
+				if !state.ShouldCountAudioIdleTimeout() {
+					state.ClearAudioIdleTimeoutPending()
+					continue
+				}
 				log.Infof(
 					"音频空闲超时，当前无活动ASR流，直接关闭会话: device=%s, mode=%s, elapsed=%dms, threshold=%dms",
 					state.DeviceID,
@@ -325,8 +332,12 @@ func (a *ASRManager) ProcessVadAudio(ctx context.Context) {
 					if state.IsRealTime() && viper.GetInt("chat.realtime_mode") == 1 && continuousVoiceDuration > 360 {
 						// 只有在未触发过的情况下才执行，确保只执行一次
 						if !hasTriggeredCancel {
-							if a.session != nil && a.session.isRealtimeMcpAudioGateActive() {
-								log.Debugf("设备 %s realtime媒体播放门控激活，跳过VAD打断", state.DeviceID)
+							if a.session != nil && (a.session.isRealtimeMcpAudioGateActive() || a.session.isAssistantOutputAudioGateActive()) {
+								if a.session.isAssistantOutputAudioGateActive() {
+									log.Debugf("设备 %s 助手输出门控激活，跳过VAD打断", state.DeviceID)
+								} else {
+									log.Debugf("设备 %s realtime媒体播放门控激活，跳过VAD打断", state.DeviceID)
+								}
 								hasTriggeredCancel = true
 							} else {
 								//realtime模式下, 如果此时有正在进行的llm和tts则取消掉
@@ -439,8 +450,12 @@ func (a *ASRManager) ProcessVadAudio(ctx context.Context) {
 											peekResult.Confidence,
 											peekResult.Threshold,
 										)
-										if a.session != nil && a.session.isRealtimeMcpAudioGateActive() {
-											log.Debugf("设备 %s realtime媒体播放门控激活，跳过speaker peek打断", state.DeviceID)
+										if a.session != nil && (a.session.isRealtimeMcpAudioGateActive() || a.session.isAssistantOutputAudioGateActive()) {
+											if a.session.isAssistantOutputAudioGateActive() {
+												log.Debugf("设备 %s 助手输出门控激活，跳过speaker peek打断", state.DeviceID)
+											} else {
+												log.Debugf("设备 %s realtime媒体播放门控激活，跳过speaker peek打断", state.DeviceID)
+											}
 											return
 										}
 										a.session.MarkTurnSpeakerInterrupted()
@@ -612,8 +627,20 @@ func (a *ASRManager) RestartAsrRecognition(ctx context.Context) error {
 	if a.session != nil {
 		a.session.TraceTurnStart(state.Asr.Ctx, state.Statistic.TurnStartTs)
 	}
+	state.SetClientVoiceStop(false)
+	if state.IsRealTime() || state.ListenMode == "auto" {
+		state.SetListenPhase(ListenPhaseListening)
+		state.SetStatus(ClientStatusListening)
+	}
 	log.Debugf("重启ASR识别成功")
 	return nil
+}
+
+func (a *ASRManager) IsRecognitionLoopActive() bool {
+	if a == nil {
+		return false
+	}
+	return a.recognitionLoopActive.Load()
 }
 
 // StartAsrRecognitionLoop 启动ASR识别结果处理循环
@@ -628,6 +655,8 @@ func (a *ASRManager) StartAsrRecognitionLoop(
 
 	// 启动一个goroutine处理asr结果
 	go func() {
+		a.recognitionLoopActive.Store(true)
+		defer a.recognitionLoopActive.Store(false)
 		// 使用 defer 确保 goroutine 退出时释放 ASR 资源
 		defer func() {
 			if r := recover(); r != nil {
@@ -675,6 +704,14 @@ func (a *ASRManager) StartAsrRecognitionLoop(
 			if !state.AudioIdleTimeoutPending() {
 				return
 			}
+			if !state.ShouldCountAudioIdleTimeout() {
+				state.ClearAudioIdleTimeoutPending()
+				log.Infof(
+					"音频空闲超时收口取消: device=%s, reason=%s, assistant_output_active=true status=%s tts_start=%v",
+					state.DeviceID, reason, state.GetStatus(), state.GetTtsStart(),
+				)
+				return
+			}
 
 			state.ClearAudioIdleTimeoutPending()
 			log.Infof("音频空闲超时收口完成: device=%s, reason=%s", state.DeviceID, reason)
@@ -719,6 +756,26 @@ func (a *ASRManager) StartAsrRecognitionLoop(
 					return
 				}
 
+				// TTS/LLM/故事长播报期间设备通常不上行音频，腾讯 ASR 会周期性 4008 或通道关闭。
+				// 参照豆包 waiting next packet timeout：挂起当前流，不累计失败、不关闭会话。
+				if a.shouldDeferAsrRecoveryDuringAssistantOutput(state) {
+					chatWarnLogf(
+						"助手输出期间延后处理 ASR 可恢复错误: reason=%s status=%s tts_start=%v",
+						result.RetryReason,
+						state.GetStatus(),
+						state.GetTtsStart(),
+					)
+					state.Asr.CancelWithReason("ASRManager.StartAsrRecognitionLoop: recoverable error deferred during assistant output")
+					resumeAudioIdle()
+					emptyResultWindowStart = time.Now()
+					emptyResultCount = 0
+					recoverableErrorWindowStart = time.Now()
+					recoverableErrorCount = 0
+					invalidStatusWaitCount = 0
+					a.waitDuringAssistantOutput(ctx)
+					continue
+				}
+
 				now := time.Now()
 				if now.Sub(recoverableErrorWindowStart) > recoverableErrorProtectWindow {
 					recoverableErrorWindowStart = now
@@ -743,7 +800,7 @@ func (a *ASRManager) StartAsrRecognitionLoop(
 				}
 
 				switch result.RetryReason {
-				case asr_types.RetryReasonDoubaoResponseCode45000081, asr_types.RetryReasonXunfeiServiceInstanceInvalid, asr_types.RetryReasonAliyunQwen3ConnectionClosed:
+				case asr_types.RetryReasonDoubaoResponseCode45000081, asr_types.RetryReasonXunfeiServiceInstanceInvalid, asr_types.RetryReasonAliyunQwen3ConnectionClosed, asr_types.RetryReasonTencentNoAudioTimeout:
 					a.releaseResource()
 					if isAllowedToRestart() {
 						invalidStatusWaitCount = 0
@@ -771,6 +828,24 @@ func (a *ASRManager) StartAsrRecognitionLoop(
 			}
 
 			if text != "" {
+				if a.session != nil && a.session.shouldIgnoreASRDuringAssistantOutput(text) {
+					state.Asr.ClearHistoryAudio()
+					state.ClearAudioIdleTimeoutPending()
+					emptyResultWindowStart = time.Now()
+					emptyResultCount = 0
+					recoverableErrorWindowStart = time.Now()
+					recoverableErrorCount = 0
+					if restartErr := a.RestartAsrRecognition(ctx); restartErr != nil {
+						log.Errorf("故事播报门控后重启 ASR 失败: %v", restartErr)
+						if onError != nil {
+							onError(restartErr)
+						}
+						return
+					}
+					resumeAudioIdle()
+					continue
+				}
+
 				asrFinalTs := time.Now().UnixMilli()
 				state.MarkAsrFinalTextAt(asrFinalTs)
 				if a.session != nil {
@@ -788,9 +863,13 @@ func (a *ASRManager) StartAsrRecognitionLoop(
 				//如果是realtime模式下，需要停止 当前的llm和tts
 				if state.IsRealTime() && viper.GetInt("chat.realtime_mode") == 2 {
 					shouldInterrupt := true
-					if a.session != nil && a.session.isRealtimeMcpAudioGateActive() {
+					if a.session != nil && (a.session.isRealtimeMcpAudioGateActive() || a.session.isAssistantOutputAudioGateActive()) {
 						shouldInterrupt = false
-						log.Debugf("设备 %s realtime媒体播放门控激活，延后到ASR final门控判定，跳过ASR结果打断", state.DeviceID)
+						if a.session.isAssistantOutputAudioGateActive() {
+							log.Debugf("设备 %s 助手输出门控激活，跳过ASR结果打断", state.DeviceID)
+						} else {
+							log.Debugf("设备 %s realtime媒体播放门控激活，延后到ASR final门控判定，跳过ASR结果打断", state.DeviceID)
+						}
 					}
 					if shouldInterrupt {
 						log.Debugf("OnListenStart realtime模式下, 停止当前的llm和tts")
@@ -945,10 +1024,21 @@ func (a *ASRManager) StartAsrRecognitionLoop(
 					}
 					return
 				}
+				startAudioIdle()
 				// realtime模式下, 继续循环处理下一个 ASR 结果
 				continue
 			} else {
-				log.Debugf(
+				if a.shouldDeferAsrRecoveryDuringAssistantOutput(state) {
+					emptyResultWindowStart = time.Now()
+					emptyResultCount = 0
+					recoverableErrorWindowStart = time.Now()
+					recoverableErrorCount = 0
+					invalidStatusWaitCount = 0
+					a.waitDuringAssistantOutput(ctx)
+					continue
+				}
+
+				chatDebugLogf(
 					"ASR空结果详情: status=%s, emptyReason=%s, client_voice_stop=%v, history_audio_samples=%d, voice_duration=%dms, voice_duration_in_session=%dms, idle_duration=%dms, realtime=%v",
 					state.Status,
 					result.EmptyReason,
@@ -964,7 +1054,7 @@ func (a *ASRManager) StartAsrRecognitionLoop(
 					return
 				}
 				if result.EmptyReason != "" {
-					log.Debugf("ASR空结果已分类: reason=%s, status=%s", result.EmptyReason, state.Status)
+					chatDebugLogf("ASR空结果已分类: reason=%s, status=%s", result.EmptyReason, state.Status)
 					emptyResultWindowStart = time.Now()
 					emptyResultCount = 0
 
@@ -1026,6 +1116,11 @@ func (a *ASRManager) StartAsrRecognitionLoop(
 						return
 					}
 				} else {
+					if a.shouldDeferAsrRecoveryDuringAssistantOutput(state) {
+						invalidStatusWaitCount = 0
+						a.waitDuringAssistantOutput(ctx)
+						continue
+					}
 					// 状态不允许重启的情况，短暂等待后继续循环，给状态恢复的机会
 					invalidStatusWaitCount++
 					if invalidStatusWaitCount >= maxInvalidStatusWaitCount {
@@ -1107,4 +1202,44 @@ func (a *ASRManager) addAsrResultToQueue(text string, speakerResult *speaker.Ide
 		return fmt.Errorf("session is nil")
 	}
 	return a.session.AddAsrResultToQueue(text, speakerResult)
+}
+
+func isTencentASRNoAudioTimeout(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "code=4008") ||
+		(strings.Contains(msg, "tencent_asr") && strings.Contains(msg, "15秒") && strings.Contains(msg, "未发送音频"))
+}
+
+// shouldIgnoreAsrLoopFatalErrorDuringAssistantOutput 助手 LLM/TTS 输出期间 ASR 无上行/通道关闭导致的保护性错误不应关闭会话。
+func shouldIgnoreAsrLoopFatalErrorDuringAssistantOutput(state *ClientState, err error) bool {
+	if state == nil || err == nil {
+		return false
+	}
+	if state.ShouldCountAudioIdleTimeout() {
+		return false
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "连续返回空结果") ||
+		strings.Contains(msg, "连续触发可恢复错误") ||
+		isTencentASRNoAudioTimeout(err) {
+		return true
+	}
+	return false
+}
+
+func (a *ASRManager) shouldDeferAsrRecoveryDuringAssistantOutput(state *ClientState) bool {
+	if state == nil {
+		return false
+	}
+	return !state.ShouldCountAudioIdleTimeout()
+}
+
+func (a *ASRManager) waitDuringAssistantOutput(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+	case <-time.After(300 * time.Millisecond):
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	asr_types "dili-esp32-server-golang/internal/domain/asr/types"
+	"dili-esp32-server-golang/internal/domain/chat/debuglog"
 	log "dili-esp32-server-golang/logger"
 	"strings"
 	"sync"
@@ -45,7 +46,9 @@ func (a *Asr) CancelWithReason(reason string) {
 	a.lock.RUnlock()
 
 	if cancel != nil {
-		log.Debugf("Asr.CancelWithReason: reason=%s", reason)
+		if !debuglog.TTSOnlyEnabled() {
+			log.Debugf("Asr.CancelWithReason: reason=%s", reason)
+		}
 		cancel()
 	}
 }
@@ -55,7 +58,9 @@ func (a *Asr) RetireAsrResult(ctx context.Context) (asr_types.StreamingResult, b
 		a.Reset()
 	}()
 
-	log.Log().Debugf("asr type: %s, mode: %s", a.AsrType, a.Mode)
+	if !debuglog.TTSOnlyEnabled() {
+		log.Log().Debugf("asr type: %s, mode: %s", a.AsrType, a.Mode)
+	}
 
 	// 使用局部变量跟踪是否已发送首次字符事件
 	firstTextSent := false
@@ -64,13 +69,17 @@ func (a *Asr) RetireAsrResult(ctx context.Context) (asr_types.StreamingResult, b
 	for {
 		select {
 		case <-ctx.Done():
-			log.Debugf("RetireAsrResult: ctx done, exit")
+			if !debuglog.TTSOnlyEnabled() {
+				log.Debugf("RetireAsrResult: ctx done, exit")
+			}
 			return emptyResult, false, nil
 		default:
 			// 避免 ctx 取消时概率性选中 channel，导致使用已取消 context 的结果
 			select {
 			case result, ok := <-a.AsrResultChannel:
-				log.Debugf("asr result: %s, ok: %+v, isFinal: %+v, emptyReason: %s, error: %+v", result.Text, ok, result.IsFinal, result.EmptyReason, result.Error)
+				if !debuglog.TTSOnlyEnabled() {
+					log.Debugf("asr result: %s, ok: %+v, isFinal: %+v, emptyReason: %s, error: %+v", result.Text, ok, result.IsFinal, result.EmptyReason, result.Error)
+				}
 				if result.Error != nil {
 					if result.RetryReason != "" {
 						log.Warnf("ASR 返回可恢复错误(%s)，交由上层恢复: %v", result.RetryReason, result.Error)
@@ -100,7 +109,9 @@ func (a *Asr) RetireAsrResult(ctx context.Context) (asr_types.StreamingResult, b
 				}
 
 				if !ok {
-					log.Debugf("asr result channel closed")
+					if !debuglog.TTSOnlyEnabled() {
+						log.Debugf("asr result channel closed")
+					}
 					return emptyResult, true, nil
 				}
 			}

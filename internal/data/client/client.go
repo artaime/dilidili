@@ -429,18 +429,18 @@ func (c *ClientState) ResetGoodbyeIdleWindow(now time.Time) {
 }
 
 func (c *ClientState) ShouldCountAudioIdleTimeout() bool {
-	if c == nil || !c.IsRealTime() {
-		return true
+	if c == nil {
+		return false
 	}
+	// TTS/LLM 输出期间不计入空闲超时（auto / realtime 均适用，避免长故事播报被 max_idle 误收口）
 	if c.GetTtsStart() {
 		return false
 	}
 	switch c.GetStatus() {
 	case ClientStatusLLMStart, ClientStatusTTSStart:
 		return false
-	default:
-		return true
 	}
+	return true
 }
 
 func (c *ClientState) StartAudioIdleWindow(now time.Time) {

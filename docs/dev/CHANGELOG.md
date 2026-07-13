@@ -6,6 +6,28 @@
 
 ### Added
 
+- 腾讯 ASR（`tencent_asr`）：接入腾讯云实时语音识别 WebSocket v2，支持流式识别与管理台配置测试；详见 `docs/dev/FEATURE_tencent_asr.md`
+- 腾讯 TTS（`tencent_tts`）：接入腾讯云流式文本语音合成 v2（stream_wsv2），支持管理台配置、音色选择与双流式合成；详见 `docs/dev/FEATURE_tencent_tts.md`
+
+### Fixed
+
+- 管理台 `configprovider` 未识别 `tencent_asr`/`tencent_tts`，启动时 provider 修复可能误回退为 `funasr`/`doubao_ws`
+- realtime/auto 模式下 ASR 重启后未恢复拾音（`VoiceStop` 仍为 true），导致 UDP 音频被持续跳过且无识别结果
+- 腾讯 ASR 发送 `end` 后长时间无 final 响应时会阻塞 ASR 结果循环
+- auto/realtime 模式 ASR 结果循环退出后 `VoiceStop` 未清除时，设备持续发音频会被永久跳过（新增自动恢复拾音）
+- 腾讯 TTS 双流式合成结束时重复关闭 `audioFrameChan` 导致 `panic: close of closed channel`
+- 故事流式播报期间扬声器回声触发 ASR/VAD 打断，导致 TTS 提前终止且 LLM 故事内容不再继续输出
+- 腾讯 ASR 4008（15 秒无音频）在 TTS/故事长播报期间被当作致命错误关闭会话，导致 TTS 播放中途被打断
+- auto 模式下 TTS/LLM 长播报仍累计 `max_idle_duration`（30s）空闲超时并关闭会话，打断故事播报（realtime 此前已豁免）
+- auto 模式普通对话 TTS 播报期间扬声器回声触发 ASR 新轮次，导致腾讯双流式 TTS 合成被提前收口、播放话说一半
+- 腾讯 ASR 4008 在助手输出期间反复释放 ASR 资源，长回复 TTS 期间识别链路抖动
+- 腾讯 TTS 双流式在 LLM 句间停顿超过读超时时误断开 WebSocket，后续音频不再合成
+- TTS/故事播报期间腾讯 ASR 通道关闭后空结果被快速累计，触发「3次/3s」保护并 fatal 关闭会话，导致 TTS 中途被打断、故事 LLM 不再继续输出
+
+### Changed
+
+- 新增 `chat.debug_log_tts_only`：开启后仅打印 TTS 合成正文（`设备 xxx TTS合成完成` / `故事TTS合成完成`），抑制 ASR/LLM 流式调试与助手输出保护类日志；兼容旧配置 `story.debug_log_tts_synthesized`
+- 儿童故事：新增配置 `story.debug_log_tts_synthesized`，开启后仅在每句 TTS 合成并发送完成时打印故事正文（调试用，已废弃，请用 `chat.debug_log_tts_only`）
 - 主服务运行时监控自研看板：多节点自动注册、`runtime_report` 上报、Admin SSE 实时看板（CPU/内存/磁盘/带宽、连接在线、会话活跃、资源池）；详见 `docs/features/SERVER_RUNTIME_MONITOR.md`
 - 小程序解绑出厂重置：删除设备全部记忆/故事/对话/留言数据，恢复出厂登记状态（保留 SN、激活码、出厂智能体）；详见 `docs/features/DEVICE_UNBIND_RESET.md`
 - 管理端设备出厂重置：`POST /api/admin/devices/:id/factory-reset`；删除设备前先清理业务数据；编辑禁止静默解绑

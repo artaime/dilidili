@@ -4,7 +4,9 @@ import (
 	"strings"
 	"sync"
 
+	. "dili-esp32-server-golang/internal/data/client"
 	"dili-esp32-server-golang/internal/domain/story"
+	log "dili-esp32-server-golang/logger"
 )
 
 // StoryPlaybackTracker 跟踪当前会话的故事播报进度。
@@ -102,6 +104,55 @@ func (s *ChatSession) IsStoryPlaybackActive() bool {
 		return false
 	}
 	return s.storyPlaybackActive.Load()
+}
+
+// isStoryPlaybackAudioGateActive 故事播报期间忽略扬声器回声触发的 ASR/VAD 打断，避免 TTS 与 LLM 流式生成被误终止。
+func (s *ChatSession) isStoryPlaybackAudioGateActive() bool {
+	return s != nil && s.IsStoryPlaybackActive()
+}
+
+// isAssistantOutputAudioGateActive 助手 LLM/TTS 输出期间启用回声门控，避免扬声器回声误触发打断。
+func (s *ChatSession) isAssistantOutputAudioGateActive() bool {
+	if s == nil || s.clientState == nil {
+		return false
+	}
+	if s.isStoryPlaybackAudioGateActive() {
+		return true
+	}
+	if s.clientState.GetTtsStart() {
+		return true
+	}
+	switch s.clientState.GetStatus() {
+	case ClientStatusLLMStart, ClientStatusTTSStart:
+		return true
+	default:
+		return false
+	}
+}
+
+// shouldIgnoreASRDuringStoryPlayback 故事播报中丢弃误触发的 ASR 文本（不进入 STT/LLM，也不触发 OnVoiceSilence）。
+func (s *ChatSession) shouldIgnoreASRDuringStoryPlayback(text string) bool {
+	if !s.isStoryPlaybackAudioGateActive() {
+		return false
+	}
+	log.Infof("设备 %s 故事播报门控忽略 ASR 文本: %q", s.clientState.DeviceID, strings.TrimSpace(text))
+	return true
+}
+
+// shouldIgnoreASRDuringAssistantOutput auto 模式下助手输出期间丢弃扬声器回声触发的 ASR，避免 TTS 播到一半被新轮次打断。
+// realtime 模式保留用户主动插话打断能力。
+func (s *ChatSession) shouldIgnoreASRDuringAssistantOutput(text string) bool {
+	if s.shouldIgnoreASRDuringStoryPlayback(text) {
+		return true
+	}
+	if s.clientState == nil || s.clientState.IsRealTime() {
+		return false
+	}
+	if !s.isAssistantOutputAudioGateActive() {
+		return false
+	}
+	log.Infof("设备 %s auto 模式助手输出门控忽略 ASR 回声: %q", s.clientState.DeviceID, strings.TrimSpace(text))
+	return true
 }
 
 func (s *ChatSession) ClearStoryPlayback() {
@@ -204,4 +255,32 @@ func (s *ChatSession) OnStoryPlaybackFinished(completed bool) {
 
 func (s *ChatSession) OnStoryPlaybackInterrupted() {
 	s.OnStoryPlaybackFinished(false)
+}
+
+// LogTTSSynthesizedDebug 在单句 TTS 合成并入队发送完成后打印调试日志（需 chat.debug_log_tts_only=true）。
+func (s *ChatSession) LogTTSSynthesizedDebug(sentence string) {
+	if !storyDebugLogTTSSynthesized() || s == nil || s.clientState == nil {
+		return
+	}
+	sentence = strings.TrimSpace(sentence)
+	if sentence == "" {
+		return
+	}
+	deviceID := s.clientState.DeviceID
+	if s.IsStoryPlaybackActive() {
+		storyID := ""
+		if tracker := s.storyPlaybackTracker(); tracker != nil {
+			tracker.mu.Lock()
+			storyID = tracker.storyID
+			tracker.mu.Unlock()
+		}
+		log.Infof("[TTS-%s] story_id=%s: %s", deviceID, storyID, sentence)
+		return
+	}
+	log.Infof("[TTS-%s]: %s", deviceID, sentence)
+}
+
+// LogStoryTTSSynthesized 故事播报路径的兼容别名。
+func (s *ChatSession) LogStoryTTSSynthesized(sentence string) {
+	s.LogTTSSynthesizedDebug(sentence)
 }

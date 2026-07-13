@@ -203,6 +203,20 @@ const form = reactive({
     accent: 'mandarin',
     sample_rate: 16000,
     timeout: 30
+  },
+  tencent_asr: {
+    app_id: '',
+    secret_id: '',
+    secret_key: '',
+    engine_model_type: '16k_zh',
+    voice_format: 1,
+    sample_rate: 16000,
+    needvad: 0,
+    filter_dirty: 0,
+    filter_modal: 0,
+    filter_punc: 0,
+    convert_num_mode: 1,
+    timeout: 30
   }
 })
 
@@ -274,6 +288,16 @@ const rules = computed(() => {
       'xunfei.path': [{ required: true, message: '请输入Path', trigger: 'blur' }],
       'xunfei.sample_rate': [{ required: true, message: '请输入采样率', trigger: 'change' }],
       'xunfei.timeout': [{ required: true, message: '请输入超时时间', trigger: 'blur' }]
+    }
+  }
+  if (form.provider === 'tencent_asr') {
+    return {
+      ...base,
+      'tencent_asr.app_id': [{ required: true, message: '请输入 AppId', trigger: 'blur' }],
+      'tencent_asr.secret_id': [{ required: true, message: '请输入 SecretId', trigger: 'blur' }],
+      'tencent_asr.secret_key': [{ required: true, message: '请输入 SecretKey', trigger: 'blur' }],
+      'tencent_asr.engine_model_type': [{ required: true, message: '请选择引擎模型', trigger: 'change' }],
+      'tencent_asr.sample_rate': [{ required: true, message: '请选择采样率', trigger: 'change' }]
     }
   }
   return base
@@ -355,6 +379,18 @@ const editConfig = (config) => {
       form.xunfei = { ...form.xunfei, ...configObj.xunfei }
     } else if (config.provider === 'xunfei' && (configObj.appid || configObj.api_key || configObj.api_secret)) {
       form.xunfei = { ...form.xunfei, ...configObj }
+    } else if (configObj.tencent_asr) {
+      form.tencent_asr = {
+        ...form.tencent_asr,
+        ...configObj.tencent_asr,
+        app_id: configObj.tencent_asr.app_id != null ? String(configObj.tencent_asr.app_id) : form.tencent_asr.app_id
+      }
+    } else if (config.provider === 'tencent_asr' && (configObj.secret_id || configObj.app_id)) {
+      form.tencent_asr = {
+        ...form.tencent_asr,
+        ...configObj,
+        app_id: configObj.app_id != null ? String(configObj.app_id) : form.tencent_asr.app_id
+      }
     }
   } catch (error) {
     console.error('解析配置JSON失败:', error)
@@ -621,6 +657,20 @@ const resetForm = () => {
     language: 'zh_cn',
     accent: 'mandarin',
     sample_rate: 16000,
+    timeout: 30
+  }
+  form.tencent_asr = {
+    app_id: '',
+    secret_id: '',
+    secret_key: '',
+    engine_model_type: '16k_zh',
+    voice_format: 1,
+    sample_rate: 16000,
+    needvad: 0,
+    filter_dirty: 0,
+    filter_modal: 0,
+    filter_punc: 0,
+    convert_num_mode: 1,
     timeout: 30
   }
 }

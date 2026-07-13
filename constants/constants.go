@@ -12,6 +12,7 @@ const (
 	AsrTypeAliyunFunASR = "aliyun_funasr"
 	AsrTypeAliyunQwen3  = "aliyun_qwen3"
 	AsrTypeXunfei       = "xunfei"
+	AsrTypeTencent      = "tencent_asr"
 )
 
 const (
@@ -37,4 +38,5 @@ const (
 	TtsTypeMinimax      = "minimax"
 	TtsTypeAliyunQwen   = "aliyun_qwen"
 	TtsTypeIndexTTSVLLM = "indextts_vllm"
+	TtsTypeTencent      = "tencent_tts"
 )

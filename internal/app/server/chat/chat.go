@@ -81,6 +81,7 @@ type ChatManager struct {
 	parentMessageNotifyOnce      atomic.Bool
 	parentMessageNotifyGen       atomic.Uint64
 	parentMessageUDPNotified     atomic.Bool
+	lastVoiceSkipLogMs           atomic.Int64
 	parentMessagePollerStarted   atomic.Bool
 	parentMessagePendingSnapshot map[uint]struct{}
 	messageProfileStore          devicestate.MessageProfileStore
@@ -434,8 +435,31 @@ func (c *ChatManager) audioMessageLoop(ctx context.Context) {
 			continue
 		}
 		if c.clientState.GetClientVoiceStop() {
-			log.Debug("客户端停止说话, 跳过音频数据")
-			continue
+			if session.TryRecoverStuckVoiceCapture() {
+				log.Infof(
+					"设备 %s 检测到拾音卡住，已尝试自动恢复: provider=%s mode=%s",
+					c.DeviceID,
+					c.clientState.DeviceConfig.Asr.Provider,
+					c.clientState.ListenMode,
+				)
+			} else {
+				nowMs := time.Now().UnixMilli()
+				lastMs := c.lastVoiceSkipLogMs.Load()
+				if lastMs == 0 || nowMs-lastMs >= 5000 {
+					c.lastVoiceSkipLogMs.Store(nowMs)
+					log.Infof(
+						"客户端停止说话, 跳过音频数据: device=%s provider=%s mode=%s phase=%s status=%s asr_loop=%v open_input=%v",
+						c.DeviceID,
+						c.clientState.DeviceConfig.Asr.Provider,
+						c.clientState.ListenMode,
+						c.clientState.GetListenPhase(),
+						c.clientState.GetStatus(),
+						session.asrManager.IsRecognitionLoopActive(),
+						c.clientState.Asr.HasOpenAudioInput(),
+					)
+				}
+				continue
+			}
 		}
 
 		if ok := session.HandleAudioMessage(message); !ok {
