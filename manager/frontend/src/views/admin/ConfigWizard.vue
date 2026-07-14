@@ -165,6 +165,7 @@ import ASRConfigForm from './forms/ASRConfigForm.vue'
 import LLMConfigForm from './forms/LLMConfigForm.vue'
 import TTSConfigForm from './forms/TTSConfigForm.vue'
 import { resolveASRProvider, resolveTTSProvider, resolveVADProvider } from './forms/configProviderUtils'
+import { TTS_PROVIDERS_WITH_VOICES } from './forms/ttsProviderOptions'
 import { getProviderFixedType, resolveLLMProvider } from './forms/llmCatalog'
 
 const currentStep = ref(0)
@@ -457,6 +458,18 @@ const ttsForm = reactive({
     model: 'qwen3-tts-flash',
     voice: 'Cherry',
     language_type: 'Chinese',
+    stream: true,
+    frame_duration: 60
+  },
+  aliyun_cosyvoice: {
+    api_key: '',
+    workspace_id: '',
+    api_url: '',
+    model: 'cosyvoice-v3-flash',
+    voice: 'longanyang',
+    format: 'wav',
+    sample_rate: 24000,
+    instruction: '',
     stream: true,
     frame_duration: 60
   },
@@ -1034,6 +1047,7 @@ async function loadTtsIfExists() {
     } else if (p === 'edge') Object.assign(ttsForm.edge, data)
     else if (p === 'edge_offline') Object.assign(ttsForm.edge_offline, data)
     else if (p === 'aliyun_qwen') Object.assign(ttsForm.qwen_tts, data)
+    else if (p === 'aliyun_cosyvoice') Object.assign(ttsForm.aliyun_cosyvoice, data)
     else if (p === 'openai') Object.assign(ttsForm.openai, data)
     else if (p === 'xunfei') Object.assign(ttsForm.xunfei, data)
     else if (p === 'xunfei_super_tts') Object.assign(ttsForm.xunfei_super_tts, data)
@@ -1330,14 +1344,18 @@ async function loadTtsVoiceOptions(provider) {
     voiceOptions.value = []
     return
   }
-  const providersWithVoices = ['minimax', 'edge', 'doubao', 'doubao_ws', 'zhipu', 'openai', 'xunfei_super_tts', 'tencent_tts']
-  if (!providersWithVoices.includes(provider)) {
+  if (!TTS_PROVIDERS_WITH_VOICES.includes(provider)) {
     voiceOptions.value = []
     return
   }
   voiceLoading.value = true
   try {
-    const response = await api.get('/user/voice-options', { params: { provider } })
+    const params = { provider, config_id: ttsConfigId.value || undefined }
+    if (provider === 'aliyun_cosyvoice') {
+      const model = String(ttsForm.aliyun_cosyvoice?.model || '').trim()
+      if (model) params.model = model
+    }
+    const response = await api.get('/user/voice-options', { params })
     voiceOptions.value = response.data.data || []
   } catch (error) {
     console.error('加载音色列表失败:', error)
@@ -1364,6 +1382,12 @@ watch(() => ttsForm.provider, (provider) => {
     loadTtsVoiceOptions(provider)
   }
 }, { immediate: false })
+
+watch(() => ttsForm.aliyun_cosyvoice?.model, () => {
+  if (currentStep.value === 4 && ttsForm.provider === 'aliyun_cosyvoice') {
+    loadTtsVoiceOptions('aliyun_cosyvoice')
+  }
+})
 
 const authStore = useAuthStore()
 

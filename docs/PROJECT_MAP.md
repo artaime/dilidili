@@ -83,7 +83,7 @@ flowchart LR
 | VAD | `internal/domain/vad/inter/` | `silero_vad/`、`webrtc_vad/`、`ten_vad/` | `config.yaml` vad 段 |
 | ASR | `AsrProvider` | `internal/domain/asr/`（FunASR、Doubao、讯飞、腾讯等） | config + manager |
 | LLM | `LLMProvider` | `internal/domain/llm/`（Eino、Dify、Coze 等） | config + manager |
-| TTS | `TTSProvider` | `internal/domain/tts/`（Doubao、Edge、CosyVoice、腾讯等） | config + manager |
+| TTS | `TTSProvider` | `internal/domain/tts/`（Doubao、Edge、CosyVoice/linkerai、百炼 CosyVoice、腾讯等） | config + manager |
 | MCP | `internal/domain/mcp/` | SSE / WebSocket / StreamableHTTP transport | manager MCP 配置 |
 | RAG | `Searcher` | `internal/domain/rag/`（Dify、RAGFlow、WeKnora） | manager 知识库 |
 | 用户配置 | `config_provider` | `internal/domain/config/manager/`、`redis/` | `config.yaml` |

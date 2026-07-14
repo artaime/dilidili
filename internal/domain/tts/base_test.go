@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"dili-esp32-server-golang/constants"
+	"dili-esp32-server-golang/internal/domain/tts/aliyun_cosyvoice"
 	"dili-esp32-server-golang/internal/domain/tts/openai"
 	"dili-esp32-server-golang/internal/domain/tts/tencent"
 )
@@ -46,6 +47,27 @@ func TestGetTTSProviderUsesConfigProviderOverride(t *testing.T) {
 func TestGetTTSProviderRejectsUnknown(t *testing.T) {
 	if _, err := GetTTSProvider("missing_provider", nil); err == nil {
 		t.Fatal("expected unknown provider to fail")
+	}
+}
+
+func TestGetTTSProviderAliyunCosyvoice(t *testing.T) {
+	provider, err := GetTTSProvider(constants.TtsTypeAliyunCosyvoice, map[string]interface{}{
+		"provider":     constants.TtsTypeAliyunCosyvoice,
+		"api_key":      "sk-test",
+		"workspace_id": "ws-test",
+		"model":        "cosyvoice-v3-flash",
+		"voice":        "longanyang",
+	})
+	if err != nil {
+		t.Fatalf("GetTTSProvider error = %v", err)
+	}
+
+	adapter, ok := provider.(*ContextTTSAdapter)
+	if !ok {
+		t.Fatalf("provider type = %T", provider)
+	}
+	if _, ok := adapter.Provider.(*aliyun_cosyvoice.AliyunCosyVoiceProvider); !ok {
+		t.Fatalf("wrapped provider type = %T", adapter.Provider)
 	}
 }
 

@@ -955,7 +955,7 @@ func parseUintParam(c *gin.Context, name string) (uint, bool) {
 	return uint(id), true
 }
 
-func getVoiceOptionsForUser(db *gorm.DB, c *gin.Context, targetUserID uint, provider, configID, overrideURL, overrideAPIKey string) ([]VoiceOption, error) {
+func getVoiceOptionsForUser(db *gorm.DB, c *gin.Context, targetUserID uint, provider, configID, overrideURL, overrideAPIKey, overrideModel string) ([]VoiceOption, error) {
 	provider = strings.TrimSpace(provider)
 	if provider == "" {
 		return nil, fmt.Errorf("provider参数必填")
@@ -988,6 +988,27 @@ func getVoiceOptionsForUser(db *gorm.DB, c *gin.Context, targetUserID uint, prov
 			}
 			systemVoices = GetAliyunQwenVoicesByModel(qc.Model)
 		}
+	} else if provider == "aliyun_cosyvoice" {
+		model := strings.TrimSpace(overrideModel)
+		if configID != "" {
+			var cfg models.Config
+			if err := db.Where("type = ? AND config_id = ?", "tts", configID).First(&cfg).Error; err != nil {
+				return nil, fmt.Errorf("未找到对应的TTS配置")
+			}
+			var cc struct {
+				Model string `json:"model"`
+			}
+			if cfg.JsonData != "" {
+				_ = json.Unmarshal([]byte(cfg.JsonData), &cc)
+			}
+			if strings.TrimSpace(cc.Model) != "" {
+				model = cc.Model
+			}
+		}
+		if model == "" {
+			model = "cosyvoice-v3-flash"
+		}
+		systemVoices = GetAliyunCosyVoiceVoicesByModel(model)
 	} else {
 		systemVoices = GetVoiceOptionsByProvider(provider)
 	}

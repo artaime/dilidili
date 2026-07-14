@@ -1467,8 +1467,9 @@ func (ac *AdminController) getConfigItemByTypeAndID(typ, configID string) map[st
 		item[k] = v
 	}
 	// 补全 provider（引擎类型），主程序资源池创建依赖此字段
-	if config.Provider != "" {
-		item["provider"] = config.Provider
+	provider := configprovider.NormalizeExistingProvider(typ, config.Provider, config.ConfigID, configData)
+	if provider != "" {
+		item["provider"] = provider
 	}
 	return item
 }
@@ -2738,6 +2739,7 @@ func (ac *AdminController) GetUserVoiceOptionsAdmin(c *gin.Context) {
 		c.Query("config_id"),
 		c.Query("api_url"),
 		c.Query("api_key"),
+		c.Query("model"),
 	)
 	if err != nil {
 		status := http.StatusBadRequest

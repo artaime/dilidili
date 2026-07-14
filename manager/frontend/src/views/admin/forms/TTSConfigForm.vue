@@ -495,6 +495,55 @@
       </el-form-item>
     </template>
 
+    <template v-if="model.provider === 'aliyun_cosyvoice'">
+      <el-form-item label="API Key" prop="aliyun_cosyvoice.api_key">
+        <el-input v-model="model.aliyun_cosyvoice.api_key" placeholder="DashScope API Key" type="password" show-password />
+      </el-form-item>
+      <el-form-item label="Workspace ID" prop="aliyun_cosyvoice.workspace_id">
+        <el-input v-model="model.aliyun_cosyvoice.workspace_id" placeholder="业务空间 ID，与 API URL 二选一" />
+      </el-form-item>
+      <el-form-item label="API URL" prop="aliyun_cosyvoice.api_url">
+        <el-input v-model="model.aliyun_cosyvoice.api_url" placeholder="可选，完整 SpeechSynthesizer 地址" />
+      </el-form-item>
+      <el-form-item label="模型" prop="aliyun_cosyvoice.model">
+        <el-input v-model="model.aliyun_cosyvoice.model" placeholder="cosyvoice-v3-flash" />
+        <div class="form-tip">音色须与模型版本匹配，切换模型后请重新选择音色</div>
+      </el-form-item>
+      <el-form-item label="音色" prop="aliyun_cosyvoice.voice">
+        <el-select
+          v-model="model.aliyun_cosyvoice.voice"
+          placeholder="请选择音色"
+          style="width: 100%"
+          filterable
+          :loading="voiceLoading"
+          :disabled="voiceLoading"
+          allow-create
+          default-first-option
+        >
+          <el-option v-for="option in voiceOptionsList" :key="option.value" :label="option.label" :value="option.value" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="音频格式" prop="aliyun_cosyvoice.format">
+        <el-select v-model="model.aliyun_cosyvoice.format" placeholder="请选择音频格式" style="width: 100%">
+          <el-option label="WAV" value="wav" />
+          <el-option label="PCM" value="pcm" />
+          <el-option label="MP3" value="mp3" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="采样率" prop="aliyun_cosyvoice.sample_rate">
+        <el-input-number v-model="model.aliyun_cosyvoice.sample_rate" :min="8000" :max="48000" style="width: 100%" />
+      </el-form-item>
+      <el-form-item label="指令文本" prop="aliyun_cosyvoice.instruction">
+        <el-input v-model="model.aliyun_cosyvoice.instruction" placeholder="可选，方言/风格控制" />
+      </el-form-item>
+      <el-form-item label="使用流式" prop="aliyun_cosyvoice.stream">
+        <el-switch v-model="model.aliyun_cosyvoice.stream" />
+      </el-form-item>
+      <el-form-item label="帧时长" prop="aliyun_cosyvoice.frame_duration">
+        <el-input-number v-model="model.aliyun_cosyvoice.frame_duration" :min="1" :max="1000" style="width: 100%" />
+      </el-form-item>
+    </template>
+
     <template v-if="model.provider === 'cosyvoice'">
       <el-form-item label="API URL" prop="cosyvoice.api_url">
         <el-input v-model="model.cosyvoice.api_url" placeholder="请输入API URL" />
@@ -590,6 +639,19 @@ function getJsonData() {
       config.sample_rate = form.edge_offline?.sample_rate
       config.channels = form.edge_offline?.channels
       config.frame_duration = form.edge_offline?.frame_duration
+      break
+    case 'aliyun_cosyvoice':
+      config.provider = 'aliyun_cosyvoice'
+      config.api_key = form.aliyun_cosyvoice?.api_key
+      config.workspace_id = form.aliyun_cosyvoice?.workspace_id
+      config.api_url = form.aliyun_cosyvoice?.api_url
+      config.model = form.aliyun_cosyvoice?.model || 'cosyvoice-v3-flash'
+      config.voice = form.aliyun_cosyvoice?.voice || 'longanyang'
+      config.format = form.aliyun_cosyvoice?.format || 'wav'
+      config.sample_rate = form.aliyun_cosyvoice?.sample_rate || 24000
+      config.instruction = form.aliyun_cosyvoice?.instruction
+      config.stream = form.aliyun_cosyvoice?.stream
+      config.frame_duration = form.aliyun_cosyvoice?.frame_duration || 60
       break
     case 'aliyun_qwen':
       config.provider = 'aliyun_qwen'

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"dili-esp32-server-golang/constants"
+	"dili-esp32-server-golang/internal/domain/tts/aliyun_cosyvoice"
 	"dili-esp32-server-golang/internal/domain/tts/cosyvoice"
 	"dili-esp32-server-golang/internal/domain/tts/doubao"
 	"dili-esp32-server-golang/internal/domain/tts/edge"
@@ -82,6 +83,8 @@ func GetTTSProvider(providerName string, config map[string]interface{}) (TTSProv
 		baseProvider = minimax.NewMinimaxTTSProvider(config)
 	case constants.TtsTypeAliyunQwen:
 		baseProvider = qwen.NewQwenTTSProvider(config)
+	case constants.TtsTypeAliyunCosyvoice:
+		baseProvider = aliyun_cosyvoice.NewAliyunCosyVoiceProvider(config)
 	case constants.TtsTypeIndexTTSVLLM:
 		baseProvider = openai.NewOpenAITTSProvider(buildIndexTTSOpenAIConfig(config))
 	case constants.TtsTypeTencent:

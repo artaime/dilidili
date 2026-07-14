@@ -14,6 +14,7 @@ const providers = {
     'zhipu',
     'minimax',
     'aliyun_qwen',
+    'aliyun_cosyvoice',
     'indextts_vllm',
     'tencent_tts'
   ]),
@@ -79,6 +80,7 @@ export function resolveTTSProvider(provider, configId, data = {}) {
     const url = stringValue(value, 'api_url', 'server_url', 'ws_url')
     const model = stringValue(value, 'model')
     if (has(value, 'spk_id', 'instruct_text')) return 'cosyvoice'
+    if (includes(url, 'maas.aliyuncs.com') && (includes(model, 'cosyvoice') || has(value, 'workspace_id'))) return 'aliyun_cosyvoice'
     if (has(value, 'server_url')) return 'edge_offline'
     if (has(value, 'rate', 'pitch') && has(value, 'voice')) return 'edge'
     if (includes(url, 'xfyun.cn')) return has(value, 'double_stream', 'bgs', 'oral_level', 'spark_assist', 'stop_split', 'remain') ? 'xunfei_super_tts' : 'xunfei'
@@ -88,7 +90,9 @@ export function resolveTTSProvider(provider, configId, data = {}) {
     if (includes(url, 'tts.cloud.tencent.com') || has(value, 'secret_id', 'voice_type')) return 'tencent_tts'
     if (includes(model, 'indextts')) return 'indextts_vllm'
     if (includes(url, 'openspeech', 'volces.com', 'volcengine')) return has(value, 'ws_url', 'ws_host', 'use_stream', 'resource_id') ? 'doubao_ws' : 'doubao'
-    if (has(value, 'api_key', 'model', 'voice', 'response_format')) return 'openai'
+    if (has(value, 'workspace_id') && includes(model, 'cosyvoice')) return 'aliyun_cosyvoice'
+    if (has(value, 'api_key') && includes(model, 'cosyvoice') && has(value, 'voice')) return 'aliyun_cosyvoice'
+    if (has(value, 'response_format') && has(value, 'api_key', 'model', 'voice')) return 'openai'
     return ''
   }, 'doubao_ws')
 }

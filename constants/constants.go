@@ -36,7 +36,8 @@ const (
 	TtsTypeOpenAI       = "openai"
 	TtsTypeZhipu        = "zhipu"
 	TtsTypeMinimax      = "minimax"
-	TtsTypeAliyunQwen   = "aliyun_qwen"
-	TtsTypeIndexTTSVLLM = "indextts_vllm"
+	TtsTypeAliyunQwen      = "aliyun_qwen"
+	TtsTypeAliyunCosyvoice = "aliyun_cosyvoice"
+	TtsTypeIndexTTSVLLM    = "indextts_vllm"
 	TtsTypeTencent      = "tencent_tts"
 )

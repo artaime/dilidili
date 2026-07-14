@@ -239,6 +239,17 @@ tts:
     target_sr: 24000                         # 目标采样率
     audio_format: "mp3"                      # 音频格式
     instruct_text: "你好"                     # 指示文本
+  # 百炼 CosyVoice TTS（官方 DashScope HTTP API，与上方 linkerai cosyvoice 不同）
+  aliyun_cosyvoice:
+    api_key: ""                              # DashScope API Key
+    workspace_id: ""                         # 业务空间 ID（与 api_url 二选一）
+    # api_url: "https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer"
+    model: "cosyvoice-v3-flash"
+    voice: "longanyang"
+    format: "wav"
+    sample_rate: 24000
+    stream: true
+    frame_duration: 60
   # Microsoft Edge TTS配置
   edge:
     voice: "zh-CN-XiaoxiaoNeural"  # 语音模型

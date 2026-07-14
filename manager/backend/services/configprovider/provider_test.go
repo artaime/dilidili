@@ -31,6 +31,29 @@ func TestNormalizeProviderInfersKnownProviderInsteadOfConfigID(t *testing.T) {
 			want: "funasr",
 		},
 		{
+			name:       "tts aliyun cosyvoice workspace without api_url",
+			configType: "tts",
+			configID:   "cosyvoice_bailian",
+			data: map[string]interface{}{
+				"api_key":      "sk-test",
+				"workspace_id": "ws-123",
+				"model":        "cosyvoice-v3-flash",
+				"voice":        "longjielidou_v3",
+			},
+			want: "aliyun_cosyvoice",
+		},
+		{
+			name:       "tts aliyun cosyvoice custom id",
+			configType: "tts",
+			configID:   "cosyvoice_bailian",
+			data: map[string]interface{}{
+				"api_url": "https://llm-test.cn-beijing.maas.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer",
+				"model":   "cosyvoice-v3-flash",
+				"voice":   "longjielidou_v3",
+			},
+			want: "aliyun_cosyvoice",
+		},
+		{
 			name:       "tts aliyun qwen custom id",
 			configType: "tts",
 			configID:   "proxy_tts",

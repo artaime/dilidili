@@ -161,6 +161,18 @@ const form = reactive({
     stream: true,
     frame_duration: 60
   },
+  aliyun_cosyvoice: {
+    api_key: '',
+    workspace_id: '',
+    api_url: '',
+    model: 'cosyvoice-v3-flash',
+    voice: 'longanyang',
+    format: 'wav',
+    sample_rate: 24000,
+    instruction: '',
+    stream: true,
+    frame_duration: 60
+  },
   doubao: {
     appid: '6886011847',
     access_token: 'access_token',
@@ -333,6 +345,10 @@ const rules = {
   'minimax.api_key': [{ required: true, message: '请输入API Key', trigger: 'blur' }],
   // 千问 TTS 验证规则
   'qwen_tts.api_key': [{ required: true, message: '请输入API Key', trigger: 'blur' }],
+  // 百炼 CosyVoice 验证规则
+  'aliyun_cosyvoice.api_key': [{ required: true, message: '请输入API Key', trigger: 'blur' }],
+  'aliyun_cosyvoice.model': [{ required: true, message: '请输入模型', trigger: 'blur' }],
+  'aliyun_cosyvoice.voice': [{ required: true, message: '请选择音色', trigger: 'change' }],
   'indextts_vllm.api_url': [{ required: true, message: '请输入API URL', trigger: 'blur' }],
   'tencent_tts.app_id': [{ required: true, message: '请输入 AppId', trigger: 'blur' }],
   'tencent_tts.secret_id': [{ required: true, message: '请输入 SecretId', trigger: 'blur' }],
@@ -416,6 +432,18 @@ const editConfig = (config) => {
         form.edge_offline.sample_rate = configData.sample_rate || 16000
         form.edge_offline.channels = configData.channels || 1
         form.edge_offline.frame_duration = configData.frame_duration || 20
+        break
+      case 'aliyun_cosyvoice':
+        form.aliyun_cosyvoice.api_key = configData.api_key || ''
+        form.aliyun_cosyvoice.workspace_id = configData.workspace_id || ''
+        form.aliyun_cosyvoice.api_url = configData.api_url || ''
+        form.aliyun_cosyvoice.model = configData.model || 'cosyvoice-v3-flash'
+        form.aliyun_cosyvoice.voice = configData.voice || 'longanyang'
+        form.aliyun_cosyvoice.format = configData.format || 'wav'
+        form.aliyun_cosyvoice.sample_rate = configData.sample_rate || 24000
+        form.aliyun_cosyvoice.instruction = configData.instruction || ''
+        form.aliyun_cosyvoice.stream = configData.stream !== undefined ? configData.stream : true
+        form.aliyun_cosyvoice.frame_duration = configData.frame_duration || 60
         break
       case 'aliyun_qwen':
         form.qwen_tts.api_key = configData.api_key || ''
@@ -739,17 +767,29 @@ const resetForm = () => {
       audio_format: 'mp3',
       instruct_text: '你好'
     },
-    qwen_tts: {
-      api_key: '',
-      api_url: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
-      region: 'beijing',
-      model: 'qwen3-tts-flash',
-      voice: 'Cherry',
-      language_type: 'Chinese',
-      stream: true,
-      frame_duration: 60
-    },
-    doubao: {
+  qwen_tts: {
+    api_key: '',
+    api_url: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+    region: 'beijing',
+    model: 'qwen3-tts-flash',
+    voice: 'Cherry',
+    language_type: 'Chinese',
+    stream: true,
+    frame_duration: 60
+  },
+  aliyun_cosyvoice: {
+    api_key: '',
+    workspace_id: '',
+    api_url: '',
+    model: 'cosyvoice-v3-flash',
+    voice: 'longanyang',
+    format: 'wav',
+    sample_rate: 24000,
+    instruction: '',
+    stream: true,
+    frame_duration: 60
+  },
+  doubao: {
       appid: '6886011847',
       access_token: 'access_token',
       model: 'seed-tts-2.0-standard',
@@ -922,6 +962,12 @@ const loadVoiceOptions = async (provider, options = {}) => {
         params.api_key = apiKey
       }
     }
+    if (provider === 'aliyun_cosyvoice') {
+      const model = String(form.aliyun_cosyvoice?.model || '').trim()
+      if (model) {
+        params.model = model
+      }
+    }
     const response = await api.get(`/user/voice-options`, {
       params
     })
@@ -950,6 +996,12 @@ watch(() => form.provider, (newProvider) => {
 watch(showDialog, (isOpen) => {
   if (isOpen && form.provider) {
     nextTick(() => loadVoiceOptions(form.provider))
+  }
+})
+
+watch(() => form.aliyun_cosyvoice?.model, () => {
+  if (showDialog.value && form.provider === 'aliyun_cosyvoice') {
+    loadVoiceOptions('aliyun_cosyvoice')
   }
 })
 

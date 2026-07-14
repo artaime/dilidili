@@ -8,10 +8,11 @@
 
 - 腾讯 ASR（`tencent_asr`）：接入腾讯云实时语音识别 WebSocket v2，支持流式识别与管理台配置测试；详见 `docs/dev/FEATURE_tencent_asr.md`
 - 腾讯 TTS（`tencent_tts`）：接入腾讯云流式文本语音合成 v2（stream_wsv2），支持管理台配置、音色选择与双流式合成；详见 `docs/dev/FEATURE_tencent_tts.md`
+- 百炼 CosyVoice TTS（`aliyun_cosyvoice`）：接入阿里云百炼官方 SpeechSynthesizer HTTP API（SSE 流式），支持管理台配置、按模型选择系统音色与配置测试；详见 `docs/dev/FEATURE_aliyun_cosyvoice.md`
 
 ### Fixed
 
-- 管理台 `configprovider` 未识别 `tencent_asr`/`tencent_tts`，启动时 provider 修复可能误回退为 `funasr`/`doubao_ws`
+- 管理台 TTS 保存百炼 CosyVoice 后 provider 被误判为 OpenAI，导致配置测试与运行时合成失败
 - realtime/auto 模式下 ASR 重启后未恢复拾音（`VoiceStop` 仍为 true），导致 UDP 音频被持续跳过且无识别结果
 - 腾讯 ASR 发送 `end` 后长时间无 final 响应时会阻塞 ASR 结果循环
 - auto/realtime 模式 ASR 结果循环退出后 `VoiceStop` 未清除时，设备持续发音频会被永久跳过（新增自动恢复拾音）

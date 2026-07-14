@@ -18,7 +18,7 @@ var knownProviders = map[string]map[string]struct{}{
 	"tts": {
 		"doubao": {}, "doubao_ws": {}, "cosyvoice": {}, "edge": {}, "edge_offline": {},
 		"dili": {}, "xunfei": {}, "xunfei_super_tts": {}, "openai": {}, "zhipu": {},
-		"minimax": {}, "aliyun_qwen": {}, "indextts_vllm": {}, "tencent_tts": {},
+		"minimax": {}, "aliyun_qwen": {}, "aliyun_cosyvoice": {}, "indextts_vllm": {}, "tencent_tts": {},
 	},
 	"memory": {
 		"nomemo": {}, "memobase": {}, "mem0": {}, "memos": {},
@@ -276,6 +276,8 @@ func inferTTSProvider(data map[string]interface{}) string {
 	switch {
 	case hasAny(data, "spk_id", "instruct_text"):
 		return "cosyvoice"
+	case containsAny(apiURL, "maas.aliyuncs.com") && (containsAny(model, "cosyvoice") || hasAny(data, "workspace_id")):
+		return "aliyun_cosyvoice"
 	case hasAny(data, "server_url"):
 		return "edge_offline"
 	case hasAny(data, "rate", "pitch") && hasAny(data, "voice"):
@@ -300,7 +302,11 @@ func inferTTSProvider(data map[string]interface{}) string {
 			return "doubao_ws"
 		}
 		return "doubao"
-	case hasAny(data, "api_key", "model", "voice", "response_format"):
+	case hasAny(data, "workspace_id") && containsAny(model, "cosyvoice"):
+		return "aliyun_cosyvoice"
+	case hasAny(data, "api_key") && containsAny(model, "cosyvoice") && hasAny(data, "voice"):
+		return "aliyun_cosyvoice"
+	case hasAny(data, "response_format") && hasAny(data, "api_key", "model", "voice"):
 		return "openai"
 	}
 	return ""
