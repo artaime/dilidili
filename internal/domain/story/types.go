@@ -40,19 +40,20 @@ type PlayPosition struct {
 	LastSentence      string `json:"last_sentence,omitempty"`
 }
 
-type StoryParams struct {
-	RequestType    string       `json:"request_type,omitempty"`
-	NarrationMode  string       `json:"narration_mode,omitempty"` // canonical|creative
-	Theme          string       `json:"theme,omitempty"`
-	Style          string       `json:"style,omitempty"`
-	AgeBand        string       `json:"age_band,omitempty"`
-	AgeYears       *int         `json:"age_years,omitempty"`
-	IsBedtime      *bool        `json:"is_bedtime,omitempty"`
-	DurationHint   string       `json:"duration_hint,omitempty"`
-	Interests      []string     `json:"interests,omitempty"`
-	MemoryHints    []MemoryHint `json:"memory_hints,omitempty"`
-	UserSaidCasual bool         `json:"user_said_casual,omitempty"`
-}
+	type StoryParams struct {
+		RequestType    string       `json:"request_type,omitempty"`
+		NarrationMode  string       `json:"narration_mode,omitempty"` // canonical|creative
+		Theme          string       `json:"theme,omitempty"`          // 规范名（优先）
+		ThemeRaw       string       `json:"theme_raw,omitempty"`      // 用户口语/ASR 原主题
+		Style          string       `json:"style,omitempty"`
+		AgeBand        string       `json:"age_band,omitempty"`
+		AgeYears       *int         `json:"age_years,omitempty"`
+		IsBedtime      *bool        `json:"is_bedtime,omitempty"`
+		DurationHint   string       `json:"duration_hint,omitempty"`
+		Interests      []string     `json:"interests,omitempty"`
+		MemoryHints    []MemoryHint `json:"memory_hints,omitempty"`
+		UserSaidCasual bool         `json:"user_said_casual,omitempty"`
+	}
 
 type StoryRecord struct {
 	StoryID        string         `json:"story_id"`

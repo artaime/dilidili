@@ -3,6 +3,7 @@ package chat
 import (
 	"strings"
 	"sync"
+	"time"
 
 	. "dili-esp32-server-golang/internal/data/client"
 	"dili-esp32-server-golang/internal/domain/story"
@@ -15,6 +16,7 @@ type StoryPlaybackTracker struct {
 
 	active            bool
 	storyID           string
+	title             string
 	deviceID          string
 	segments          []string
 	startSegment      int
@@ -23,6 +25,7 @@ type StoryPlaybackTracker struct {
 	storySentChars    int
 	lastSentence      string
 	lastSentenceIndex int
+	lastProgressAt    time.Time
 }
 
 func (s *ChatSession) storyPlaybackTracker() *StoryPlaybackTracker {
@@ -54,6 +57,7 @@ func (s *ChatSession) ActivateStoryPlayback(result *story.ToolResult) {
 
 	tracker.active = true
 	tracker.storyID = result.StoryID
+	tracker.title = strings.TrimSpace(result.Title)
 	tracker.deviceID = s.clientState.DeviceID
 	tracker.segments = result.Segments
 	tracker.startSegment = result.StartSegment
@@ -69,6 +73,7 @@ func (s *ChatSession) ActivateStoryPlayback(result *story.ToolResult) {
 	tracker.storySentChars = 0
 	tracker.lastSentence = ""
 	tracker.lastSentenceIndex = -1
+	tracker.lastProgressAt = time.Time{}
 	s.storyPlaybackActive.Store(true)
 }
 
@@ -84,6 +89,9 @@ func (s *ChatSession) UpdateStoryPlaybackFromResult(result *story.ToolResult) {
 	}
 	if result.StoryID != "" {
 		tracker.storyID = result.StoryID
+	}
+	if t := strings.TrimSpace(result.Title); t != "" {
+		tracker.title = t
 	}
 	if len(result.Segments) > 0 {
 		tracker.segments = result.Segments
@@ -104,6 +112,20 @@ func (s *ChatSession) IsStoryPlaybackActive() bool {
 		return false
 	}
 	return s.storyPlaybackActive.Load()
+}
+
+// StoryPlaybackIdentity 返回当前播报故事的 ID 与标题（供对话短卡片落库）。
+func (s *ChatSession) StoryPlaybackIdentity() (storyID, title string) {
+	if s == nil || !s.IsStoryPlaybackActive() {
+		return "", ""
+	}
+	tracker := s.storyPlaybackTracker()
+	tracker.mu.Lock()
+	defer tracker.mu.Unlock()
+	if !tracker.active {
+		return "", ""
+	}
+	return tracker.storyID, tracker.title
 }
 
 // isStoryPlaybackAudioGateActive 故事播报期间忽略扬声器回声触发的 ASR/VAD 打断，避免 TTS 与 LLM 流式生成被误终止。
@@ -163,7 +185,9 @@ func (s *ChatSession) ClearStoryPlayback() {
 	tracker.mu.Lock()
 	tracker.active = false
 	tracker.storyID = ""
+	tracker.title = ""
 	tracker.segments = nil
+	tracker.lastProgressAt = time.Time{}
 	tracker.mu.Unlock()
 	s.storyPlaybackActive.Store(false)
 }
@@ -206,13 +230,42 @@ func (s *ChatSession) OnStorySentenceSent(sentence string) {
 	}
 	tracker := s.storyPlaybackTracker()
 	tracker.mu.Lock()
-	defer tracker.mu.Unlock()
 	if !tracker.active {
+		tracker.mu.Unlock()
 		return
 	}
 	tracker.storySentChars += len([]rune(sentence))
 	tracker.lastSentence = sentence
 	tracker.lastSentenceIndex++
+	storyID := tracker.storyID
+	charOffset := tracker.storySentChars
+	lastSent := tracker.lastSentence
+	lastIdx := tracker.lastSentenceIndex
+	segments := tracker.segments
+	startSeg := tracker.startSegment
+	shouldPersist := time.Since(tracker.lastProgressAt) >= storyProgressPersistMinInterval
+	if shouldPersist {
+		tracker.lastProgressAt = time.Now()
+	}
+	updater := s.storyProgressUpdater
+	tracker.mu.Unlock()
+
+	if !shouldPersist || updater == nil || storyID == "" {
+		return
+	}
+	pos := story.PlayPosition{
+		SegmentIndex:      startSeg,
+		CharOffset:        charOffset,
+		LastSentence:      lastSent,
+		LastSentenceIndex: lastIdx,
+	}
+	if len(segments) > 0 && charOffset > 0 {
+		pos.SegmentIndex = story.SegmentIndexForCharOffset(segments, charOffset)
+		if pos.SegmentIndex < startSeg {
+			pos.SegmentIndex = startSeg
+		}
+	}
+	_ = updater.LocalMcpUpdateStoryProgress(s.ctx, storyID, pos, false, false)
 }
 
 func (s *ChatSession) OnStoryPlaybackFinished(completed bool) {

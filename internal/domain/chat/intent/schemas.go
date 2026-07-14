@@ -5,7 +5,9 @@ import "encoding/json"
 const (
 	IntentMsgInquiry = "msg_inquiry"
 	IntentMsgPlay    = "msg_play"
-	IntentGeneral    = "general"
+	// IntentDevice 本机固件状态查询/控制（音量、电量、亮度、睡眠、关机等），意图路由器不短路，交给主 LLM + 设备 MCP tools。
+	IntentDevice  = "device"
+	IntentGeneral = "general"
 )
 
 type RouterResponse struct {

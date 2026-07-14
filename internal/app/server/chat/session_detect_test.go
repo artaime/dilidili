@@ -391,6 +391,44 @@ func TestStopSpeakingSignalsInterruptedWelcomePlaybackWait(t *testing.T) {
 	}
 }
 
+func TestShouldSoftListenStopDuringOutput(t *testing.T) {
+	if !shouldSoftListenStopDuringOutput(true, false, data_client.ClientStatusListening, false) {
+		t.Fatal("expected soft listen stop while welcome is playing")
+	}
+	if !shouldSoftListenStopDuringOutput(false, true, data_client.ClientStatusListening, false) {
+		t.Fatal("expected soft listen stop while tts_start is set")
+	}
+	if !shouldSoftListenStopDuringOutput(false, false, data_client.ClientStatusTTSStart, false) {
+		t.Fatal("expected soft listen stop while status is ttsStart")
+	}
+	if !shouldSoftListenStopDuringOutput(false, false, data_client.ClientStatusLLMStart, false) {
+		t.Fatal("expected soft listen stop while status is llmStart")
+	}
+	if !shouldSoftListenStopDuringOutput(false, false, data_client.ClientStatusListening, true) {
+		t.Fatal("expected soft listen stop while chat turn active")
+	}
+	if shouldSoftListenStopDuringOutput(false, false, data_client.ClientStatusListening, false) {
+		t.Fatal("expected normal listen stop while idle listening")
+	}
+}
+
+func TestHandleListenStopSoftDuringWelcomeDoesNotManualStop(t *testing.T) {
+	session := newDetectDebounceTestSession(t)
+	session.clientState.IsWelcomePlaying = true
+	session.clientState.SetClientVoiceStop(false)
+	session.clientState.Asr.AsrAudioChannel = make(chan []float32, 1)
+
+	if err := session.HandleListenStop(); err != nil {
+		t.Fatalf("HandleListenStop returned error: %v", err)
+	}
+	if !session.clientState.GetClientVoiceStop() {
+		t.Fatal("expected soft listen stop to mark client voice stop")
+	}
+	if session.clientState.Asr.AsrAudioChannel == nil {
+		t.Fatal("expected soft listen stop not to close ASR audio channel via OnManualStop")
+	}
+}
+
 func TestHandleListenStopClearsRealtimeListenSessionActive(t *testing.T) {
 	session := newDetectDebounceTestSession(t)
 	session.clientState.ListenMode = "realtime"

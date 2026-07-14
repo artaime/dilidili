@@ -21,6 +21,7 @@ func (c *ChatManager) buildStoryToolRequest(params *CreateChildStoryParams) stor
 			RequestType:    params.RequestType,
 			NarrationMode:  params.NarrationMode,
 			Theme:          params.Theme,
+			ThemeRaw:       params.ThemeRaw,
 			Style:          params.Style,
 			AgeBand:        params.AgeBand,
 			AgeYears:       params.AgeYears,
@@ -38,21 +39,14 @@ func (c *ChatManager) buildStoryToolRequest(params *CreateChildStoryParams) stor
 	}
 }
 
-func (c *ChatManager) storyGenerationContext(parent context.Context) context.Context {
-	if c == nil || c.clientState == nil {
-		if parent != nil {
-			return parent
-		}
-		return context.Background()
+// storyProtectedGenerationContext 与 SessionCtx 解耦，避免用户插话取消故事 LLM。
+func (c *ChatManager) storyProtectedGenerationContext(parent context.Context) context.Context {
+	base := context.Background()
+	if parent != nil && parent.Err() == nil {
+		// 仅继承 parent 的值（如 trace），不继承取消；用 WithoutCancel。
+		base = context.WithoutCancel(parent)
 	}
-	sessionCtx := c.clientState.SessionCtx.Get(c.clientState.Ctx)
-	if sessionCtx != nil {
-		return sessionCtx
-	}
-	if parent != nil {
-		return parent
-	}
-	return c.clientState.Ctx
+	return base
 }
 
 func (c *ChatManager) streamGenerateChildStory(ctx context.Context, params *CreateChildStoryParams) error {
@@ -80,7 +74,11 @@ func (c *ChatManager) streamGenerateChildStory(ctx context.Context, params *Crea
 	}
 
 	filler := svc.FillerText(plan.Params)
-	return c.runStoryStream(ctx, req, plan, filler)
+	if err := c.runStoryStream(ctx, req, plan, filler); err != nil {
+		c.endStoryStreamGuard()
+		return err
+	}
+	return nil
 }
 
 func (c *ChatManager) streamContinueChildStory(ctx context.Context, params *CreateChildStoryParams, rec *story.StoryRecord) error {
@@ -102,10 +100,14 @@ func (c *ChatManager) streamContinueChildStory(ctx context.Context, params *Crea
 	}
 
 	filler := story.ContinueFillerText(rec)
-	return c.runStoryStream(ctx, req, plan, filler)
+	if err := c.runStoryStream(ctx, req, plan, filler); err != nil {
+		c.endStoryStreamGuard()
+		return err
+	}
+	return nil
 }
 
-// runStoryStream 流式生成/续写：TTS 打断时同步停止 LLM；未完成生成不写播放进度。
+// runStoryStream 流式生成/续写：已播字数≥阈值时停播不停写；否则 TTS 打断同步取消 LLM。
 func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest, plan *story.GeneratePlan, filler string) error {
 	c.cancelRetainedSessionCleanup("child_story_stream")
 	session, err := c.ensureSession()
@@ -113,10 +115,12 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 		return err
 	}
 	svc := c.getStoryService()
+	threshold := story.ProtectContinueThreshold(svc.Config())
 
 	session.ActivateStoryPlayback(&story.ToolResult{
 		Status:       story.StatusReady,
 		StoryID:      plan.StoryID,
+		Title:        story.TitleFromTheme(plan.Params.Theme),
 		TextToSpeak:  filler,
 		StartSegment: 0,
 	})
@@ -124,7 +128,7 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 	responseChan := make(chan llm_common.LLMResponseStruct, 16)
 	sessionCtx := c.clientState.SessionCtx.Get(c.clientState.Ctx)
 	ttsCtx := c.clientState.AfterAsrSessionCtx.Get(sessionCtx)
-	genCtx, genCancel := context.WithTimeout(c.storyGenerationContext(ctx), 90*time.Second)
+	genCtx, genCancel := context.WithTimeout(c.storyProtectedGenerationContext(ctx), 90*time.Second)
 
 	var (
 		fullBuilder        strings.Builder
@@ -134,13 +138,30 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 		streamMu           sync.Mutex
 		streamErr          error
 		savedComplete      bool
+		playbackStopped    bool // TTS 已停但保护续写中
 	)
 
-	// TTS 被打断时立即停止 LLM 生成。
+	heardRunes := func() int {
+		heard := story.MergeHeardStoryText(plan.SpokenBaseline, storySpokenBuilder.String())
+		return utf8.RuneCountInString(heard)
+	}
+
+	// TTS 打断：字数未达阈值则取消 LLM；达阈值则仅停播。
 	go func() {
 		select {
 		case <-ttsCtx.Done():
-			genCancel()
+			streamMu.Lock()
+			heard := heardRunes()
+			if story.ShouldCancelGenerationOnInterrupt(heard, threshold) {
+				log.Infof("设备 %s 故事生成随打断取消 story_id=%s heard_runes=%d threshold=%d",
+					c.DeviceID, plan.StoryID, heard, threshold)
+				genCancel()
+			} else {
+				playbackStopped = true
+				log.Infof("设备 %s 故事保护续写 story_id=%s heard_runes=%d threshold=%d",
+					c.DeviceID, plan.StoryID, heard, threshold)
+			}
+			streamMu.Unlock()
 		case <-genCtx.Done():
 		}
 	}()
@@ -151,6 +172,12 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 
 		firstChunk := true
 		send := func(resp llm_common.LLMResponseStruct, isStorySentence bool) bool {
+			streamMu.Lock()
+			stopped := playbackStopped
+			streamMu.Unlock()
+			if stopped {
+				return false
+			}
 			select {
 			case responseChan <- resp:
 				if t := strings.TrimSpace(resp.Text); t != "" {
@@ -167,6 +194,12 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 				if streamErr == nil {
 					streamErr = ttsCtx.Err()
 				}
+				heard := heardRunes()
+				if !story.ShouldCancelGenerationOnInterrupt(heard, threshold) {
+					playbackStopped = true
+					streamMu.Unlock()
+					return false
+				}
 				streamMu.Unlock()
 			case <-genCtx.Done():
 				streamMu.Lock()
@@ -178,6 +211,12 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 			return false
 		}
 		finish := func() {
+			streamMu.Lock()
+			stopped := playbackStopped
+			streamMu.Unlock()
+			if stopped {
+				return
+			}
 			if firstChunk {
 				send(llm_common.LLMResponseStruct{IsStart: true, IsEnd: true}, false)
 				return
@@ -209,9 +248,12 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 			firstChunk = false
 		}
 
-		// B 方案：续写前先按整句补播未听草稿，避免从半句/半词机械切开。
+		// B 方案：续写前先按整句补播未听草稿。
 		for _, sent := range plan.DraftPlaybackSentences {
-			if ttsCtx.Err() != nil {
+			streamMu.Lock()
+			stopped := playbackStopped
+			streamMu.Unlock()
+			if stopped || ttsCtx.Err() != nil {
 				break
 			}
 			resp := llm_common.LLMResponseStruct{Text: sent}
@@ -223,18 +265,26 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 				break
 			}
 		}
-		if ttsCtx.Err() != nil {
-			saveCheckpoint(true)
-			finish()
-			return
+		streamMu.Lock()
+		stoppedAfterDraft := playbackStopped
+		streamMu.Unlock()
+		if ttsCtx.Err() != nil && !stoppedAfterDraft {
+			if story.ShouldCancelGenerationOnInterrupt(heardRunes(), threshold) {
+				saveCheckpoint(true)
+				finish()
+				return
+			}
+			streamMu.Lock()
+			playbackStopped = true
+			streamMu.Unlock()
 		}
 
 		genErr := c.callLLMStreamForStory(genCtx, plan.SystemPrompt, plan.UserPrompt, func(chunk string) error {
 			if chunk == "" {
 				return nil
 			}
-			if ttsCtx.Err() != nil {
-				return ttsCtx.Err()
+			if genCtx.Err() != nil {
+				return genCtx.Err()
 			}
 			clean := metaFilter.Feed(chunk)
 			if metaFilter.Meta != nil {
@@ -247,15 +297,44 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 			}
 			fullBuilder.WriteString(clean)
 			for _, sent := range sentenceBuf.Append(clean) {
+				streamMu.Lock()
+				stopped := playbackStopped
+				streamMu.Unlock()
+				if stopped {
+					continue
+				}
+				if ttsCtx.Err() != nil {
+					heard := heardRunes()
+					if story.ShouldCancelGenerationOnInterrupt(heard, threshold) {
+						return ttsCtx.Err()
+					}
+					streamMu.Lock()
+					playbackStopped = true
+					streamMu.Unlock()
+					continue
+				}
 				resp := llm_common.LLMResponseStruct{Text: sent}
 				if firstChunk {
 					resp.IsStart = true
 					firstChunk = false
 				}
-				send(resp, true)
+				if !send(resp, true) {
+					streamMu.Lock()
+					stopped = playbackStopped
+					streamMu.Unlock()
+					if stopped {
+						continue
+					}
+					if story.ShouldCancelGenerationOnInterrupt(heardRunes(), threshold) {
+						return context.Canceled
+					}
+					streamMu.Lock()
+					playbackStopped = true
+					streamMu.Unlock()
+				}
 			}
 			streamMu.Lock()
-			if streamErr != nil {
+			if streamErr != nil && story.ShouldCancelGenerationOnInterrupt(heardRunes(), threshold) {
 				err := streamErr
 				streamMu.Unlock()
 				return err
@@ -277,7 +356,7 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 			return
 		}
 
-		result, saveErr := svc.SaveGeneratedStory(genCtx, req, plan, fullBuilder.String())
+		result, saveErr := svc.SaveGeneratedStory(context.Background(), req, plan, fullBuilder.String())
 		if saveErr != nil {
 			streamMu.Lock()
 			streamErr = saveErr
@@ -288,33 +367,42 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 		}
 		streamMu.Lock()
 		savedComplete = true
+		stopped := playbackStopped
 		streamMu.Unlock()
 		session.UpdateStoryPlaybackFromResult(result)
 
-		if tail := sentenceBuf.Flush(); tail != "" {
-			resp := llm_common.LLMResponseStruct{Text: tail, IsEnd: true}
-			if firstChunk {
-				resp.IsStart = true
+		if !stopped {
+			if tail := sentenceBuf.Flush(); tail != "" {
+				resp := llm_common.LLMResponseStruct{Text: tail, IsEnd: true}
+				if firstChunk {
+					resp.IsStart = true
+				}
+				send(resp, true)
+				return
 			}
-			send(resp, true)
+			finish()
 			return
 		}
-		finish()
+		// 保护续写完成：正文已落库，无需再推 TTS。
+		log.Infof("设备 %s 故事保护续写完成 story_id=%s total_runes=%d",
+			c.DeviceID, plan.StoryID, utf8.RuneCountInString(fullBuilder.String()))
 	}()
 
 	log.Infof("设备 %s 开始流式故事 story_id=%s theme=%q continuation=%t filler=%t",
 		c.DeviceID, plan.StoryID, plan.Params.Theme, plan.IsContinuation, filler != "")
 	return session.llmManager.HandleLLMResponseChannelAsyncWithOptions(ttsCtx, nil, responseChan, llmResponseChannelOptions{
-		ttsTurnEndPolicy:            ttsTurnEndPolicyNone,
-		deferProtocolTtsStop:        true,
-		waitTtsDrainWithoutCancel:   true,
+		ttsTurnEndPolicy:          ttsTurnEndPolicyNone,
+		deferProtocolTtsStop:      true,
+		waitTtsDrainWithoutCancel: true,
 		onEndFunc: func(err error, args ...any) {
+			defer c.endStoryStreamGuard()
 			streamMu.Lock()
 			genErr := streamErr
 			spokenStory := storySpokenBuilder.String()
 			complete := savedComplete
 			streamMu.Unlock()
-			if genErr != nil && err == nil {
+			if genErr != nil && err == nil && story.ShouldCancelGenerationOnInterrupt(
+				utf8.RuneCountInString(story.MergeHeardStoryText(plan.SpokenBaseline, spokenStory)), threshold) {
 				err = genErr
 			}
 			playbackOK := err == nil && ttsCtx.Err() == nil
@@ -323,18 +411,18 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 				storySentChars = len([]rune(spokenStory))
 			}
 
-			if complete && playbackOK {
-				c.syncStoryStreamProgress(svc, c.DeviceID, plan.StoryID, spokenStory, storySentChars, lastSent, lastSentIdx, segments, true, true)
+			// 有听过内容或生成已完整时同步进度（含打断）。
+			if complete || strings.TrimSpace(spokenStory) != "" || storySentChars > 0 {
+				c.syncStoryStreamProgress(svc, c.DeviceID, plan.StoryID, spokenStory, storySentChars, lastSent, lastSentIdx, segments, complete, playbackOK)
 			}
 			session.ClearStoryPlayback()
 
 			spokenText := storySpokenText(filler, spokenStory)
 			if updater := session.storyProgressUpdater; updater != nil {
-				remember := playbackOK && (complete || strings.TrimSpace(spokenStory) != "")
+				remember := complete || strings.TrimSpace(spokenStory) != ""
 				updater.RememberStoryForFollowUp(ttsCtx, session, plan.StoryID, spokenText, remember)
-			} else if playbackOK && (complete || strings.TrimSpace(spokenStory) != "") {
-				c.rememberRecentStoryByID(context.Background(), plan.StoryID)
-				c.ensureStoryAssistantMessage(ttsCtx, session, spokenText)
+			} else if complete || strings.TrimSpace(spokenStory) != "" {
+				c.RememberStoryForFollowUp(context.Background(), session, plan.StoryID, spokenText, complete)
 			}
 			if session.llmManager != nil {
 				result := llmHandleResultFromArgs(args)

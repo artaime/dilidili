@@ -82,13 +82,13 @@ flowchart LR
 |------|-----------|----------|----------|
 | VAD | `internal/domain/vad/inter/` | `silero_vad/`、`webrtc_vad/`、`ten_vad/` | `config.yaml` vad 段 |
 | ASR | `AsrProvider` | `internal/domain/asr/`（FunASR、Doubao、讯飞、腾讯等） | config + manager |
-| LLM | `LLMProvider` | `internal/domain/llm/`（Eino、Dify、Coze 等） | config + manager |
+| LLM | `LLMProvider` | `internal/domain/llm/`（Eino、Dify、Coze 等）；主对话注入能力地面策略见 `llm/common.BuildCapabilityGroundingPolicy`；设备固件查/控依赖 MCP tools 描述增强见 `mcp.enrichFirmwareToolDescription` | config + manager |
 | TTS | `TTSProvider` | `internal/domain/tts/`（Doubao、Edge、CosyVoice/linkerai、百炼 CosyVoice、腾讯等） | config + manager |
-| MCP | `internal/domain/mcp/` | SSE / WebSocket / StreamableHTTP transport | manager MCP 配置 |
+| MCP | `internal/domain/mcp/` | SSE / WebSocket / StreamableHTTP；设备 IoT tools 转换时对固件 get/set 追加描述引导（`device_firmware_tools.go`） | manager MCP 配置 |
 | RAG | `Searcher` | `internal/domain/rag/`（Dify、RAGFlow、WeKnora） | manager 知识库 |
 | 用户配置 | `config_provider` | `internal/domain/config/manager/`、`redis/` | `config.yaml` |
 | Chat Hooks | `hooks.Hub` | `internal/domain/chat/hooks/` | `config.yaml` chat_hooks |
-| 儿童故事 | `story.Service` / `create_child_story` | `internal/domain/story/`、`internal/app/server/chat/child_story_mcp_tool.go` | `config.yaml` story / local_mcp |
+| 儿童故事 | `story.Service` / `create_child_story` | `internal/domain/story/`（含双池 share）、`internal/app/server/chat/child_story_*.go`、`internal/data/storypersist/`；Manager `story_assets`/`story_asset_aliases`/`story_playbacks`；管理端 `/admin/story-assets`、设备故事删/清 | `config.yaml` story（含 share_*）/ local_mcp；FEATURE `docs/features/story-asset-playback/`、`story-asset-admin/`、`device-story-delete/` |
 | OpenClaw | `internal/domain/openclaw/` | 智能体 Endpoint / 关键词路由 | manager 智能体配置 |
 
 新增 provider 时：实现接口 → 注册工厂 → 配置样例 → L2 FEATURE.md → 更新本表。
@@ -103,6 +103,8 @@ flowchart LR
 | 管理 API | `/api/*`（Gin） | `manager/backend/router/router.go` |
 | 小程序 API | `/api/mp/*` | `manager/backend/controllers/mp_*.go` |
 | 家长留言内部 API | `/api/internal/.../parent-messages` | `manager/backend/controllers/parent_message_internal.go` |
+| 故事持久化内部 API | `/api/internal/stories/*` | `manager/backend/controllers/story_internal.go` |
+| 小程序故事详情 | `GET /api/mp/devices/:id/stories/:storyId` | `manager/backend/controllers/device_story.go` |
 | 内部服务 API | `/api/internal/*` | `manager/backend/controllers/` |
 | 运行时监控上报 | `POST /api/internal/runtime/report` | `internal/observability/reporter.go` |
 | 运行时监控 Admin | `GET /api/admin/runtime/*`、SSE `/api/admin/runtime/stream` | `manager/backend/controllers/runtime_report.go` |

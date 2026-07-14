@@ -70,6 +70,8 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	}
 	deviceMemoryController := &controllers.DeviceMemoryController{DB: db}
 	deviceStoryController := &controllers.DeviceStoryController{DB: db, Cfg: cfg}
+	storyInternalController := &controllers.StoryInternalController{DB: db}
+	storyAssetController := &controllers.StoryAssetController{DB: db}
 	mpAuthController := &controllers.MpAuthController{DB: db, Cfg: cfg}
 	mpDeviceController := &controllers.MpDeviceController{
 		DB:           db,
@@ -107,6 +109,10 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			internal.POST("/internal/history/messages", chatHistoryController.SaveMessage)                         // 保存消息（内部服务接口）
 			internal.PUT("/internal/history/messages/:message_id/audio", chatHistoryController.UpdateMessageAudio) // 更新消息音频（内部服务接口）
 			internal.GET("/internal/history/messages", chatHistoryController.GetMessagesForInit)                   // 获取消息（用于初始化加载，内部服务接口）
+			internal.POST("/internal/stories/assets", storyInternalController.UpsertAsset)
+			internal.POST("/internal/stories/playbacks", storyInternalController.UpsertPlayback)
+			internal.GET("/internal/stories/assets/:id", storyInternalController.GetAsset)
+			internal.GET("/internal/stories/shareable", storyInternalController.FindShareable)
 			internal.POST("/internal/pool/stats", poolStatsController.ReportPoolStats)                             // 上报资源池统计数据（内部服务接口）
 			internal.POST("/internal/runtime/report", runtimeReportController.ReportRuntime)                     // 上报主服务运行时监控数据
 			internal.POST("/internal/devices/:device_name/switch-role", adminController.SwitchDeviceRoleByNameInternal)
@@ -135,6 +141,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				mp.GET("/devices", mpDeviceController.ListDevices)
 				mp.DELETE("/devices/:id", mpDeviceController.UnbindDevice)
 				mp.GET("/devices/:id/conversation-records", conversationRecordController.MpList)
+				mp.GET("/devices/:id/stories/:storyId", deviceStoryController.MpGetDeviceStory)
 				mp.GET("/conversation-records/chat/:id/audio", conversationRecordController.MpGetChatAudio)
 				mp.POST("/messages", mpMessageController.CreateMessage)
 				mp.GET("/messages", mpMessageController.ListMessages)
@@ -418,7 +425,16 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				admin.GET("/devices/:id/memory", deviceMemoryController.GetDeviceMemory)
 				admin.DELETE("/devices/:id/memory", deviceMemoryController.DeleteDeviceMemory)
 				admin.GET("/devices/:id/stories", deviceStoryController.ListDeviceStories)
+				admin.DELETE("/devices/:id/stories", deviceStoryController.ClearDeviceStories)
 				admin.GET("/devices/:id/stories/:storyId", deviceStoryController.GetDeviceStory)
+				admin.DELETE("/devices/:id/stories/:storyId", deviceStoryController.DeleteDeviceStory)
+
+				admin.GET("/story-assets", storyAssetController.List)
+				admin.POST("/story-assets", storyAssetController.Create)
+				admin.POST("/story-assets/generate", storyAssetController.Generate)
+				admin.GET("/story-assets/:storyId", storyAssetController.Get)
+				admin.PUT("/story-assets/:storyId", storyAssetController.Update)
+				admin.DELETE("/story-assets/:storyId", storyAssetController.Delete)
 				admin.GET("/conversation-records/chat/:id/audio", conversationRecordController.AdminGetChatAudio)
 				admin.GET("/conversation-records/parent/:id/audio", conversationRecordController.AdminGetParentAudio)
 

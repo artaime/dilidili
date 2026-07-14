@@ -162,10 +162,44 @@ func parseScore(s string) float64 {
 	return f
 }
 
+// PersistSink 将故事记录异步持久化到 Manager MySQL。
+type PersistSink interface {
+	UpsertFromRecord(ctx context.Context, rec *StoryRecord) error
+}
+
 type Store struct {
 	backend StoreBackend
 	prefix  string
 	cfg     Config
+	persist PersistSink
+}
+
+// SetPersistSink 注入 dual-write 接收方（可空）。
+func (s *Store) SetPersistSink(sink PersistSink) {
+	if s == nil {
+		return
+	}
+	s.persist = sink
+}
+
+func (s *Store) asyncPersist(rec *StoryRecord) {
+	if s == nil || s.persist == nil || rec == nil {
+		return
+	}
+	cp := *rec
+	if rec.ParamsSnapshot != nil {
+		ps := make(map[string]any, len(rec.ParamsSnapshot))
+		for k, v := range rec.ParamsSnapshot {
+			ps[k] = v
+		}
+		cp.ParamsSnapshot = ps
+	}
+	if len(rec.Segments) > 0 {
+		cp.Segments = append([]string(nil), rec.Segments...)
+	}
+	go func() {
+		_ = s.persist.UpsertFromRecord(context.Background(), &cp)
+	}()
 }
 
 var defaultRedisClient *redis.Client
@@ -246,6 +280,7 @@ func (s *Store) Save(ctx context.Context, record *StoryRecord) error {
 	); err != nil {
 		return err
 	}
+	s.asyncPersist(record)
 	return s.evictExpired(ctx, record.DeviceID, now)
 }
 

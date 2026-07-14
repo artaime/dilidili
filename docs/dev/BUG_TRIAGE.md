@@ -26,6 +26,10 @@ ESP32 设备
 | MQTT-UDP 断连/播报异常 | `internal/app/server/mqtt_udp/`、`doc/mqtt_udp.md` |
 | 语音识别无结果/延迟高 | `internal/app/server/chat/asr.go`、`internal/domain/asr/` |
 | LLM 回复异常/超时 | `internal/app/server/chat/llm.go`、`internal/domain/llm/` |
+| ASR 正确但无回复 / `DoLLmRequest context canceled` / DeepSeek `context canceled` | `session.go`：chat turn 勿绑 `AfterAsrSessionCtx`；`realtime_mode=4` 空闲态勿 Stop；auto 下对话中勿 `TryRecoverStuckVoiceCapture` |
+| auto 第二轮无回复并 goodbye / `EmptyAudio` → `ChatSession.Close` | ASR 入队后误恢复拾音 + listen stop；查 `TryRecoverStuckVoiceCapture` / soft listen stop / `isBenignAsrDisconnectError` |
+| 固件调音量后先拒再说成功/说「做不到」 | `llm.go` 能力地面改写 + `toolsSucceededInTurn`；`mcp/device_firmware_tools.go` |
+| 问电量/调音量被闲聊截走、不调 MCP | `intent` 路由：`device` 意图应 fallthrough；查 `intent_router.go` / `prompt.go` |
 | TTS 无声音/音色错误 | `internal/app/server/chat/tts.go`、`internal/domain/tts/` |
 | VAD 误切/漏检 | `internal/domain/vad/` |
 | MCP 工具调用失败 | `internal/domain/mcp/`、`internal/app/server/chat/mcp.go` |

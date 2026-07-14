@@ -1213,6 +1213,20 @@ func isTencentASRNoAudioTimeout(err error) bool {
 		(strings.Contains(msg, "tencent_asr") && strings.Contains(msg, "15秒") && strings.Contains(msg, "未发送音频"))
 }
 
+// isBenignAsrDisconnectError 识别链路被 listen stop / 空音频等正常打断时产生的错误，不应抬成会话 fatal。
+func isBenignAsrDisconnectError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	lower := strings.ToLower(msg)
+	return strings.Contains(msg, "EmptyAudio") ||
+		strings.Contains(lower, "empty audio") ||
+		strings.Contains(msg, "连续返回空结果") ||
+		strings.Contains(msg, "连续触发可恢复错误") ||
+		isTencentASRNoAudioTimeout(err)
+}
+
 // shouldIgnoreAsrLoopFatalErrorDuringAssistantOutput 助手 LLM/TTS 输出期间 ASR 无上行/通道关闭导致的保护性错误不应关闭会话。
 func shouldIgnoreAsrLoopFatalErrorDuringAssistantOutput(state *ClientState, err error) bool {
 	if state == nil || err == nil {
@@ -1221,13 +1235,7 @@ func shouldIgnoreAsrLoopFatalErrorDuringAssistantOutput(state *ClientState, err 
 	if state.ShouldCountAudioIdleTimeout() {
 		return false
 	}
-	msg := err.Error()
-	if strings.Contains(msg, "连续返回空结果") ||
-		strings.Contains(msg, "连续触发可恢复错误") ||
-		isTencentASRNoAudioTimeout(err) {
-		return true
-	}
-	return false
+	return isBenignAsrDisconnectError(err)
 }
 
 func (a *ASRManager) shouldDeferAsrRecoveryDuringAssistantOutput(state *ClientState) bool {

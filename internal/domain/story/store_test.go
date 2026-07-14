@@ -49,7 +49,13 @@ func TestStoreListInWindow(t *testing.T) {
 	store := NewStoreWithBackend(mem, "test", cfg)
 	ctx := context.Background()
 
-	playTime := time.Date(2026, 6, 29, 21, 0, 0, 0, time.Local)
+	// 相对「此刻」构造昨晚窗口内的时间，避免固定日期被 retention 淘汰。
+	now := time.Now()
+	start, end := LastNightWindow(now, 18, 7)
+	playTime := start.Add(3 * time.Hour)
+	if !playTime.Before(end) {
+		playTime = start.Add(30 * time.Minute)
+	}
 	rec := &StoryRecord{
 		DeviceID: "dev1", Title: "睡前故事", FullText: "晚安。",
 		Segments: []string{"晚安。"}, CreatedAt: playTime, LastPlayedAt: playTime,
@@ -58,14 +64,12 @@ func TestStoreListInWindow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	now := time.Date(2026, 6, 30, 10, 0, 0, 0, time.Local)
-	start, end := LastNightWindow(now, 18, 7)
 	list, err := store.ListInWindow(ctx, "dev1", start, end, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(list) != 1 {
-		t.Fatalf("expected 1 story in last night window, got %d", len(list))
+		t.Fatalf("expected 1 story in last night window, got %d (window %v~%v play %v)", len(list), start, end, playTime)
 	}
 }
 

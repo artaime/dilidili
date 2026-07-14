@@ -12,6 +12,7 @@ import (
 
 	"dili/manager/backend/config"
 	"dili/manager/backend/models"
+	"dili/manager/backend/services/story_persist"
 
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -120,15 +121,35 @@ func (s *Service) ListDeviceStories(ctx context.Context, deviceID uint, limit in
 	if err != nil {
 		return nil, err
 	}
-	reader, err := s.storyReader()
-	if err != nil {
-		return nil, err
-	}
 	if limit <= 0 {
 		limit = 50
 	}
 	if limit > 100 {
 		limit = 100
+	}
+
+	if items, ok := s.listFromMySQL(ctx, device.DeviceName, limit); ok && len(items) > 0 {
+		return &DeviceStoryListView{
+			DeviceID: device.ID,
+			DeviceSN: device.DeviceName,
+			AgentID:  device.AgentID,
+			Total:    len(items),
+			Items:    items,
+		}, nil
+	}
+
+	reader, err := s.storyReader()
+	if err != nil {
+		// MySQL 空且 Redis 不可用时返回空列表而非错误（利于迁移期）。
+		if errors.Is(err, ErrRedisNotConfigured) {
+			return &DeviceStoryListView{
+				DeviceID: device.ID,
+				DeviceSN: device.DeviceName,
+				AgentID:  device.AgentID,
+				Items:    []StoryListItem{},
+			}, nil
+		}
+		return nil, err
 	}
 
 	records, err := reader.listRecent(ctx, device.DeviceName, limit)
@@ -159,13 +180,22 @@ func (s *Service) GetDeviceStory(ctx context.Context, deviceID uint, storyID str
 	if storyID == "" {
 		return nil, ErrStoryNotFound
 	}
+
+	if view, ok := s.getFromMySQL(ctx, device.DeviceName, storyID); ok {
+		return view, nil
+	}
+
 	reader, err := s.storyReader()
 	if err != nil {
-		return nil, err
+		return nil, ErrStoryNotFound
 	}
 	rec, err := reader.get(ctx, device.DeviceName, storyID)
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
+			// 回落：仅 asset 存在（聊天卡片跨设备资产）
+			if view, ok := s.getAssetOnlyFromMySQL(ctx, storyID); ok {
+				return view, nil
+			}
 			return nil, ErrStoryNotFound
 		}
 		return nil, fmt.Errorf("读取故事详情失败: %w", err)
@@ -176,6 +206,91 @@ func (s *Service) GetDeviceStory(ctx context.Context, deviceID uint, storyID str
 		FullText:      rec.FullText,
 		Segments:      rec.Segments,
 	}, nil
+}
+
+func (s *Service) listFromMySQL(ctx context.Context, deviceSN string, limit int) ([]StoryListItem, bool) {
+	if s == nil || s.DB == nil {
+		return nil, false
+	}
+	persist := story_persist.NewService(s.DB)
+	assets, plays, err := persist.ListPlaybacksByDevice(ctx, deviceSN, limit)
+	if err != nil || len(plays) == 0 {
+		return nil, false
+	}
+	items := make([]StoryListItem, 0, len(plays))
+	for i, p := range plays {
+		rec := mergePlaybackAsset(p, nil)
+		if i < len(assets) {
+			rec = mergePlaybackAsset(p, &assets[i])
+		}
+		items = append(items, mapStoryListItem(rec))
+	}
+	return items, true
+}
+
+func (s *Service) getFromMySQL(ctx context.Context, deviceSN, storyID string) (*StoryDetailView, bool) {
+	if s == nil || s.DB == nil {
+		return nil, false
+	}
+	persist := story_persist.NewService(s.DB)
+	asset, err := persist.GetAsset(ctx, storyID)
+	if err != nil {
+		return nil, false
+	}
+	var play models.StoryPlayback
+	_ = s.DB.WithContext(ctx).Where("device_sn = ? AND story_id = ?", deviceSN, storyID).First(&play).Error
+	rec := mergePlaybackAsset(play, asset)
+	item := mapStoryListItem(rec)
+	return &StoryDetailView{StoryListItem: item, FullText: asset.FullText, Segments: asset.Segments}, true
+}
+
+func (s *Service) getAssetOnlyFromMySQL(ctx context.Context, storyID string) (*StoryDetailView, bool) {
+	if s == nil || s.DB == nil {
+		return nil, false
+	}
+	asset, err := story_persist.NewService(s.DB).GetAsset(ctx, storyID)
+	if err != nil {
+		return nil, false
+	}
+	rec := mergePlaybackAsset(models.StoryPlayback{StoryID: storyID}, asset)
+	item := mapStoryListItem(rec)
+	return &StoryDetailView{StoryListItem: item, FullText: asset.FullText, Segments: asset.Segments}, true
+}
+
+func mergePlaybackAsset(play models.StoryPlayback, asset *story_persist.AssetView) *storyRecord {
+	rec := &storyRecord{
+		StoryID:        play.StoryID,
+		LastPlayStatus: play.LastPlayStatus,
+		PlayCount:      play.PlayCount,
+		CompleteCount:  play.CompleteCount,
+		LastPlayedAt:   play.LastPlayedAt,
+		LastPosition: playPosition{
+			SegmentIndex:      play.SegmentIndex,
+			CharOffset:        play.CharOffset,
+			LastSentenceIndex: play.LastSentenceIndex,
+			LastSentence:      play.LastSentence,
+		},
+	}
+	if asset != nil {
+		rec.StoryID = asset.StoryID
+		rec.Title = asset.Title
+		rec.FullText = asset.FullText
+		rec.Segments = asset.Segments
+		rec.Mode = asset.Mode
+		rec.AgeBand = asset.AgeBand
+		rec.GenerationComplete = asset.GenerationComplete
+		rec.ParamsSnapshot = asset.ParamsSnapshot
+		if rec.ParamsSnapshot == nil {
+			rec.ParamsSnapshot = map[string]any{}
+		}
+		if asset.ThemeKey != "" {
+			rec.ParamsSnapshot["theme"] = asset.ThemeKey
+		}
+		if asset.NarrationMode != "" {
+			rec.ParamsSnapshot["narration_mode"] = asset.NarrationMode
+		}
+	}
+	return rec
 }
 
 func (s *Service) loadDevice(deviceID uint) (*models.Device, error) {
@@ -267,13 +382,14 @@ func playbackProgress(rec *storyRecord) (segmentIndex, segmentTotal, percent int
 	if rec == nil {
 		return 0, 0, 0, false
 	}
-	if !isGenerationComplete(rec) {
+	// 有正文或断点即可展示字数进度；未完整生成时分母为当前已生成长度。
+	if strings.TrimSpace(rec.FullText) == "" && rec.LastPosition.CharOffset <= 0 && len(rec.Segments) == 0 {
 		return 0, 0, 0, false
 	}
 	showProgress = true
 	segmentTotal = len(rec.Segments)
 	segmentIndex = rec.LastPosition.SegmentIndex
-	if rec.LastPlayStatus == playStatusCompleted {
+	if rec.LastPlayStatus == playStatusCompleted && isGenerationComplete(rec) {
 		if segmentTotal > 0 {
 			return segmentTotal - 1, segmentTotal, 100, showProgress
 		}

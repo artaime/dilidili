@@ -11,6 +11,15 @@
       </div>
       <div class="header-right">
         <el-button :icon="Refresh" @click="loadStories" :loading="loading">刷新</el-button>
+        <el-button
+          type="danger"
+          plain
+          :disabled="!storyData?.total"
+          :loading="clearing"
+          @click="handleClearAll"
+        >
+          清空故事
+        </el-button>
       </div>
     </div>
 
@@ -29,7 +38,7 @@
       <div v-else class="stories-panel">
         <div class="summary-row" v-if="storyData">
           <el-tag type="info">共 {{ storyData.total || 0 }} 篇</el-tag>
-          <span class="summary-hint">数据来自 Redis Story Memory，与主服务共用</span>
+          <span class="summary-hint">本机播放记录（MySQL playback + Redis 热缓存）；删除不影响共享故事库</span>
         </div>
 
         <el-table
@@ -58,7 +67,6 @@
           <el-table-column label="长度" width="100">
             <template #default="{ row }">
               {{ row.text_length }} 字
-              <span v-if="row.segment_count" class="text-muted">/ {{ row.segment_count }} 段</span>
             </template>
           </el-table-column>
           <el-table-column label="题材" min-width="100" show-overflow-tooltip>
@@ -88,9 +96,10 @@
               {{ formatTime(row.last_played_at) }}
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="90" fixed="right">
+          <el-table-column label="操作" width="160" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click.stop="openDetail(row)">详情</el-button>
+              <el-button link type="danger" @click.stop="handleDelete(row)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -110,7 +119,6 @@
             <el-descriptions-item label="播放进度">
               <template v-if="detail.generation_complete && detail.last_position?.progress_available !== false">
                 {{ detail.last_position?.progress_percent ?? 0 }}%
-                （第 {{ (detail.last_position?.segment_index ?? 0) + 1 }} / {{ detail.last_position?.segment_total || detail.segment_count || '?' }} 段）
               </template>
               <el-tag v-else size="small" type="warning">生成中断</el-tag>
             </el-descriptions-item>
@@ -140,6 +148,11 @@
             readonly
             placeholder="暂无正文"
           />
+          <div class="detail-actions">
+            <el-button type="danger" plain :loading="deleting" @click="handleDelete(detail)">
+              删除本机记录
+            </el-button>
+          </div>
         </template>
       </div>
     </el-drawer>
@@ -149,7 +162,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Refresh } from '@element-plus/icons-vue'
 import api from '../../utils/api'
 import { formatDeviceNickName } from '../../utils/iotDevice'
@@ -166,6 +179,8 @@ const deviceSN = ref('')
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detail = ref(null)
+const clearing = ref(false)
+const deleting = ref(false)
 
 const ageBandMap = {
   preschool: '学龄前 (3-6)',
@@ -207,8 +222,7 @@ const progressStatus = (row) => {
 
 const formatProgressMeta = (row) => {
   const pos = row.last_position || {}
-  if (!pos.segment_total) return `${pos.progress_percent ?? 0}%`
-  return `${pos.progress_percent ?? 0}% · ${(pos.segment_index ?? 0) + 1}/${pos.segment_total} 段`
+  return `${pos.progress_percent ?? 0}%`
 }
 
 const formatTime = (value) => {
@@ -262,6 +276,55 @@ const openDetail = async (row) => {
     detailVisible.value = false
   } finally {
     detailLoading.value = false
+  }
+}
+
+const handleDelete = async (row) => {
+  if (!row?.story_id) return
+  try {
+    await ElMessageBox.confirm(
+      `确定删除「${row.title || row.story_id}」的本机播放记录？\n不会删除共享故事库中的正文。`,
+      '删除确认',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  deleting.value = true
+  try {
+    await api.delete(`/admin/devices/${deviceId.value}/stories/${row.story_id}`)
+    ElMessage.success('已删除本机记录')
+    detailVisible.value = false
+    await loadStories()
+  } catch (error) {
+    ElMessage.error(error.response?.data?.error || '删除失败')
+  } finally {
+    deleting.value = false
+  }
+}
+
+const handleClearAll = async () => {
+  const total = storyData.value?.total || 0
+  try {
+    await ElMessageBox.confirm(
+      `确定清空该设备全部 ${total} 条故事播放记录？\n仅清除本机进度与缓存，不影响共享故事库；清空后近 7 天共享排斥也会重置。`,
+      '清空确认',
+      { type: 'warning', confirmButtonText: '全部清空', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  clearing.value = true
+  try {
+    const { data } = await api.delete(`/admin/devices/${deviceId.value}/stories`)
+    const n = data?.data?.playback_deleted ?? 0
+    ElMessage.success(`已清空（playback ${n} 条）`)
+    detailVisible.value = false
+    await loadStories()
+  } catch (error) {
+    ElMessage.error(error.response?.data?.error || '清空失败')
+  } finally {
+    clearing.value = false
   }
 }
 
@@ -369,6 +432,12 @@ onMounted(async () => {
 .text-muted {
   color: var(--apple-text-secondary);
   font-size: 12px;
+}
+
+.detail-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .detail-desc {

@@ -182,6 +182,12 @@ const routes = [
             meta: { title: '用户管理' }
           },
           {
+            path: 'story-assets',
+            name: 'StoryAssets',
+            component: () => import('../views/admin/StoryAssets.vue'),
+            meta: { title: '故事管理' }
+          },
+          {
             path: 'devices',
             name: 'AdminDevices',
             component: () => import('../views/admin/Devices.vue'),

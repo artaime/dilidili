@@ -46,9 +46,14 @@
           >
             <div
               class="message-bubble"
-              :class="record.role === 'assistant' ? 'message-bubble-left' : 'message-bubble-right'"
+              :class="[
+                record.role === 'assistant' ? 'message-bubble-left' : 'message-bubble-right',
+                isStoryCard(record) ? 'story-card' : ''
+              ]"
+              @click="isStoryCard(record) && emitOpenStory(record)"
             >
-              <div v-if="record.content" class="message-text">{{ record.content }}</div>
+              <div v-if="record.content" class="message-text">{{ displayContent(record) }}</div>
+              <div v-if="isStoryCard(record)" class="story-card-hint">点击查看全文</div>
             </div>
             <el-button
               v-if="record.has_audio"
@@ -87,11 +92,25 @@ const props = defineProps({
   playingKey: { type: String, default: '' }
 })
 
-const emit = defineEmits(['load-older', 'load-newer', 'play-audio'])
+const emit = defineEmits(['load-older', 'load-newer', 'play-audio', 'open-story'])
 
 const scrollContainerRef = ref(null)
 
 const recordKey = (record) => `${record.type}_${record.id}`
+
+const isStoryCard = (record) => {
+  const meta = record?.metadata || {}
+  return meta.kind === 'story_card' && !!meta.story_id
+}
+
+const displayContent = (record) => {
+  if (!isStoryCard(record)) return record.content
+  const title = (record.metadata && record.metadata.title) || ''
+  if (record.content && String(record.content).startsWith('播放故事：')) {
+    return record.content
+  }
+  return title ? `播放故事：${title}` : (record.content || '播放故事：故事')
+}
 
 const wrapperClass = (record) => {
   if (record.type === 'parent_message') return 'message-center'
@@ -139,6 +158,12 @@ const shouldShowTime = (record, index) => {
 
 const emitPlay = (record) => {
   emit('play-audio', record)
+}
+
+const emitOpenStory = (record) => {
+  const storyId = record?.metadata?.story_id
+  if (!storyId) return
+  emit('open-story', { storyId, title: record?.metadata?.title || '', record })
 }
 
 const handleScroll = (event) => {
@@ -279,6 +304,18 @@ defineExpose({ scrollToBottom, scrollContainerRef })
   line-height: 1.5;
   white-space: pre-wrap;
   font-size: 14px;
+}
+
+.message-bubble.story-card {
+  cursor: pointer;
+  border: 1px solid rgba(0, 122, 255, 0.22);
+  background: rgba(0, 122, 255, 0.06);
+}
+
+.story-card-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--apple-text-secondary);
 }
 
 .play-btn-outside {

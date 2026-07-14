@@ -35,7 +35,28 @@
       @load-older="loadOlder"
       @load-newer="loadNewer"
       @play-audio="handlePlayAudio"
+      @open-story="openStoryDetail"
     />
+
+    <el-drawer
+      v-model="storyDetailVisible"
+      :title="storyDetail?.title || '故事详情'"
+      size="520px"
+      destroy-on-close
+    >
+      <div v-loading="storyDetailLoading">
+        <template v-if="storyDetail">
+          <p class="story-meta">字数：{{ storyDetail.text_length || (storyDetail.full_text || '').length }}</p>
+          <el-input
+            :model-value="storyDetail.full_text || ''"
+            type="textarea"
+            :rows="18"
+            readonly
+            placeholder="暂无正文"
+          />
+        </template>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -64,8 +85,27 @@ const deviceSN = ref('')
 const playingKey = ref('')
 const audioEl = ref(null)
 const audioBlobUrls = ref({})
+const storyDetailVisible = ref(false)
+const storyDetailLoading = ref(false)
+const storyDetail = ref(null)
 
 const recordKey = (record) => `${record.type}_${record.id}`
+
+const openStoryDetail = async ({ storyId }) => {
+  if (!storyId || !deviceId.value) return
+  storyDetailVisible.value = true
+  storyDetailLoading.value = true
+  storyDetail.value = null
+  try {
+    const response = await api.get(`/admin/devices/${deviceId.value}/stories/${storyId}`)
+    storyDetail.value = response.data?.data || response.data || null
+  } catch (error) {
+    ElMessage.error(error.response?.data?.error || '加载故事详情失败')
+    storyDetailVisible.value = false
+  } finally {
+    storyDetailLoading.value = false
+  }
+}
 
 const buildParams = (extra = {}) => {
   const params = { limit: 20, ...extra }
@@ -273,6 +313,12 @@ onBeforeUnmount(() => {
 
 .context-meta {
   margin: 0;
+  color: var(--apple-text-secondary);
+  font-size: 13px;
+}
+
+.story-meta {
+  margin: 0 0 12px;
   color: var(--apple-text-secondary);
   font-size: 13px;
 }

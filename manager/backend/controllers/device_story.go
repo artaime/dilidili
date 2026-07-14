@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"dili/manager/backend/config"
+	"dili/manager/backend/models"
 	"dili/manager/backend/services/device_story"
 
 	"github.com/gin-gonic/gin"
@@ -59,6 +60,62 @@ func (ctrl *DeviceStoryController) GetDeviceStory(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": view})
+}
+
+func (ctrl *DeviceStoryController) DeleteDeviceStory(c *gin.Context) {
+	deviceID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || deviceID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "设备 ID 无效"})
+		return
+	}
+	storyID := c.Param("storyId")
+	if storyID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "故事 ID 无效"})
+		return
+	}
+	svc := device_story.NewService(ctrl.DB, ctrl.Cfg)
+	result, err := svc.DeleteDeviceStory(c.Request.Context(), uint(deviceID), storyID)
+	if err != nil {
+		writeDeviceStoryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result, "ok": true})
+}
+
+func (ctrl *DeviceStoryController) ClearDeviceStories(c *gin.Context) {
+	deviceID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || deviceID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "设备 ID 无效"})
+		return
+	}
+	svc := device_story.NewService(ctrl.DB, ctrl.Cfg)
+	result, err := svc.ClearDeviceStories(c.Request.Context(), uint(deviceID))
+	if err != nil {
+		writeDeviceStoryError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result, "ok": true})
+}
+
+// MpGetDeviceStory 小程序按 story_id 拉取全文（需设备归属当前用户）。
+func (ctrl *DeviceStoryController) MpGetDeviceStory(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid, _ := userID.(uint)
+	deviceID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || deviceID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "设备 ID 无效"})
+		return
+	}
+	var device models.Device
+	if err := ctrl.DB.First(&device, uint(deviceID)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "设备不存在"})
+		return
+	}
+	if device.UserID != uid {
+		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该设备"})
+		return
+	}
+	ctrl.GetDeviceStory(c)
 }
 
 func writeDeviceStoryError(c *gin.Context, err error) {

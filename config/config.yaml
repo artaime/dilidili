@@ -455,6 +455,9 @@ story:
   filler_enabled: true
   filler_default: "好呀，我给你讲一个故事。"
   filler_bedtime: "好呀，那我们讲个睡前故事，乖乖听哦。"
+  protect_continue_threshold: 300   # 已播故事字数≥此值时用户插话停播但不取消 LLM 续写
+  share_exclude_days: 7             # 共享池：本设备近 N 天已播故事不重复抽取
+  share_pick_top_k: 5               # 共享池：reuse 最低的前 K 条中随机
   debug_log_tts_synthesized: false  # 已废弃：请用 chat.debug_log_tts_only（保留兼容）
 
 # Memory 长记忆配置

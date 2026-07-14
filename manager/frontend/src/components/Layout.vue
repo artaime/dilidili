@@ -116,6 +116,11 @@
               <span>用户管理</span>
             </el-menu-item>
 
+            <el-menu-item v-if="authStore.isAdmin" index="/admin/story-assets">
+              <el-icon><Reading /></el-icon>
+              <span>故事管理</span>
+            </el-menu-item>
+
             <el-menu-item v-if="authStore.isAdmin" index="/admin/devices">
               <el-icon><Iphone /></el-icon>
               <span>设备管理</span>
@@ -172,7 +177,8 @@ import {
   Microphone,
   DataAnalysis,
   Monitor,
-  Document
+  Document,
+  Reading
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

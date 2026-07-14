@@ -6,12 +6,28 @@
 
 ### Added
 
+- 设备固件状态问答与控制：IoT MCP 工具（`get_device_status` / `set_speaker_volume` / `set_screen_brightness` / `enter_sleep_mode` / `power_off_device`）转换时追加调用引导（问状态须主动 get，相对调节先 get 再 ±10）；能力地面补强状态查询与睡眠/关机完成态护栏。详见 `docs/features/DEVICE_FIRMWARE_STATUS.md`
+- LLM 能力地面（防乱答）：按本轮 tools 注入能力白名单与诚实回答规则；无 tool call 时改写「已帮你关/调/设…」类虚构完成态话术；意图路由 general 同步约束。详见 `docs/features/LLM_CAPABILITY_GROUNDING.md`
+- 管理端设备故事支持单条删除与清空（仅本机 playback + Redis，不删共享资产）；详见 `docs/features/device-story-delete/FEATURE.md`
+- 管理端「故事管理」：共享资产列表/新增/编辑/删除，支持 AI 生成正文；详见 `docs/features/story-asset-admin/FEATURE.md`
+- 故事意图 LLM 输出规范名 `canonical`（纠 ASR 谐音）并以之查共享池，口语 `theme_raw` 写入别名；详见 `docs/features/story-asset-playback/FEATURE.md`
+- 故事共享池方案 A：点名池（canonical/别名）与开放池（open/bedtime）、设备近 7 天排斥 + Top-K 随机取用；详见 `docs/features/story-asset-playback/FEATURE.md`
+- 儿童故事资产库 / 进度保护 / 聊天短卡片：MySQL `story_assets`+`story_playbacks`（Redis 热缓存 dual-write）、`protect_continue_threshold` 停播不停写、历史短文案「播放故事：标题」点击拉全文、canonical 跨用户复用已完成正文；详见 `docs/features/story-asset-playback/FEATURE.md`、`docs/adr/0001-story-asset-playback.md`
 - 腾讯 ASR（`tencent_asr`）：接入腾讯云实时语音识别 WebSocket v2，支持流式识别与管理台配置测试；详见 `docs/dev/FEATURE_tencent_asr.md`
 - 腾讯 TTS（`tencent_tts`）：接入腾讯云流式文本语音合成 v2（stream_wsv2），支持管理台配置、音色选择与双流式合成；详见 `docs/dev/FEATURE_tencent_tts.md`
 - 百炼 CosyVoice TTS（`aliyun_cosyvoice`）：接入阿里云百炼官方 SpeechSynthesizer HTTP API（SSE 流式），支持管理台配置、按模型选择系统音色与配置测试；详见 `docs/dev/FEATURE_aliyun_cosyvoice.md`
 
 ### Fixed
 
+- auto 模式连续对话（如调音量 80 后再调 50）无回复并 goodbye：ASR 入队后误触发「拾音卡住恢复」，紧接着 listen stop 产生 FunASR `EmptyAudio` 被当成 fatal 关闭会话；对话处理中禁止自动恢复拾音，listen stop 走软停，EmptyAudio 等断开类错误不关会话
+- ASR 识别正确却无回复（`DoLLmRequest` 起手即 `context canceled`）：本轮对话改绑独立 chat turn ctx（父级 SessionCtx），不再与 `AfterAsrSessionCtx` 共用 cancel；`realtime_mode=4` 空闲态 ASR 首字不再 `StopAssistantOutput`（避免与入队 turn / 意图路由竞态）
+- 固件 set 成功后二次 LLM 把「已调好」误改成「做不到」：工具成功后标记本轮已落地，能力地面不再改写；完成态话术与 tool_calls 乱序时暂存而非立即改写；set 成功结果附明确成功语义。详见 `docs/features/DEVICE_FIRMWARE_STATUS.md`
+- 意图路由 `general` 短路导致「问电量编造没有电表 / 调音量被当成闲聊」：新增 `device` 意图交主 LLM+MCP；general 若含虚构设备操作也回退主对话。详见 `docs/features/DEVICE_FIRMWARE_STATUS.md`
+- TTS 未播完即收到 `tts stop`/`goodbye`：stop 等待改为 `playbackTail + sentenceControlDelay + 400ms`（覆盖 sentence_start 起播滞后与设备缓冲）；TTS/欢迎语期间设备 `listen stop` 仅停上行，不走 `OnManualStop`；欢迎语 TTS 绑 client ctx 并成对 `IsStart/IsEnd`
+- 连说两次「讲一个故事」会串播两篇：空主题去重 + 播报中拒绝重复 generate；详见 `docs/features/story-playback-ux-fix/FEATURE.md`
+- 未完整生成的故事不再入共享池（清 `pool_kind`/别名，`shareable=false`）
+- 故事完播误标「打断」、进度停在开头：播报中周期性落进度，TTS 正常排空且生成完整则标 `completed`；管理端进度仅显示百分比
+- 管理端设备对话记录与小程序一致：展示「播放故事：标题」，点击再查全文
 - 管理台 TTS 保存百炼 CosyVoice 后 provider 被误判为 OpenAI，导致配置测试与运行时合成失败
 - realtime/auto 模式下 ASR 重启后未恢复拾音（`VoiceStop` 仍为 true），导致 UDP 音频被持续跳过且无识别结果
 - 腾讯 ASR 发送 `end` 后长时间无 final 响应时会阻塞 ASR 结果循环

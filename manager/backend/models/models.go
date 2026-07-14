@@ -364,3 +364,62 @@ func (m *ChatMessage) AfterFind(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+// StoryAsset 可共享故事正文（持久 SoT）。
+type StoryAsset struct {
+	ID                 uint      `json:"id" gorm:"primarykey"`
+	StoryID            string    `json:"story_id" gorm:"type:varchar(64);uniqueIndex;not null"`
+	Title              string    `json:"title" gorm:"type:varchar(200)"`
+	ThemeKey           string    `json:"theme_key" gorm:"type:varchar(100);index"`
+	PoolKind           string    `json:"pool_kind" gorm:"type:varchar(20);index"` // named|open|bedtime
+	CanonicalKey       string    `json:"canonical_key" gorm:"type:varchar(100);index"`
+	AliasesJSON        string    `json:"aliases_json" gorm:"type:json"`
+	Mode               string    `json:"mode" gorm:"type:varchar(40)"`
+	NarrationMode      string    `json:"narration_mode" gorm:"type:varchar(40);index"`
+	AgeBand            string    `json:"age_band" gorm:"type:varchar(40);index"`
+	FullText           string    `json:"full_text" gorm:"type:text"`
+	SegmentsJSON       string    `json:"segments_json" gorm:"type:text"`
+	GenerationComplete bool      `json:"generation_complete" gorm:"default:false;index"`
+	Shareable          bool      `json:"shareable" gorm:"default:false;index"`
+	CreatorDeviceSN    string    `json:"creator_device_sn" gorm:"type:varchar(100);index"`
+	CreatorUserID      uint      `json:"creator_user_id" gorm:"index"`
+	ParamsSnapshotJSON string    `json:"params_snapshot_json" gorm:"type:json"`
+	ReuseCount         int       `json:"reuse_count" gorm:"default:0"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+func (StoryAsset) TableName() string { return "story_assets" }
+
+// StoryAssetAlias 点名池别名索引（口语异名 → story_id）。
+type StoryAssetAlias struct {
+	ID           uint      `json:"id" gorm:"primarykey"`
+	AliasKey     string    `json:"alias_key" gorm:"type:varchar(100);uniqueIndex;not null"`
+	StoryID      string    `json:"story_id" gorm:"type:varchar(64);index;not null"`
+	CanonicalKey string    `json:"canonical_key" gorm:"type:varchar(100);index"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+func (StoryAssetAlias) TableName() string { return "story_asset_aliases" }
+
+// StoryPlayback 设备级故事播放态。
+type StoryPlayback struct {
+	ID                uint      `json:"id" gorm:"primarykey"`
+	DeviceSN          string    `json:"device_sn" gorm:"type:varchar(100);uniqueIndex:uk_story_playback_device_story,priority:1;not null"`
+	StoryID           string    `json:"story_id" gorm:"type:varchar(64);uniqueIndex:uk_story_playback_device_story,priority:2;not null;index"`
+	UserID            uint      `json:"user_id" gorm:"index"`
+	AgentID           string    `json:"agent_id" gorm:"type:varchar(64)"`
+	LastPlayStatus    string    `json:"last_play_status" gorm:"type:varchar(40)"`
+	CharOffset        int       `json:"char_offset" gorm:"default:0"`
+	SegmentIndex      int       `json:"segment_index" gorm:"default:0"`
+	LastSentenceIndex int       `json:"last_sentence_index" gorm:"default:0"`
+	LastSentence      string    `json:"last_sentence" gorm:"type:varchar(500)"`
+	PlayCount         int       `json:"play_count" gorm:"default:0"`
+	CompleteCount     int       `json:"complete_count" gorm:"default:0"`
+	LastPlayedAt      time.Time `json:"last_played_at" gorm:"index"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func (StoryPlayback) TableName() string { return "story_playbacks" }

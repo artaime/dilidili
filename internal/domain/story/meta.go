@@ -14,9 +14,11 @@ const metaMarkerPrefix = "[[meta:"
 
 // StoryMeta LLM 在正文前输出的故事元信息（不播报）。
 type StoryMeta struct {
-	Title  string `json:"title,omitempty"`
-	Genre  string `json:"genre,omitempty"`
-	Theme  string `json:"theme,omitempty"` // 具体故事主题/名称（可与 title 相同）
+	Title      string   `json:"title,omitempty"`
+	Genre      string   `json:"genre,omitempty"`
+	Theme      string   `json:"theme,omitempty"` // 具体故事主题/名称（可与 title 相同）
+	Canonical  string   `json:"canonical,omitempty"`
+	Aliases    []string `json:"aliases,omitempty"`
 }
 
 // MetaStreamFilter 从流式首行剥离 meta 行，避免送入 TTS。
@@ -82,6 +84,15 @@ func ParseMetaLine(line string) (StoryMeta, bool) {
 			meta.Genre = NormalizeGenre(val)
 		case "theme", "主题":
 			meta.Theme = val
+		case "canonical", "规范名", "标准名":
+			meta.Canonical = val
+		case "aliases", "别名":
+			for _, a := range strings.Split(val, ",") {
+				a = strings.TrimSpace(a)
+				if a != "" {
+					meta.Aliases = append(meta.Aliases, a)
+				}
+			}
 		}
 	}
 	if meta.Title == "" && meta.Theme != "" {
@@ -90,7 +101,7 @@ func ParseMetaLine(line string) (StoryMeta, bool) {
 	if meta.Theme == "" && meta.Title != "" {
 		meta.Theme = meta.Title
 	}
-	return meta, meta.Title != "" || meta.Genre != "" || meta.Theme != ""
+	return meta, meta.Title != "" || meta.Genre != "" || meta.Theme != "" || meta.Canonical != "" || len(meta.Aliases) > 0
 }
 
 // StripLeadingMeta 从完整文本剥离首行 meta，返回元信息与纯正文。
@@ -202,6 +213,12 @@ func mergeStoryMeta(planMeta, parsed StoryMeta) StoryMeta {
 	}
 	if strings.TrimSpace(parsed.Theme) != "" {
 		out.Theme = parsed.Theme
+	}
+	if strings.TrimSpace(parsed.Canonical) != "" {
+		out.Canonical = parsed.Canonical
+	}
+	if len(parsed.Aliases) > 0 {
+		out.Aliases = append(out.Aliases, parsed.Aliases...)
 	}
 	return out
 }

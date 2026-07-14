@@ -40,6 +40,11 @@ func (c *ChatManager) tryHandleChildStoryRequest(ctx context.Context, text strin
 	log.Infof("设备 %s LLM 故事路由 action=%s theme=%q type=%s narration=%s text=%q",
 		c.DeviceID, params.Action, params.Theme, params.RequestType, params.NarrationMode, text)
 
+	if params.Action == story.ActionGenerate && c.shouldRejectStoryGenerateWhileActive() {
+		log.Infof("设备 %s 故事播报中忽略重复 generate 请求 text=%q", c.DeviceID, text)
+		return true, nil
+	}
+
 	result, err := c.LocalMcpCreateChildStory(ctx, params)
 	if err != nil {
 		log.Errorf("设备 %s 儿童故事直达失败: %v", c.DeviceID, err)

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -15,16 +16,17 @@ const maxConversationRecordLimit = 100
 
 // ConversationRecordItem 统一对话记录项
 type ConversationRecordItem struct {
-	Type        string     `json:"type"`
-	ID          uint       `json:"id"`
-	SortTime    time.Time  `json:"sort_time"`
-	Role        string     `json:"role,omitempty"`
-	Content     string     `json:"content"`
-	HasAudio    bool       `json:"has_audio"`
-	ChatAudioID uint       `json:"chat_audio_id,omitempty"` // 文字留言 TTS 回放对应的 chat_messages.id
-	SourceType  string     `json:"source_type,omitempty"`
-	Title       string     `json:"title,omitempty"`
-	PlayedAt    *time.Time `json:"played_at,omitempty"`
+	Type        string                 `json:"type"`
+	ID          uint                   `json:"id"`
+	SortTime    time.Time              `json:"sort_time"`
+	Role        string                 `json:"role,omitempty"`
+	Content     string                 `json:"content"`
+	HasAudio    bool                   `json:"has_audio"`
+	ChatAudioID uint                   `json:"chat_audio_id,omitempty"` // 文字留言 TTS 回放对应的 chat_messages.id
+	SourceType  string                 `json:"source_type,omitempty"`
+	Title       string                 `json:"title,omitempty"`
+	PlayedAt    *time.Time             `json:"played_at,omitempty"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type conversationRecordCursor struct {
@@ -41,15 +43,16 @@ type conversationRecordQuery struct {
 }
 
 type unifiedRecordRow struct {
-	RecordType string     `gorm:"column:record_type"`
-	ID         uint       `gorm:"column:id"`
-	SortTime   time.Time  `gorm:"column:sort_time"`
-	Role       string     `gorm:"column:role"`
-	Content    string     `gorm:"column:content"`
-	HasAudio   int        `gorm:"column:has_audio"`
-	SourceType string     `gorm:"column:source_type"`
-	Title      string     `gorm:"column:title"`
-	PlayedAt   *time.Time `gorm:"column:played_at"`
+	RecordType   string     `gorm:"column:record_type"`
+	ID           uint       `gorm:"column:id"`
+	SortTime     time.Time  `gorm:"column:sort_time"`
+	Role         string     `gorm:"column:role"`
+	Content      string     `gorm:"column:content"`
+	HasAudio     int        `gorm:"column:has_audio"`
+	SourceType   string     `gorm:"column:source_type"`
+	Title        string     `gorm:"column:title"`
+	PlayedAt     *time.Time `gorm:"column:played_at"`
+	MetadataJSON string     `gorm:"column:metadata_json"`
 }
 
 func normalizeConversationLimit(limit int) int {
@@ -66,13 +69,14 @@ func unifiedConversationSQL() string {
 	return `
 SELECT 'chat' AS record_type, id, created_at AS sort_time, role, content,
        CASE WHEN COALESCE(audio_path, '') != '' THEN 1 ELSE 0 END AS has_audio,
-       '' AS source_type, '' AS title, NULL AS played_at
+       '' AS source_type, '' AS title, NULL AS played_at,
+       COALESCE(metadata, '') AS metadata_json
 FROM chat_messages
 WHERE device_id = ? AND user_id = ? AND is_deleted = 0 AND role IN ('user','assistant')
 UNION ALL
 SELECT 'parent_message', id, played_at, 'parent', COALESCE(text_content, ''),
        CASE WHEN source_type = 'voice' AND COALESCE(audio_path, '') != '' THEN 1 ELSE 0 END,
-       source_type, COALESCE(title, ''), played_at
+       source_type, COALESCE(title, ''), played_at, '' AS metadata_json
 FROM parent_messages
 WHERE device_id = ? AND user_id = ? AND status = 'played' AND played_at IS NOT NULL`
 }
@@ -90,6 +94,12 @@ func rowToItem(row unifiedRecordRow) ConversationRecordItem {
 	}
 	if row.RecordType == "chat" {
 		item.Role = row.Role
+	}
+	if strings.TrimSpace(row.MetadataJSON) != "" {
+		var meta map[string]interface{}
+		if err := json.Unmarshal([]byte(row.MetadataJSON), &meta); err == nil {
+			item.Metadata = meta
+		}
 	}
 	return item
 }

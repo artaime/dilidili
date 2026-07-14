@@ -3,13 +3,14 @@ package story
 import "unicode/utf8"
 
 // PlaybackProgress 根据断点与全文/分段计算播放进度（管理端展示用）。
+// 分母为当前已生成正文长度；生成未完成时百分比会随全文增长变化。
 func PlaybackProgress(rec *StoryRecord) (segmentIndex, segmentTotal, percent int) {
 	if rec == nil {
 		return 0, 0, 0
 	}
 	segmentTotal = len(rec.Segments)
 	segmentIndex = rec.LastPosition.SegmentIndex
-	if rec.LastPlayStatus == PlayStatusCompleted {
+	if rec.LastPlayStatus == PlayStatusCompleted && IsGenerationComplete(rec) {
 		if segmentTotal > 0 {
 			return segmentTotal - 1, segmentTotal, 100
 		}

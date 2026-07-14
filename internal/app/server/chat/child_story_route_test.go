@@ -22,6 +22,20 @@ func TestIntentResultToCreateParams(t *testing.T) {
 	}
 }
 
+func TestIntentResultToCreateParamsUsesCanonical(t *testing.T) {
+	params := intentResultToCreateParams(story.IntentResult{
+		IsStoryRequest: true,
+		Action:         "generate",
+		Theme:          "后裔射太阳",
+		Canonical:      "后羿射日",
+		StoryType:      "myth",
+		NarrationMode:  "canonical",
+	})
+	if params.Theme != "后羿射日" || params.ThemeRaw != "后裔射太阳" {
+		t.Fatalf("unexpected: %+v", params)
+	}
+}
+
 func TestStoryToolResultFromMap(t *testing.T) {
 	data := map[string]interface{}{
 		"status":        "ready",

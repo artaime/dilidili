@@ -36,8 +36,13 @@ import (
 
 type AsrResponseChannelItem struct {
 	ctx           context.Context
+	turn          *chatTurnHandle
 	text          string
 	speakerResult *speaker.IdentifyResult
+}
+
+type chatTurnHandle struct {
+	cancel context.CancelFunc
 }
 
 const detectLLMDebounceDuration = 300 * time.Millisecond
@@ -97,6 +102,12 @@ type ChatSession struct {
 
 	// stopSpeaking 保护，防止与 AddAsrResultToQueue/HandleWelcome 并发冲突
 	stopSpeakingMu sync.Mutex
+
+	// chatTurn 绑定本轮入队对话的独立 context（父为 SessionCtx）。
+	// 勿与 AfterAsrSessionCtx 共用同一 cancel：ASR 首字打断会 Cancel AfterAsr，
+	// 否则会误杀已入队、尚在意图路由/LLM 中的本轮请求。
+	chatTurnCancelMu sync.Mutex
+	chatTurn         *chatTurnHandle
 
 	welcomePlaybackMu     sync.Mutex
 	welcomePlaybackDoneCh chan welcomePlaybackResult
@@ -285,7 +296,10 @@ func NewChatSession(clientState *ClientState, serverTransport *ServerTransport, 
 				}
 				return
 			}
-			s.StopAssistantOutputAfterAsrWithReason(true, "ChatSession.OnAsrFirstTextCallback realtime_mode=4")
+			// Idle / 意图路由中：禁止 StopAssistantOutput。
+			// 此前会 Cancel AfterAsrSessionCtx，与「本轮已入队」或 ASR 重启后回声首字竞态，
+			// 导致 DoLLmRequest 一上来 context canceled、ASR 正确却无 TTS。
+			log.Debugf("设备 %s realtime_mode=4 空闲态跳过ASR首字打断: text=%s", clientState.DeviceID, text)
 		}
 	}
 
@@ -842,28 +856,30 @@ func (s *ChatSession) HandleWelcome() {
 		return
 	}
 
+	// 欢迎语 TTS 绑在 client ctx 上，避免 AfterAsr 被并发取消导致过早 stop；
+	// 同时预热 Session/AfterAsr，供后续正式对话使用。
 	sessionCtx := s.clientState.SessionCtx.Get(s.clientState.Ctx)
-	ctx := s.clientState.AfterAsrSessionCtx.Get(sessionCtx)
-	if ctx.Err() != nil {
-		log.Debugf("HandleWelcome afterAsr ctx 已取消，跳过欢迎语")
-		return
-	}
+	_ = s.clientState.AfterAsrSessionCtx.Get(sessionCtx)
 
 	s.clientState.IsWelcomeSpeaking = true
 	s.clientState.IsWelcomePlaying = true
 	s.beginWelcomePlaybackWait()
 
-	go func(ctx context.Context, greetingText string) {
-		if ctx.Err() != nil || s.clientState.Ctx.Err() != nil {
+	go func(greetingText string) {
+		if s.clientState.Ctx.Err() != nil {
 			s.completeWelcomePlaybackWait(false)
 			return
 		}
 
 		s.ttsManager.EnqueueTtsStartWithReason(s.clientState.Ctx, "HandleWelcome")
-		err := s.ttsManager.handleTextResponse(ctx, llm_common.LLMResponseStruct{Text: greetingText}, true)
+		err := s.ttsManager.handleTextResponse(s.clientState.Ctx, llm_common.LLMResponseStruct{
+			Text:    greetingText,
+			IsStart: true,
+			IsEnd:   true,
+		}, true)
 		s.ttsManager.EnqueueTtsStopWithReason(s.clientState.Ctx, "HandleWelcome natural end")
-		s.ttsManager.RequestTurnEnd(ctx, err)
-	}(ctx, greetingText)
+		s.ttsManager.RequestTurnEnd(s.clientState.Ctx, err)
+	}(greetingText)
 }
 
 func (a *ChatSession) checkExitWords(text string) bool {
@@ -1264,6 +1280,14 @@ func (s *ChatSession) HandleListenStop() error {
 		s.clientState.CancelSessionCtx()
 	}*/
 
+	// 设备在 TTS 起播时常主动发 listen stop（关麦）；欢迎语/助手播报/本轮对话处理期间勿走 OnManualStop，
+	// 避免误停 ASR 链路并牵连空结果保护/会话收口，导致未播完就 tts stop + goodbye。
+	if shouldSoftListenStopDuringOutput(s.clientState.IsWelcomePlaying, s.clientState.GetTtsStart(), s.clientState.GetStatus(), s.hasActiveChatTurn()) {
+		s.clientState.SetClientVoiceStop(true)
+		log.Infof("设备 %s TTS/欢迎语/对话处理中收到 listen stop，仅停止上行拾音", s.clientState.DeviceID)
+		return nil
+	}
+
 	//调用
 	if s.clientState.IsRealTime() {
 		s.invalidateListenStart()
@@ -1271,6 +1295,18 @@ func (s *ChatSession) HandleListenStop() error {
 	s.clientState.OnManualStop()
 
 	return nil
+}
+
+func shouldSoftListenStopDuringOutput(welcomePlaying bool, ttsStart bool, status string, chatTurnActive bool) bool {
+	if welcomePlaying || ttsStart || chatTurnActive {
+		return true
+	}
+	switch status {
+	case ClientStatusLLMStart, ClientStatusTTSStart:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *ChatSession) OnListenStart(startSeq uint64, shouldStartAudioIdleWindow bool) error {
@@ -1401,6 +1437,10 @@ func (s *ChatSession) OnListenStart(startSeq uint64, shouldStartAudioIdleWindow 
 			chatWarnLogf("设备 %s 助手输出期间忽略 ASR 循环错误，不关闭会话: %v", s.clientState.DeviceID, err)
 			return
 		}
+		if s.hasActiveChatTurn() && isBenignAsrDisconnectError(err) {
+			chatWarnLogf("设备 %s 对话处理中忽略 ASR 断开类错误，不关闭会话: %v", s.clientState.DeviceID, err)
+			return
+		}
 		log.Errorf("ASR识别循环错误: %v", err)
 		s.CloseWithReason(chatSessionCloseReasonFatalError)
 	}
@@ -1445,6 +1485,10 @@ func (s *ChatSession) startAsrResultLoop(
 				chatWarnLogf("设备 %s 助手输出期间忽略 ASR 循环错误，不关闭会话: %v", s.clientState.DeviceID, err)
 				return
 			}
+			if s.hasActiveChatTurn() && isBenignAsrDisconnectError(err) {
+				chatWarnLogf("设备 %s 对话处理中忽略 ASR 断开类错误，不关闭会话: %v", s.clientState.DeviceID, err)
+				return
+			}
 			log.Errorf("ASR识别循环错误: %v", err)
 			s.CloseWithReason(chatSessionCloseReasonFatalError)
 		}
@@ -1462,6 +1506,11 @@ func (s *ChatSession) TryRecoverStuckVoiceCapture() bool {
 		return false
 	}
 	if state.ListenMode == "manual" {
+		return false
+	}
+	// 本轮 ASR 已入队 / 意图路由 / LLM 进行中：禁止重启 ASR。
+	// 否则 auto 模式会在 LLM 前误恢复拾音，随即 listen stop → EmptyAudio → Close 整会话。
+	if s.hasActiveChatTurn() {
 		return false
 	}
 	if state.GetTtsStart() {
@@ -1527,6 +1576,56 @@ func (s *ChatSession) TryRecoverStuckVoiceCapture() bool {
 	return true
 }
 
+// beginChatTurn 为本轮入队对话创建独立 cancel，父级为 SessionCtx。
+func (s *ChatSession) beginChatTurn(parent context.Context) (context.Context, *chatTurnHandle) {
+	ctx, cancel := context.WithCancel(parent)
+	turn := &chatTurnHandle{cancel: cancel}
+	s.chatTurnCancelMu.Lock()
+	prev := s.chatTurn
+	s.chatTurn = turn
+	s.chatTurnCancelMu.Unlock()
+	if prev != nil && prev.cancel != nil {
+		prev.cancel()
+	}
+	return ctx, turn
+}
+
+func (s *ChatSession) cancelActiveChatTurn(reason string) {
+	if s == nil {
+		return
+	}
+	s.chatTurnCancelMu.Lock()
+	turn := s.chatTurn
+	s.chatTurn = nil
+	s.chatTurnCancelMu.Unlock()
+	if turn != nil && turn.cancel != nil {
+		log.Debugf("cancelActiveChatTurn: reason=%s", reason)
+		turn.cancel()
+	}
+}
+
+// releaseChatTurn 仅在仍指向本轮 handle 时释放，避免误清后一轮已入队的 turn。
+func (s *ChatSession) releaseChatTurn(turn *chatTurnHandle) {
+	if s == nil || turn == nil {
+		return
+	}
+	s.chatTurnCancelMu.Lock()
+	if s.chatTurn == turn {
+		s.chatTurn = nil
+	}
+	s.chatTurnCancelMu.Unlock()
+}
+
+func (s *ChatSession) hasActiveChatTurn() bool {
+	if s == nil {
+		return false
+	}
+	s.chatTurnCancelMu.Lock()
+	active := s.chatTurn != nil
+	s.chatTurnCancelMu.Unlock()
+	return active
+}
+
 // startChat 开始对话
 func (s *ChatSession) AddAsrResultToQueue(text string, speakerResult *speaker.IdentifyResult) error {
 	return s.AddAsrResultToQueueWithOptions(text, speakerResult, llmResponseChannelOptions{})
@@ -1559,12 +1658,15 @@ func (s *ChatSession) AddAsrResultToQueueWithOptions(text string, speakerResult 
 		log.Debugf("AddAsrResultToQueue sessionCtx 已取消，丢弃消息")
 		return nil
 	}
-	ctx := s.clientState.AfterAsrSessionCtx.Get(sessionCtx)
+	// 刷新 AfterAsr 供欢迎语/注入 TTS 等路径使用；本轮对话不绑它，避免 ASR 打断误杀。
+	_ = s.clientState.AfterAsrSessionCtx.Get(sessionCtx)
+	ctx, turn := s.beginChatTurn(sessionCtx)
 	ctx = withTTSPlaybackStartHook(ctx, options.onTTSPlaybackStart)
 	ctx = withTTSTurnEndPolicy(ctx, options.ttsTurnEndPolicy)
 
 	item := AsrResponseChannelItem{
 		ctx:           ctx,
+		turn:          turn,
 		text:          text,
 		speakerResult: speakerResult,
 	}
@@ -1588,7 +1690,7 @@ func (s *ChatSession) processChatText(ctx context.Context) {
 			continue
 		}
 
-		err = s.actionDoChat(item.ctx, item.text, item.speakerResult)
+			err = s.actionDoChat(item.ctx, item.turn, item.text, item.speakerResult)
 		if err != nil {
 			log.Errorf("处理对话失败: %v", err)
 			continue
@@ -1694,7 +1796,9 @@ func (s *ChatSession) CloseWithReason(reason string) {
 	})
 }
 
-func (s *ChatSession) actionDoChat(ctx context.Context, text string, speakerResult *speaker.IdentifyResult) error {
+func (s *ChatSession) actionDoChat(ctx context.Context, turn *chatTurnHandle, text string, speakerResult *speaker.IdentifyResult) error {
+	defer s.releaseChatTurn(turn)
+
 	select {
 	case <-ctx.Done():
 		log.Debugf("actionDoChat ctx done, return")

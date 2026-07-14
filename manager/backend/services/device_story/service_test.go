@@ -15,8 +15,9 @@ func TestPlaybackProgressIncompleteGeneration(t *testing.T) {
 		ParamsSnapshot:     map[string]any{"generation_complete": false},
 	}
 	_, _, pct, show := playbackProgress(rec)
-	if show || pct != 0 {
-		t.Fatalf("expected hidden progress, show=%v pct=%d", show, pct)
+	// 未完整生成也按已播/已生成字数展示进度。
+	if !show || pct != 50 {
+		t.Fatalf("expected visible char progress, show=%v pct=%d", show, pct)
 	}
 }
 

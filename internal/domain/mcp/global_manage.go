@@ -564,16 +564,16 @@ func ConvertMcpToolListToInvokableToolList(tools []mcp.Tool, serverName string, 
 			continue
 		}
 
-		mcpToolInstance := &McpTool{
-			info: &schema.ToolInfo{
-				Name:        llmName,
-				Desc:        tool.Description,
-				ParamsOneOf: schema.NewParamsOneOfByOpenAPIV3(inputSchema),
-			},
-			originName: originName,
-			serverName: serverName,
-			client:     client,
-		}
+			mcpToolInstance := &McpTool{
+				info: &schema.ToolInfo{
+					Name:        llmName,
+					Desc:        enrichFirmwareToolDescription(originName, tool.Description),
+					ParamsOneOf: schema.NewParamsOneOfByOpenAPIV3(inputSchema),
+				},
+				originName: originName,
+				serverName: serverName,
+				client:     client,
+			}
 		invokeTools[llmName] = mcpToolInstance
 	}
 	return invokeTools

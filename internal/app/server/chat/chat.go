@@ -20,6 +20,7 @@ import (
 	. "dili-esp32-server-golang/internal/data/client"
 	. "dili-esp32-server-golang/internal/data/msg"
 	parentmsg "dili-esp32-server-golang/internal/data/parentmessage"
+	"dili-esp32-server-golang/internal/data/storypersist"
 	"dili-esp32-server-golang/internal/domain/chat/devicestate"
 	chathooks "dili-esp32-server-golang/internal/domain/chat/hooks"
 	"dili-esp32-server-golang/internal/domain/chat/streamtransform"
@@ -41,7 +42,8 @@ type ChatManager struct {
 	hookHub           *chathooks.Hub
 	transformRegistry *streamtransform.Registry
 
-	storyService *story.Service
+	storyService        *story.Service
+	storyPersistClient  *storypersist.Client
 
 	storyStreamGuard storyStreamGuard
 

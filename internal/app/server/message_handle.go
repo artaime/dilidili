@@ -13,6 +13,7 @@ import (
 	"dili-esp32-server-golang/internal/data/history"
 	"dili-esp32-server-golang/internal/domain/eventbus"
 	"dili-esp32-server-golang/internal/domain/memory/llm_memory"
+	"dili-esp32-server-golang/internal/domain/story"
 	"dili-esp32-server-golang/internal/util"
 	log "dili-esp32-server-golang/logger"
 
@@ -285,10 +286,11 @@ func (w *MessageWorker) saveMessageText(ctx context.Context, event *eventbus.Add
 		}
 	}
 
-	// 构建 Metadata（只保存时间戳）
+	// 构建 Metadata（时间戳 + 故事短卡片等 Extra 字段）
 	metadata := map[string]interface{}{
 		"timestamp": event.Timestamp.Format(time.RFC3339),
 	}
+	story.MergeStoryCardMetadata(metadata, event.Msg.Extra)
 
 	// 准备工具调用相关字段
 	var toolCallID string

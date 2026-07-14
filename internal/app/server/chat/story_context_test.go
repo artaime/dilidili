@@ -11,14 +11,23 @@ func TestTryBeginStoryStreamDedupe(t *testing.T) {
 		t.Fatal("expected first start allowed")
 	}
 	if m.tryBeginStoryStream("叶公好龙") {
-		t.Fatal("expected duplicate blocked")
+		t.Fatal("expected duplicate blocked while active")
 	}
+	m.endStoryStreamGuard()
 	m.storyStreamGuard.startedAt = time.Now().Add(-storyStreamDedupeWindow - time.Second)
 	if !m.tryBeginStoryStream("叶公好龙") {
-		t.Fatal("expected start after window")
+		t.Fatal("expected start after window and end")
 	}
+	m.endStoryStreamGuard()
 	if !m.tryBeginStoryStream("女娲补天") {
-		t.Fatal("expected different theme allowed")
+		t.Fatal("expected different theme allowed after end")
+	}
+	m.endStoryStreamGuard()
+	if !m.tryBeginStoryStream("") {
+		t.Fatal("expected empty theme allowed")
+	}
+	if m.tryBeginStoryStream("") {
+		t.Fatal("expected empty theme duplicate blocked")
 	}
 }
 

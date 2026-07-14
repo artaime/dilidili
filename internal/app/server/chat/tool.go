@@ -115,9 +115,10 @@ func (l *LLMManager) handleToolCallResponse(ctx context.Context, respMsg *schema
 		}, nil
 	}
 
-	// 如果工具调用成功且没有被标记为停止处理，则继续LLM调用
+	// 如果工具调用成功且没有被标记为停止处理，则继续LLM调用。
+	// 标记本轮工具已成功：后续 nest 里无新 toolCalls 时，禁止把「已经调好」误改写成「做不到」。
 	if invokeToolSuccess && !shouldStopLLMProcessing {
-		l.DoLLmRequest(ctx, nil, l.einoTools, true, nil)
+		l.DoLLmRequest(withToolsSucceededInTurn(ctx), nil, l.einoTools, true, nil)
 	}
 
 	return toolCallResponseSummary{
@@ -346,6 +347,11 @@ func (e *toolCallExecutor) executeToolCall(order int, toolCall schema.ToolCall) 
 		if mcpContent != "" {
 			normalizedContent = mcpContent
 		}
+	}
+
+	// 固件控制：调用未报错即视为设置成功，给 LLM 明确成功语义，避免二次回复说「失败/做不到」。
+	if mcp.IsFirmwareControlTool(toolName) && !strings.Contains(normalizedContent, "执行失败") {
+		normalizedContent = mcp.AnnotateFirmwareToolSuccess(toolName, toolCall.Function.Arguments, normalizedContent)
 	}
 
 	execResult.message.Content = normalizedContent

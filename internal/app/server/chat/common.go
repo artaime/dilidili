@@ -51,6 +51,7 @@ func (s *ChatSession) stopSpeaking(cancelSession bool, isSendTtsStop bool, suspe
 		s.clientState.SessionCtx.CancelWithReason(fmt.Sprintf("ChatSession.stopSpeaking(%s): session_ctx", reason))
 		s.invalidateListenStart()
 	}
+	s.cancelActiveChatTurn(fmt.Sprintf("ChatSession.stopSpeaking(%s): chat_turn", reason))
 	s.clientState.AfterAsrSessionCtx.CancelWithReason(fmt.Sprintf("ChatSession.stopSpeaking(%s): after_asr_ctx", reason))
 	s.completeWelcomePlaybackWait(false)
 

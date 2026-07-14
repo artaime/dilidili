@@ -17,6 +17,7 @@ import (
 	"dili-esp32-server-golang/internal/domain/llm"
 	llm_common "dili-esp32-server-golang/internal/domain/llm/common"
 	"dili-esp32-server-golang/internal/domain/speaker"
+	"dili-esp32-server-golang/internal/domain/story"
 	"dili-esp32-server-golang/internal/pool"
 	"dili-esp32-server-golang/internal/util"
 	log "dili-esp32-server-golang/logger"
@@ -36,7 +37,9 @@ const (
 type contextKey int
 
 const (
-	ttsPlaybackCompletionGrace time.Duration = 150 * time.Millisecond
+	// ttsPlaybackCompletionGrace：末帧虚拟播放结束后额外等待，覆盖设备解码/硬件缓冲抖动。
+	// sentence_start 另有 sentenceControlDelay（~120ms）起播滞后，runSenderLoop 发 stop 时会叠加两者。
+	ttsPlaybackCompletionGrace time.Duration = 400 * time.Millisecond
 	fullTextKey                contextKey    = iota
 	toolRoundMessagesKey
 	ttsTurnTrackerKey
@@ -44,6 +47,8 @@ const (
 	ttsTurnEndPolicyKey
 	ttsTurnEndPolicyHandlerKey
 	ttsTurnPlaybackSettledKey
+	// toolsSucceededInTurnKey：本轮已有工具调用成功（含后续 nest LLM），能力地面不得再改写成「做不到」。
+	toolsSucceededInTurnKey
 )
 
 const (
@@ -895,9 +900,13 @@ func (l *LLMManager) handleLLMResponse(ctx context.Context, userMessage *schema.
 	if ttsTracker != nil {
 		onTTSItemEnqueued = ttsTracker.Add
 	}
-	toolExecutor := newToolCallExecutor(l, toolExecCtx)
-	assistantSaved := false
-	result := llmHandleResult{}
+		toolExecutor := newToolCallExecutor(l, toolExecCtx)
+		assistantSaved := false
+		result := llmHandleResult{}
+		// 本轮若改写过「无工具完成态」话术，后续分片不再播报，避免重复拒绝句。
+		rewroteUngroundedClaim := false
+		// 完成态话术可能早于 tool_calls 分片到达：暂存后再决定播报或丢弃。
+		var pendingUngroundedClaim strings.Builder
 
 	saveInterruptedAssistant := func() {
 		if assistantSaved {
@@ -911,7 +920,10 @@ func (l *LLMManager) handleLLMResponse(ctx context.Context, userMessage *schema.
 			return
 		}
 		if l.session != nil && l.session.IsStoryPlaybackActive() {
+			// 故事打断：进度由 OnStoryPlaybackInterrupted / stream onEnd 处理，不落全文到对话历史。
 			l.session.OnStoryPlaybackInterrupted()
+			assistantSaved = true
+			return
 		}
 		msg := schema.AssistantMessage(text, nil)
 		msg.Extra = map[string]any{
@@ -966,6 +978,23 @@ func (l *LLMManager) handleLLMResponse(ctx context.Context, userMessage *schema.
 					toolExecutor.Submit(llmResponse.ToolCalls)
 				}
 
+				storyPlaybackActive := l.session != nil && l.session.IsStoryPlaybackActive()
+				toolsGrounded := len(toolCalls) > 0 || toolsSucceededInTurn(ctx)
+				if toolsGrounded {
+					// 本轮已真实调过工具：丢掉此前暂存的「假装完成」话术，不再播拒绝句。
+					pendingUngroundedClaim.Reset()
+					rewroteUngroundedClaim = false
+				}
+
+				rawText := strings.TrimSpace(llmResponse.Text)
+				if !storyPlaybackActive && !toolsGrounded && rawText != "" && llm_common.LooksLikeUngroundedActionClaim(rawText) {
+					// 工具调用可能稍晚于文本分片到达：先暂存，勿立刻改写成「做不到」打断 TTS。
+					pendingUngroundedClaim.WriteString(llmResponse.Text)
+					llmResponse.Text = ""
+				} else if !storyPlaybackActive && rewroteUngroundedClaim && rawText != "" && llm_common.LooksLikeUngroundedActionClaim(rawText) {
+					llmResponse.Text = ""
+				}
+
 				hasText := strings.TrimSpace(llmResponse.Text) != ""
 				if hasText || llmResponse.IsStart || llmResponse.IsEnd {
 					// 双流式收尾依赖空文本的 IsEnd 信号，不能只在有文本时才传给 TTS。
@@ -976,13 +1005,27 @@ func (l *LLMManager) handleLLMResponse(ctx context.Context, userMessage *schema.
 				}
 				if hasText {
 					fullText.WriteString(llmResponse.Text)
-					if l.session != nil && l.session.IsStoryPlaybackActive() {
+					if storyPlaybackActive {
 						l.session.OnStoryTextSent(llmResponse.Text)
 					}
 				}
 
 				if llmResponse.IsEnd {
 					if len(toolCalls) == 0 {
+						if !toolsSucceededInTurn(ctx) && pendingUngroundedClaim.Len() > 0 &&
+							(l.session == nil || !l.session.IsStoryPlaybackActive()) {
+							// 整轮结束仍无工具：把暂存完成态改写成拒绝句并补播一次。
+							fallback := llm_common.UngroundedActionFallback
+							chatInfoLogf("无工具调用却声称完成操作，已改写播报文案 session=%s", l.clientState.SessionID)
+							_ = l.ttsManager.handleTextResponseWithHooks(ctx, llm_common.LLMResponseStruct{
+								Text:  fallback,
+								IsEnd: false,
+							}, false, onTTSItemEnqueued, onTTSPlaybackStart)
+							fullText.Reset()
+							fullText.WriteString(fallback)
+							rewroteUngroundedClaim = true
+							pendingUngroundedClaim.Reset()
+						}
 						// 故事流式播报的进度与 tts_stop 由 child_story_stream 的 onEndFunc 在 TTS 排空后统一收尾，
 						// 此处不可提前标记完成，否则设备会过早收到 tts_stop 且续讲进度错误。
 						//写到redis中
@@ -1008,8 +1051,24 @@ func (l *LLMManager) handleLLMResponse(ctx context.Context, userMessage *schema.
 							}
 						}
 						strFullText := fullText.String()
+						if l.session == nil || !l.session.IsStoryPlaybackActive() {
+							if rewritten, ok := llm_common.MaybeRewriteUngroundedActionClaim(strFullText, toolsSucceededInTurn(ctx)); ok {
+								chatInfoLogf("无工具调用却声称完成操作，落历史前改写 session=%s", l.clientState.SessionID)
+								strFullText = rewritten
+							}
+						}
 						if strings.TrimSpace(strFullText) != "" || len(toolCalls) > 0 {
-							if err := l.AddLlmMessage(ctx, schema.AssistantMessage(strFullText, toolCalls)); err != nil {
+							if l.session != nil && l.session.IsStoryPlaybackActive() {
+								// 故事正文不写入对话历史；改为短卡片，音频挂到该卡片消息上。
+								storyID, title := l.session.StoryPlaybackIdentity()
+								msg := schema.AssistantMessage(story.StoryCardContent(title), toolCalls)
+								msg.Extra = story.StoryCardExtra(storyID, title, false)
+								if err := l.AddLlmMessage(ctx, msg); err != nil {
+									log.Errorf("保存故事短卡片失败: %v", err)
+								} else {
+									assistantSaved = true
+								}
+							} else if err := l.AddLlmMessage(ctx, schema.AssistantMessage(strFullText, toolCalls)); err != nil {
 								log.Errorf("保存助手消息失败: %v", err)
 							} else {
 								assistantSaved = true
@@ -1250,6 +1309,8 @@ func (l *LLMManager) GetMessages(ctx context.Context, userMessage *schema.Messag
 
 	systemPrompt += buildKnowledgeSearchRoutingPolicy(l.clientState.DeviceConfig.KnowledgeBases)
 	systemPrompt += buildStoryRoutingPolicy()
+	// 使用本轮已绑定的 einoTools（DoLLmRequest 会先赋值）生成能力白名单，抑制虚构操作/能力。
+	systemPrompt += llm_common.BuildCapabilityGroundingPolicy(l.einoTools)
 	storyPlayback := l.session != nil && l.session.IsStoryPlaybackActive()
 	if !storyPlayback {
 		systemPrompt = llm_common.AppendVoiceReplyStylePrompt(systemPrompt)
@@ -1345,7 +1406,7 @@ func buildStoryRoutingPolicy() string {
 	return "\n儿童故事规则（工具: create_child_story）:\n" +
 		"1. 触发：用户要求讲故事、编故事、睡前故事、再讲一遍、昨晚的故事、接着讲，或点名具体故事/神话/寓言（不必含「故事」二字）。\n" +
 		"2. 必须立即调用 create_child_story，禁止在调用工具前口头铺垫或重复过渡语；不要自行编造长篇故事正文。\n" +
-		"3. 调用时填写 theme、request_type、narration_mode：经典/神话/寓言正篇用 canonical；编故事/原创主题用 creative。\n" +
+		"3. 调用时填写 theme（通行规范名，ASR 错字须纠正如后裔射太阳→后羿射日）、theme_raw（口语原名可选）、request_type、narration_mode：经典/神话/寓言正篇用 narration_mode=canonical；编故事/原创用 creative。\n" +
 		"4. action：generate 新故事；replay（story_ref: last|last_night|favorite）；resume 续讲；list_recent 消歧。\n" +
 		"5. 若工具返回 need_params/candidates/not_found，用一两句口语追问或说明，不要假装已讲故事。\n" +
 		"6. 若返回 text_to_speak，进入朗读模式完整播报，不要摘要或改写。\n" +
@@ -1496,6 +1557,21 @@ func appendToolRoundMessagesToContext(ctx context.Context, messages []*schema.Me
 	}
 
 	return context.WithValue(ctx, toolRoundMessagesKey, combined)
+}
+
+func withToolsSucceededInTurn(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, toolsSucceededInTurnKey, true)
+}
+
+func toolsSucceededInTurn(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	v, ok := ctx.Value(toolsSucceededInTurnKey).(bool)
+	return ok && v
 }
 
 func cloneMessageForRequest(msg *schema.Message) *schema.Message {

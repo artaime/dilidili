@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
+	"dili-esp32-server-golang/internal/data/storypersist"
 	"dili-esp32-server-golang/internal/domain/story"
 	log "dili-esp32-server-golang/logger"
 
@@ -20,7 +22,8 @@ type CreateChildStoryParams struct {
 	FromBeginning  *bool              `json:"from_beginning,omitempty" description:"复播是否从头开始，默认 true"`
 	RequestType    string             `json:"request_type,omitempty" description:"故事类型：classic|myth|fable|fairy_tale|bedtime|original，由你根据用户意图判断"`
 	NarrationMode  string             `json:"narration_mode,omitempty" description:"讲述方式：canonical=讲经典/神话正篇勿魔改；creative=原创或新编"`
-	Theme          string             `json:"theme,omitempty" description:"规范化故事名或主题，如龟兔赛跑、女娲补天、小恐龙冒险"`
+	Theme          string             `json:"theme,omitempty" description:"规范故事名（优先通行名，如后羿射日、龟兔赛跑）"`
+	ThemeRaw       string             `json:"theme_raw,omitempty" description:"用户口语/ASR 原主题，供别名匹配"`
 	Style         string             `json:"style,omitempty" description:"故事风格"`
 	AgeBand       string             `json:"age_band,omitempty" description:"年龄档：preschool|primary_low|primary_high|junior_high"`
 	AgeYears      *int               `json:"age_years,omitempty" description:"孩子年龄（岁）"`
@@ -39,8 +42,9 @@ func registerChildStoryMCPTool() {
 		return
 	}
 	desc := "当用户要求讲故事、听故事、编故事、童话、寓言、神话，或复播/续讲时使用。" +
-		"你必须判断：theme（规范故事名）、request_type（classic|myth|fable|fairy_tale|bedtime|original）、narration_mode（canonical 讲正篇 / creative 新编）。" +
-		"用户点名经典/神话/寓言时用 canonical；用户要编故事、随便讲、或原创主题用 creative。" +
+		"你必须判断：theme（通行规范故事名，ASR 错字须纠正，如后裔射太阳→后羿射日）、theme_raw（用户原说法可选）、" +
+		"request_type（classic|myth|fable|fairy_tale|bedtime|original）、narration_mode（canonical 讲正篇 / creative 新编）。" +
+		"用户点名经典/神话/寓言时用 narration_mode=canonical；用户要编故事、随便讲、或原创主题用 creative。" +
 		"纯闲聊不要调用。事实问答用 search_knowledge。" +
 		"generate 新故事；replay（story_ref: last|last_night|favorite）；resume 续讲；list_recent 列表。" +
 		"缺年龄等信息时返回 need_params，请短句追问，不要自行编造正文。"
@@ -118,8 +122,21 @@ func (c *ChatManager) getStoryService() *story.Service {
 	}
 	if c.storyService == nil {
 		c.storyService = story.NewService(c.storyGenerateFunc)
+		c.wireStoryPersistSink(c.storyService)
 	}
 	return c.storyService
+}
+
+func (c *ChatManager) wireStoryPersistSink(svc *story.Service) {
+	if c == nil || svc == nil || svc.Store() == nil {
+		return
+	}
+	if c.storyPersistClient == nil {
+		c.storyPersistClient = storypersist.NewFromViper()
+	}
+	if c.storyPersistClient.Enabled() {
+		svc.Store().SetPersistSink(c.storyPersistClient)
+	}
 }
 
 func (c *ChatManager) storyGenerateFunc(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
@@ -142,11 +159,16 @@ func (c *ChatManager) LocalMcpCreateChildStory(ctx context.Context, params *Crea
 		}
 	}
 
-	if params.Action == story.ActionGenerate && svc.Config().StreamEnabled {
-		if err := c.streamGenerateChildStory(ctx, params); err != nil {
-			return nil, err
+	if params.Action == story.ActionGenerate {
+		if reused, ok := c.tryReuseShareableStory(ctx, params); ok {
+			return reused, nil
 		}
-		return &story.ToolResult{Status: story.StatusStreaming, Message: "故事生成中"}, nil
+		if svc.Config().StreamEnabled {
+			if err := c.streamGenerateChildStory(ctx, params); err != nil {
+				return nil, err
+			}
+			return &story.ToolResult{Status: story.StatusStreaming, Message: "故事生成中"}, nil
+		}
 	}
 
 	req := c.buildStoryToolRequest(params)
@@ -166,6 +188,81 @@ func (c *ChatManager) LocalMcpCreateChildStory(ctx context.Context, params *Crea
 		return nil, err
 	}
 	return result, nil
+}
+
+// tryReuseShareableStory 按双池规则复用跨用户已完成正文；命中则写入本设备 playback 并直接朗读。
+func (c *ChatManager) tryReuseShareableStory(ctx context.Context, params *CreateChildStoryParams) (*story.ToolResult, bool) {
+	if c == nil || params == nil {
+		return nil, false
+	}
+		sp := story.StoryParams{
+			RequestType:    params.RequestType,
+			NarrationMode:  params.NarrationMode,
+			Theme:          params.Theme,
+			ThemeRaw:       params.ThemeRaw,
+			AgeBand:        params.AgeBand,
+			IsBedtime:      params.IsBedtime,
+			UserSaidCasual: params.UserSaidCasual,
+		}
+		story.NormalizeStoryParams(&sp)
+		pool := story.ClassifyShareIntent(sp)
+		if pool == "" {
+			return nil, false
+		}
+		if c.storyPersistClient == nil {
+			c.storyPersistClient = storypersist.NewFromViper()
+		}
+		if !c.storyPersistClient.Enabled() {
+			return nil, false
+		}
+		cfg := c.getStoryService().Config()
+		rec, err := c.storyPersistClient.FindShareable(ctx, storypersist.FindShareableParams{
+			PoolKind:    pool,
+			Theme:       sp.Theme,
+			ThemeRaw:    sp.ThemeRaw,
+			AgeBand:     sp.AgeBand,
+			DeviceSN:    c.DeviceID,
+			ExcludeDays: cfg.ShareExcludeDays,
+			TopK:        cfg.SharePickTopK,
+		})
+	if err != nil || rec == nil || strings.TrimSpace(rec.FullText) == "" {
+		return nil, false
+	}
+	rec.DeviceID = c.DeviceID
+	if c.clientState != nil {
+		rec.AgentID = c.clientState.AgentID
+	}
+	rec.LastPlayStatus = story.PlayStatusPlaying
+	rec.LastPlayedAt = time.Now()
+	if rec.ParamsSnapshot == nil {
+		rec.ParamsSnapshot = map[string]any{}
+	}
+	rec.ParamsSnapshot["generation_complete"] = true
+	rec.ParamsSnapshot[story.SnapshotKeyPoolKind] = pool
+	rec.GenerationComplete = true
+	if err := c.getStoryService().Store().Save(ctx, rec); err != nil {
+		log.Warnf("设备 %s 共享故事本机落库失败: %v", c.DeviceID, err)
+	}
+	_ = c.getStoryService().Store().RecordPlayStart(ctx, c.DeviceID, rec.StoryID)
+	segs := rec.Segments
+	if len(segs) == 0 {
+		segs = story.SegmentText(rec.FullText)
+	}
+	log.Infof("设备 %s 复用共享故事 story_id=%s pool=%s theme=%q", c.DeviceID, rec.StoryID, pool, sp.Theme)
+	return &story.ToolResult{
+		Status:       story.StatusReady,
+		StoryID:      rec.StoryID,
+		Title:        rec.Title,
+		TextToSpeak:  rec.FullText,
+		Segments:     segs,
+		StartSegment: 0,
+		Message:      rec.Title,
+		Meta: map[string]any{
+			"shared_reuse": true,
+			"pool_kind":    pool,
+			"theme":        sp.Theme,
+		},
+	}, true
 }
 
 func (c *ChatManager) LocalMcpUpdateStoryProgress(ctx context.Context, storyID string, pos story.PlayPosition, interrupted, completed bool) error {

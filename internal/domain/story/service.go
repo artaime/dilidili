@@ -105,21 +105,23 @@ func (s *Service) SaveDraftStory(ctx context.Context, req ToolRequest, plan *Gen
 		Mode:           params.RequestType,
 		AgeBand:        params.AgeBand,
 		LastPlayStatus: PlayStatusPlaying,
-		ParamsSnapshot: map[string]any{
-			"theme":          params.Theme,
-			"style":          params.Style,
-			"age_band":       params.AgeBand,
-			"assumed_fields": plan.AssumedFields,
-			"draft":          true,
-		},
+			ParamsSnapshot: map[string]any{
+					"theme":           params.Theme,
+					"theme_raw":       params.ThemeRaw,
+					"style":           params.Style,
+					"age_band":        params.AgeBand,
+					"narration_mode":  params.NarrationMode,
+					"assumed_fields":  plan.AssumedFields,
+					"draft":           true,
+				},
+			}
+		setGenerationComplete(record, false)
+		if params.IsBedtime != nil && *params.IsBedtime {
+			record.Tags = append(record.Tags, "bedtime")
+			record.Mode = StoryModeBedtime
+		}
+		return s.store.Save(persistContext(ctx), record)
 	}
-	setGenerationComplete(record, false)
-	if params.IsBedtime != nil && *params.IsBedtime {
-		record.Tags = append(record.Tags, "bedtime")
-		record.Mode = StoryModeBedtime
-	}
-	return s.store.Save(persistContext(ctx), record)
-}
 
 // SavePartialStory 打断或失败时保存已生成片段（GenerationComplete=false）。
 func (s *Service) SavePartialStory(ctx context.Context, req ToolRequest, plan *GeneratePlan, partial string, interrupted bool) error {
@@ -155,6 +157,7 @@ func (s *Service) SavePartialStory(ctx context.Context, req ToolRequest, plan *G
 		rec.Title = ResolveStoryTitle(themeFromRecord(rec, plan), rec.FullText, rec.Title)
 	}
 	setGenerationComplete(rec, false)
+	ApplyShareEnrollment(rec, plan.Params, StoryMeta{}) // 未完整生成时清出共享池字段
 	rec.LastPlayStatus = status
 	rec.LastPlayedAt = time.Now()
 	return s.store.Save(saveCtx, rec)
@@ -207,13 +210,14 @@ func (s *Service) SaveGeneratedStory(ctx context.Context, req ToolRequest, plan 
 		AgeBand:        params.AgeBand,
 		LastPlayStatus: PlayStatusPlaying,
 		ParamsSnapshot: map[string]any{
-			"theme":          params.Theme,
-			"style":          params.Style,
-			"age_band":       params.AgeBand,
-			"assumed_fields": plan.AssumedFields,
-		},
-	}
-	applyStoryMeta(record, mergeStoryMeta(plan.StoryMeta, meta), params)
+				"theme":          params.Theme,
+				"style":          params.Style,
+				"age_band":       params.AgeBand,
+				"narration_mode": params.NarrationMode,
+				"assumed_fields": plan.AssumedFields,
+			},
+		}
+		applyStoryMeta(record, mergeStoryMeta(plan.StoryMeta, meta), params)
 	if params.IsBedtime != nil && *params.IsBedtime {
 		record.Tags = append(record.Tags, "bedtime")
 	}
@@ -228,6 +232,8 @@ func (s *Service) SaveGeneratedStory(ctx context.Context, req ToolRequest, plan 
 		}
 	}
 	setGenerationComplete(record, true)
+	mergedMeta := mergeStoryMeta(plan.StoryMeta, meta)
+	ApplyShareEnrollment(record, params, mergedMeta)
 	if err := s.store.Save(saveCtx, record); err != nil {
 		return nil, err
 	}
@@ -363,17 +369,19 @@ func (s *Service) handleGenerate(ctx context.Context, req ToolRequest) (*ToolRes
 		AgeBand:        params.AgeBand,
 		LastPlayStatus: PlayStatusPlaying,
 		ParamsSnapshot: map[string]any{
-			"theme":          params.Theme,
-			"style":          params.Style,
-			"age_band":       params.AgeBand,
-			"assumed_fields": resolved.AssumedFields,
-		},
-	}
-	applyStoryMeta(record, meta, params)
+				"theme":          params.Theme,
+				"style":          params.Style,
+				"age_band":       params.AgeBand,
+				"narration_mode": params.NarrationMode,
+				"assumed_fields": resolved.AssumedFields,
+			},
+		}
+		applyStoryMeta(record, meta, params)
 	if params.IsBedtime != nil && *params.IsBedtime {
 		record.Tags = append(record.Tags, "bedtime")
 	}
 	setGenerationComplete(record, true)
+	ApplyShareEnrollment(record, params, meta)
 	if err := s.store.Save(ctx, record); err != nil {
 		return nil, err
 	}

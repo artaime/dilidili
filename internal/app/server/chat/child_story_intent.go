@@ -36,28 +36,30 @@ func (c *ChatManager) classifyChildStoryIntent(ctx context.Context, text string)
 	}
 
 	params := intentResultToCreateParams(intent)
-	log.Infof("设备 %s 故事 LLM 意图 action=%s theme=%q type=%s narration=%s confidence=%.2f",
-		c.DeviceID, params.Action, params.Theme, params.RequestType, params.NarrationMode, intent.Confidence)
-	return params, true
-}
+		log.Infof("设备 %s 故事 LLM 意图 action=%s theme=%q theme_raw=%q type=%s narration=%s confidence=%.2f",
+			c.DeviceID, params.Action, params.Theme, params.ThemeRaw, params.RequestType, params.NarrationMode, intent.Confidence)
+		return params, true
+	}
 
-func intentResultToCreateParams(intent story.IntentResult) *CreateChildStoryParams {
-	sp := story.IntentToStoryParams(intent)
-	params := &CreateChildStoryParams{
-		Action:         strings.TrimSpace(intent.Action),
-		StoryRef:       strings.TrimSpace(intent.StoryRef),
-		RequestType:    sp.RequestType,
-		NarrationMode:  sp.NarrationMode,
-		Theme:          sp.Theme,
-		IsBedtime:      sp.IsBedtime,
-		UserSaidCasual: intent.UserSaidCasual,
+	func intentResultToCreateParams(intent story.IntentResult) *CreateChildStoryParams {
+		sp := story.IntentToStoryParams(intent)
+		theme, themeRaw := story.ResolveIntentTheme(intent)
+		params := &CreateChildStoryParams{
+			Action:         strings.TrimSpace(intent.Action),
+			StoryRef:       strings.TrimSpace(intent.StoryRef),
+			RequestType:    sp.RequestType,
+			NarrationMode:  sp.NarrationMode,
+			Theme:          theme,
+			ThemeRaw:       themeRaw,
+			IsBedtime:      sp.IsBedtime,
+			UserSaidCasual: intent.UserSaidCasual,
+		}
+		if params.Action == "" {
+			params.Action = story.ActionGenerate
+		}
+		normalizeCreateChildStoryParams(params)
+		return params
 	}
-	if params.Action == "" {
-		params.Action = story.ActionGenerate
-	}
-	normalizeCreateChildStoryParams(params)
-	return params
-}
 
 func normalizeCreateChildStoryParams(params *CreateChildStoryParams) {
 	if params == nil {

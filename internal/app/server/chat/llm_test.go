@@ -154,6 +154,25 @@ func TestGetMessagesAppendsVoiceReplyStylePrompt(t *testing.T) {
 	if !strings.Contains(systemPrompt, "不要在开头描述你的状态") {
 		t.Fatalf("expected prompt to forbid status preface, got %q", systemPrompt)
 	}
+	if !strings.Contains(systemPrompt, "能力与诚实回答规则") {
+		t.Fatalf("expected capability grounding policy, got %q", systemPrompt)
+	}
+}
+
+func TestGetMessagesCapabilityGroundingListsTools(t *testing.T) {
+	manager := newTestLLMManager(data_client.MemoryModeShort)
+	manager.einoTools = []*schema.ToolInfo{
+		{Name: "search_knowledge"},
+		{Name: "create_child_story"},
+	}
+	messages := manager.GetMessages(context.Background(), schema.UserMessage("讲个故事"), 10, nil)
+	systemPrompt := messages[0].Content
+	if !strings.Contains(systemPrompt, "search_knowledge") || !strings.Contains(systemPrompt, "create_child_story") {
+		t.Fatalf("expected tool allowlist in system prompt, got %q", systemPrompt)
+	}
+	if !strings.Contains(systemPrompt, "必须先调用对应工具") {
+		t.Fatalf("expected must-call-tool rule, got %q", systemPrompt)
+	}
 }
 
 func TestTTSTurnTrackerWaitBlocksUntilAllDone(t *testing.T) {

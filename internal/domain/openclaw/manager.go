@@ -32,7 +32,8 @@ const openClawVoiceAssistantPrompt = `你正在以语音助手的角色和用户
 3. 优先先说结论，再补一句最必要的说明；除非用户明确要求，尽量控制在 1 到 3 句。
 4. 不要使用 Markdown、标题、列表、表格、代码块、链接或 emoji。
 5. 不要寒暄、不要铺垫、不要重复、不要输出多余说明。
-6. 如果信息不足或无法确定，就简短说明，不要编造。`
+6. 如果信息不足或无法确定，就简短说明，不要编造。
+7. 不要声称已完成未执行的操作，也不要虚构设备不具备的能力；做不到就直接说做不到。`
 
 func logSnippet(text string, maxRunes int) string {
 	if maxRunes <= 0 {

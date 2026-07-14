@@ -361,30 +361,20 @@ func (t *TTSManager) runSenderLoop(ctx context.Context) {
 				playbackTail = time.Time{}
 			case AudioQueueKindTtsStop:
 				log.Infof("runSenderLoop processing tts stop: device=%s reason=%s state={%s}", t.clientState.DeviceID, normalizeTTSReason(elem.DebugReason), t.debugState())
-				// 等待当前播放尾指针走到最后一帧结束再发 TtsStop
+				// 等待虚拟播放尾 + sentence_start 起播滞后 + 硬件缓冲保护时间后再发 TtsStop。
+				// sentence_start 经 delayedSentence 晚于首帧发送，设备常在 sentence_start 后才真正起播；
+				// 仅按 playbackTail 收口会过早 stop，客户端清队列导致尾音被切。
+				stopDeadline := time.Now()
 				if !playbackTail.IsZero() {
-					waitResult, interruptReq := t.waitUntilSenderDeadline(ctx, playbackTail, handleDelayedSentence)
-					switch waitResult {
-					case senderWaitContextDone:
-						t.drainSessionAudioQueue()
-						t.drainDelayedSentenceReadyQueue()
-						t.finishTtsStopWithReason(t.clientState.Ctx, true, ctx.Err(), "runSenderLoop: tts stop wait playback tail ctx done")
-						return
-					case senderWaitInterrupted:
-						handleInterrupt(interruptReq.reason)
-						if interruptReq.done != nil {
-							close(interruptReq.done)
-						}
-						continue
-					}
+					stopDeadline = playbackTail
 				}
-				// 额外留出一小段播放完成保护时间，避免客户端尾音尚未播完就进入 turn-end 收口。
-				waitResult, interruptReq := t.waitUntilSenderDeadline(ctx, time.Now().Add(ttsPlaybackCompletionGrace), handleDelayedSentence)
+				stopDeadline = stopDeadline.Add(t.sentenceControlDelay()).Add(ttsPlaybackCompletionGrace)
+				waitResult, interruptReq := t.waitUntilSenderDeadline(ctx, stopDeadline, handleDelayedSentence)
 				switch waitResult {
 				case senderWaitContextDone:
 					t.drainSessionAudioQueue()
 					t.drainDelayedSentenceReadyQueue()
-					t.finishTtsStopWithReason(t.clientState.Ctx, true, ctx.Err(), "runSenderLoop: tts stop grace wait ctx done")
+					t.finishTtsStopWithReason(t.clientState.Ctx, true, ctx.Err(), "runSenderLoop: tts stop wait playback settle ctx done")
 					return
 				case senderWaitInterrupted:
 					handleInterrupt(interruptReq.reason)

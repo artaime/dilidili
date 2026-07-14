@@ -8,18 +8,21 @@ import (
 )
 
 type Config struct {
-	Enabled                bool
-	MinRetentionDays       int
-	MaxRetentionDays       int
-	LastNightStartHour     int
-	LastNightEndHour       int
-	ReplaySuggestThreshold int
-	ReplaySuggestInterval  int
-	MemoryHintMinConfidence float64
-	StreamEnabled          bool
-	FillerEnabled          bool
-	FillerDefault          string
-	FillerBedtime          string
+	Enabled                   bool
+	MinRetentionDays          int
+	MaxRetentionDays          int
+	LastNightStartHour        int
+	LastNightEndHour          int
+	ReplaySuggestThreshold    int
+	ReplaySuggestInterval     int
+	MemoryHintMinConfidence   float64
+	StreamEnabled             bool
+	FillerEnabled             bool
+	FillerDefault             string
+	FillerBedtime             string
+	ProtectContinueThreshold int // 已播字数≥此值时停播不停写
+	ShareExcludeDays         int // 本设备近期排斥天数
+	SharePickTopK            int // 共享池 Top-K 随机
 }
 
 func LoadConfig() Config {
@@ -32,10 +35,13 @@ func LoadConfig() Config {
 		ReplaySuggestThreshold:  5,
 		ReplaySuggestInterval:   3,
 		MemoryHintMinConfidence: 0.75,
-		StreamEnabled:           true,
-		FillerEnabled:           true,
-		FillerDefault:           "好呀，我给你讲一个故事。",
-		FillerBedtime:           "好呀，那我们讲个睡前故事，乖乖听哦。",
+		StreamEnabled:              true,
+		FillerEnabled:              true,
+		FillerDefault:              "好呀，我给你讲一个故事。",
+		FillerBedtime:              "好呀，那我们讲个睡前故事，乖乖听哦。",
+		ProtectContinueThreshold: DefaultProtectContinueThreshold,
+		ShareExcludeDays:         DefaultShareExcludeDays,
+		SharePickTopK:            DefaultSharePickTopK,
 	}
 	if viper.IsSet("story.enabled") {
 		cfg.Enabled = viper.GetBool("story.enabled")
@@ -72,6 +78,24 @@ func LoadConfig() Config {
 	}
 	if v := strings.TrimSpace(viper.GetString("story.filler_bedtime")); v != "" {
 		cfg.FillerBedtime = v
+	}
+	if viper.IsSet("story.protect_continue_threshold") {
+		cfg.ProtectContinueThreshold = viper.GetInt("story.protect_continue_threshold")
+	}
+	if cfg.ProtectContinueThreshold <= 0 {
+		cfg.ProtectContinueThreshold = DefaultProtectContinueThreshold
+	}
+	if viper.IsSet("story.share_exclude_days") {
+		cfg.ShareExcludeDays = viper.GetInt("story.share_exclude_days")
+	}
+	if cfg.ShareExcludeDays <= 0 {
+		cfg.ShareExcludeDays = DefaultShareExcludeDays
+	}
+	if viper.IsSet("story.share_pick_top_k") {
+		cfg.SharePickTopK = viper.GetInt("story.share_pick_top_k")
+	}
+	if cfg.SharePickTopK <= 0 {
+		cfg.SharePickTopK = DefaultSharePickTopK
 	}
 	return cfg
 }

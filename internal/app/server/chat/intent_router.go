@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"dili-esp32-server-golang/internal/domain/chat/intent"
+	llm_common "dili-esp32-server-golang/internal/domain/llm/common"
 	"dili-esp32-server-golang/internal/domain/speaker"
 	log "dili-esp32-server-golang/logger"
 )
@@ -36,23 +37,32 @@ func (c *ChatManager) RouteUserIntent(ctx context.Context, text string, speakerR
 		return false, nil
 	}
 
-	log.Infof("设备 %s 意图路由 intent=%s confidence=%.2f text=%q", c.DeviceID, resp.Intent, confidence, text)
-	switch resp.Intent {
-	case intent.IntentMsgInquiry:
-		data, _ := intent.ParseData[intent.MsgInquiryData](resp.Data)
-		return true, c.HandleMsgInquiry(ctx, data)
-	case intent.IntentMsgPlay:
-		data, _ := intent.ParseData[intent.MsgPlayData](resp.Data)
-		return true, c.HandleMsgPlay(ctx, data)
-	case intent.IntentGeneral:
-		data, err := intent.ParseData[intent.GeneralData](resp.Data)
-		if err != nil || strings.TrimSpace(data.Reply) == "" {
+		log.Infof("设备 %s 意图路由 intent=%s confidence=%.2f text=%q", c.DeviceID, resp.Intent, confidence, text)
+		switch resp.Intent {
+		case intent.IntentMsgInquiry:
+			data, _ := intent.ParseData[intent.MsgInquiryData](resp.Data)
+			return true, c.HandleMsgInquiry(ctx, data)
+		case intent.IntentMsgPlay:
+			data, _ := intent.ParseData[intent.MsgPlayData](resp.Data)
+			return true, c.HandleMsgPlay(ctx, data)
+		case intent.IntentDevice:
+			// 本机音量/电量/亮度/睡眠/关机：必须走主 LLM + 设备 MCP，禁止意图路由短接口胡编。
+			log.Infof("设备 %s 设备能力意图，交主对话 tools 处理 text=%q", c.DeviceID, text)
+			return false, nil
+		case intent.IntentGeneral:
+			data, err := intent.ParseData[intent.GeneralData](resp.Data)
+			if err != nil || strings.TrimSpace(data.Reply) == "" {
+				return false, nil
+			}
+			// 分类器若仍用 general 假装设备操作，交给主对话工具链，避免误报「做不到」或误发退出。
+			if llm_common.LooksLikeUngroundedActionClaim(data.Reply) {
+				log.Infof("设备 %s general 回复含设备操作声称，改交主对话 tools text=%q", c.DeviceID, text)
+				return false, nil
+			}
+			return true, c.HandleGeneralIntent(ctx, data)
+		default:
 			return false, nil
 		}
-		return true, c.HandleGeneralIntent(ctx, data)
-	default:
-		return false, nil
-	}
 }
 
 func (c *ChatManager) classifyUserIntent(ctx context.Context, text string) (intent.RouterResponse, float64, error) {
@@ -93,6 +103,10 @@ func (c *ChatManager) HandleGeneralIntent(ctx context.Context, data intent.Gener
 	reply := strings.TrimSpace(data.Reply)
 	if reply == "" {
 		return fmt.Errorf("general intent missing reply")
+	}
+	if rewritten, ok := llm_common.MaybeRewriteUngroundedActionClaim(reply, false); ok {
+		log.Infof("设备 %s general 意图回复含虚构操作，已改写", c.DeviceID)
+		reply = rewritten
 	}
 	return c.InjectMessage(reply, true, true)
 }
