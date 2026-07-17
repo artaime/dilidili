@@ -214,6 +214,16 @@ tts:
 # 大语言模型（LLM）配置
 llm:
   provider: "qwen_72b"  # 默认使用的LLM提供商
+  # DeepSeek 官方 API（provider=deepseek 时未配 thinking 也会默认注入 disabled）
+  deepseek_official:
+    type: "openai"
+    provider: "deepseek"
+    model_name: "deepseek-v4-flash"
+    api_key: "api_key"
+    base_url: "https://api.deepseek.com/v1"
+    max_tokens: 500
+    thinking:
+      mode: disabled   # enabled 开启深度思考；DeepSeek API 默认开启，本系统默认关闭
   # DeepSeek V3模型配置（硅基流动平台）
   deepseek:
     type: "openai"                               # 接口类型
@@ -221,6 +231,7 @@ llm:
     api_key: "api_key"                           # API密钥
     base_url: "https://api.siliconflow.cn/v1"    # API基础地址
     max_tokens: 500                              # 最大生成token数
+    # siliconflow 平台用 enable_thinking，需 provider=siliconflow 且 thinking.mode=disabled/enabled
   # DeepSeek V2.5模型配置（硅基流动平台）
   deepseek2_5:
     type: "openai"                               # 接口类型

@@ -42,10 +42,15 @@ type ChatManager struct {
 	hookHub           *chathooks.Hub
 	transformRegistry *streamtransform.Registry
 
-	storyService        *story.Service
-	storyPersistClient  *storypersist.Client
+	storyService       *story.Service
+	storyPersistClient *storypersist.Client
 
 	storyStreamGuard storyStreamGuard
+
+	followupClarifyMu    sync.Mutex
+	followupClarifyRound int
+	followupClarifyTheme string
+	followupClarifyQ     string
 
 	sessionMu sync.RWMutex
 	session   *ChatSession
@@ -273,6 +278,7 @@ func GenClientState(pctx context.Context, deviceID string) (*ClientState, error)
 		ListenPhase:       ListenPhaseIdle,
 		DeviceID:          deviceID,
 		AgentID:           deviceConfig.AgentId,
+		OwnerUserID:       deviceConfig.UserID,
 		Ctx:               ctx,
 		Cancel:            cancel,
 		SystemPrompt:      deviceConfig.SystemPrompt,
@@ -324,14 +330,19 @@ func (c *ChatManager) ReloadDeviceConfig(ctx context.Context) error {
 	deviceConfig.SpeakerChatMode = NormalizeSpeakerChatMode(deviceConfig.SpeakerChatMode)
 
 	oldAgentID := c.clientState.AgentID
-	c.clientState.AgentID = deviceConfig.AgentId
+	oldUserID := c.clientState.OwnerUserID
+	c.clientState.ApplyOwnerIdentity(deviceConfig.UserID, deviceConfig.AgentId)
 	c.clientState.DeviceConfig = deviceConfig
 	c.clientState.SystemPrompt = deviceConfig.SystemPrompt
 	c.clientState.SpeakerTTSConfig = nil
 	openclaw.GetManager().ExitMode(oldAgentID, c.DeviceID)
 	openclaw.GetManager().ExitMode(c.clientState.AgentID, c.DeviceID)
 	applyOutputAudioFormatForTTS(c.clientState)
-	log.Infof("设备 %s 配置已刷新，当前agent=%s", c.DeviceID, deviceConfig.AgentId)
+	if oldUserID != c.clientState.OwnerUserID || oldAgentID != c.clientState.AgentID {
+		log.Infof("设备 %s 短上下文身份变更 user=%d->%d agent=%s->%s，已清空内存 Dialogue",
+			c.DeviceID, oldUserID, c.clientState.OwnerUserID, oldAgentID, c.clientState.AgentID)
+	}
+	log.Infof("设备 %s 配置已刷新，当前agent=%s user=%d", c.DeviceID, deviceConfig.AgentId, deviceConfig.UserID)
 	return nil
 }
 
@@ -547,6 +558,11 @@ func (c *ChatManager) HandleHelloMessage(msg *ClientMessage) error {
 		preferredSessionID := ""
 		if isFirstHello {
 			preferredSessionID = strings.TrimSpace(clientState.SessionID)
+		} else if shortContextReuseSessionOnFreshHello() {
+			// 短时衔接：保留 Dialogue 时复用 SessionID，避免空窗再灌历史
+			if existing := clientState.GetMessages(1); len(existing) > 0 {
+				preferredSessionID = strings.TrimSpace(clientState.SessionID)
+			}
 		}
 		session, err := auth.A().EnsureSession(msg.DeviceID, preferredSessionID)
 		if err != nil {
@@ -1786,12 +1802,14 @@ func (c *ChatManager) refreshDeviceConfigOnHello() error {
 	deviceConfig.SpeakerChatMode = NormalizeSpeakerChatMode(deviceConfig.SpeakerChatMode)
 
 	prevAgentID := c.clientState.AgentID
-	c.clientState.AgentID = deviceConfig.AgentId
+	prevUserID := c.clientState.OwnerUserID
+	c.clientState.ApplyOwnerIdentity(deviceConfig.UserID, deviceConfig.AgentId)
 	c.clientState.DeviceConfig = deviceConfig
 	c.clientState.SystemPrompt = deviceConfig.SystemPrompt
 	c.clientState.SpeakerTTSConfig = nil
 	applyOutputAudioFormatForTTS(c.clientState)
 
-	log.Infof("设备 %s hello 刷新配置成功，agent: %s -> %s", c.clientState.DeviceID, prevAgentID, deviceConfig.AgentId)
+	log.Infof("设备 %s hello 刷新配置成功，agent: %s -> %s user: %d -> %d",
+		c.clientState.DeviceID, prevAgentID, deviceConfig.AgentId, prevUserID, deviceConfig.UserID)
 	return nil
 }

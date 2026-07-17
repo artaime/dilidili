@@ -268,7 +268,7 @@ const editConfig = (config) => {
     form.max_tokens = configObj.max_tokens || 4000
     form.temperature = configObj.temperature || 0.7
     form.top_p = configObj.top_p || 0.9
-    form.thinking_mode = configObj.thinking?.mode || 'default'
+    form.thinking_mode = configObj.thinking?.mode || (getProviderThinkingConfig(detectedProvider, configObj.model_name)?.defaultMode || 'default')
     form.thinking_budget_tokens = configObj.thinking?.budget_tokens !== undefined ? Number(configObj.thinking.budget_tokens) || null : null
     form.thinking_effort = configObj.thinking?.effort || 'medium'
     form.thinking_clear_thinking = configObj.thinking?.clear_thinking !== undefined ? configObj.thinking.clear_thinking : 'default'

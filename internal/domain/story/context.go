@@ -7,10 +7,18 @@ import (
 
 const StoryContextMaxRunes = 1500
 
-// BuildStoryContextBrief 构建供 LLM 追问用的最近故事摘要。
+// BuildStoryContextBrief 构建供 LLM 追问用的最近故事摘要（默认上限 StoryContextMaxRunes）。
 func BuildStoryContextBrief(rec *StoryRecord) string {
+	return BuildStoryFollowupBrief(rec, StoryContextMaxRunes)
+}
+
+// BuildStoryFollowupBrief 按 maxRunes 截断正文构建追问上下文；maxRunes<=0 时用 StoryContextMaxRunes。
+func BuildStoryFollowupBrief(rec *StoryRecord, maxRunes int) string {
 	if rec == nil {
 		return ""
+	}
+	if maxRunes <= 0 {
+		maxRunes = StoryContextMaxRunes
 	}
 	body := strings.TrimSpace(rec.FullText)
 	if body == "" && len(rec.Segments) > 0 {
@@ -19,8 +27,8 @@ func BuildStoryContextBrief(rec *StoryRecord) string {
 	if body == "" {
 		return ""
 	}
-	if utf8.RuneCountInString(body) > StoryContextMaxRunes {
-		body = trimRunes(body, StoryContextMaxRunes) + "…"
+	if utf8.RuneCountInString(body) > maxRunes {
+		body = trimRunes(body, maxRunes) + "…"
 	}
 	var b strings.Builder
 	b.WriteString("标题：" + strings.TrimSpace(rec.Title))

@@ -27,6 +27,7 @@ import (
 	"dili-esp32-server-golang/internal/domain/mcp"
 	"dili-esp32-server-golang/internal/domain/memory"
 	"dili-esp32-server-golang/internal/domain/memory/llm_memory"
+	"dili-esp32-server-golang/internal/domain/memory/shortctx"
 	"dili-esp32-server-golang/internal/domain/openclaw"
 	"dili-esp32-server-golang/internal/domain/speaker"
 	"dili-esp32-server-golang/internal/domain/story"
@@ -319,13 +320,10 @@ func (s *ChatSession) Start(pctx context.Context) error {
 		return err
 	}
 
-	// 异步加载历史消息，不阻塞会话启动
-	go func() {
-		err := s.initHistoryMessages()
-		if err != nil {
-			log.Errorf("初始化对话历史失败: %v", err)
-		}
-	}()
+	// 同步加载短上下文，避免首轮 LLM 早于历史灌入
+	if err := s.initHistoryMessages(); err != nil {
+		log.Warnf("初始化对话历史失败（不阻断会话）: %v", err)
+	}
 
 	if !s.vadLoopStarted {
 		// Session 级 idle watchdog 需要独立于单次 ASR loop 生命周期存在，
@@ -345,56 +343,84 @@ func (s *ChatSession) Start(pctx context.Context) error {
 	return nil
 }
 
-// 初始化历史对话记录到内存中
+// 初始化历史对话记录到内存中（跨 session，按 user+device+agent）
 func (s *ChatSession) initHistoryMessages() error {
-	var historyMessages []*schema.Message
-	var err error
-
 	if s.clientState.GetMemoryMode() == MemoryModeNone {
 		log.Debugf("设备 %s 记忆模式=none，跳过历史消息加载", s.clientState.DeviceID)
 		return nil
 	}
+	if !shortContextEnabled() {
+		log.Debugf("设备 %s short_context 已关闭，跳过历史消息加载", s.clientState.DeviceID)
+		return nil
+	}
 
-	// 根据配置选择数据源（无优先级关系，直接选择）
-	useRedis := s.shouldUseRedis()
-	useManager := s.shouldUseManager()
+	// Dialogue 已有内容（如保留会话复用）则不重复灌入
+	if existing := s.clientState.GetMessages(1); len(existing) > 0 {
+		log.Debugf("设备 %s Dialogue 非空，跳过历史灌入", s.clientState.DeviceID)
+		return nil
+	}
 
-	// 验证必要字段：DeviceID 不能为空
 	if s.clientState.DeviceID == "" {
 		log.Debugf("DeviceID 为空，跳过历史消息加载（可能在 hello 消息之前调用）")
 		return nil
 	}
+	if !hasValidShortContextIdentity(s.clientState.OwnerUserID, s.clientState.DeviceID, s.clientState.AgentID) {
+		log.Warnf("设备 %s 短上下文身份无效 user=%d agent=%q，跳过跨 session 历史加载",
+			s.clientState.DeviceID, s.clientState.OwnerUserID, s.clientState.AgentID)
+		return nil
+	}
 
-	// 根据配置选择数据源（无优先级关系，直接选择）
-	if useRedis {
-		// 从 Redis 加载
-		historyMessages, err = llm_memory.Get().GetMessages(
+	loadLimit := shortContextLoadLimit()
+	var historyMessages []*schema.Message
+
+	// 优先 shortctx Redis 窗口（与 config_provider 解耦）
+	if shortContextRedisEnabled() {
+		msgs, err := shortctx.Get().GetMessages(
 			s.ctx,
+			s.clientState.OwnerUserID,
 			s.clientState.DeviceID,
 			s.clientState.AgentID,
-			20)
+			loadLimit,
+		)
 		if err != nil {
-			log.Warnf("从 Redis 加载历史消息失败: %v", err)
-			return err
+			log.Warnf("从 shortctx 加载历史失败: %v", err)
+		} else if len(msgs) > 0 {
+			historyMessages = msgs
+			log.Infof("从 shortctx 加载了 %d 条历史消息", len(historyMessages))
 		}
-		log.Infof("从 Redis 加载了 %d 条历史消息", len(historyMessages))
-	} else if useManager {
-		// 从 Manager 加载
-		historyMessages, err = s.loadFromManager()
-		if err != nil {
-			log.Warnf("从 Manager 加载历史消息失败: %v", err)
-			return err
+	}
+
+	// 回落：Manager DB 或 legacy redis llm_memory
+	if len(historyMessages) == 0 {
+		var err error
+		if s.shouldUseManager() {
+			historyMessages, err = s.loadFromManager()
+			if err != nil {
+				log.Warnf("从 Manager 加载历史消息失败: %v", err)
+				return err
+			}
+			log.Infof("从 Manager 加载了 %d 条历史消息", len(historyMessages))
+		} else if s.shouldUseRedis() {
+			historyMessages, err = llm_memory.Get().GetMessages(
+				s.ctx,
+				s.clientState.DeviceID,
+				s.clientState.AgentID,
+				loadLimit)
+			if err != nil {
+				log.Warnf("从 Redis llm_memory 加载历史消息失败: %v", err)
+				return err
+			}
+			log.Infof("从 Redis llm_memory 加载了 %d 条历史消息", len(historyMessages))
+		} else {
+			log.Debugf("无可用历史数据源，跳过历史消息加载")
+			return nil
 		}
-		log.Infof("从 Manager 加载了 %d 条历史消息", len(historyMessages))
-	} else {
-		// 两个数据源都未配置，不加载历史消息
-		log.Debugf("Redis 和 Manager 都未配置，跳过历史消息加载")
-		return nil
 	}
 
 	if len(historyMessages) > 0 {
 		s.clientState.InitMessages(historyMessages)
-		log.Infof("成功加载 %d 条历史消息", len(historyMessages))
+		log.Infof("成功加载 %d 条历史消息 device=%s user=%d agent=%s",
+			len(historyMessages), s.clientState.DeviceID, s.clientState.OwnerUserID, s.clientState.AgentID)
 	} else {
 		log.Debugf("未加载到历史消息（可能没有历史记录）")
 	}
@@ -416,9 +442,8 @@ func (s *ChatSession) shouldUseManager() bool {
 	return providerType == "manager"
 }
 
-// loadFromManager 从 Manager 数据库加载历史消息
+// loadFromManager 从 Manager 数据库跨 session 加载历史消息（三维隔离）
 func (s *ChatSession) loadFromManager() ([]*schema.Message, error) {
-	// 创建 HistoryClient
 	historyCfg := history.HistoryClientConfig{
 		BaseURL:   util.GetBackendURL(),
 		AuthToken: util.GetManagerAuthToken(),
@@ -427,15 +452,16 @@ func (s *ChatSession) loadFromManager() ([]*schema.Message, error) {
 	}
 	client := history.NewHistoryClient(historyCfg)
 
-	if s.clientState.DeviceID == "" || s.clientState.AgentID == "" {
+	if !hasValidShortContextIdentity(s.clientState.OwnerUserID, s.clientState.DeviceID, s.clientState.AgentID) {
 		return []*schema.Message{}, nil
 	}
 
 	req := &history.GetMessagesRequest{
-		DeviceID:  s.clientState.DeviceID,
-		AgentID:   s.clientState.AgentID,
-		SessionID: s.clientState.SessionID,
-		Limit:     20,
+		UserID:   s.clientState.OwnerUserID,
+		DeviceID: s.clientState.DeviceID,
+		AgentID:  s.clientState.AgentID,
+		// 故意不传 SessionID：跨 session 取最近 N 条
+		Limit: shortContextLoadLimit(),
 	}
 
 	resp, err := client.GetMessages(s.ctx, req)
@@ -443,7 +469,6 @@ func (s *ChatSession) loadFromManager() ([]*schema.Message, error) {
 		return nil, err
 	}
 
-	// 转换为 schema.Message 格式
 	messages := make([]*schema.Message, 0, len(resp.Messages))
 	for _, item := range resp.Messages {
 		var msg *schema.Message
@@ -457,15 +482,10 @@ func (s *ChatSession) loadFromManager() ([]*schema.Message, error) {
 		case "system":
 			msg = schema.SystemMessage(item.Content)
 		default:
-			log.Warnf("未知的消息角色: %s", item.Role)
+			log.Warnf("未知消息角色: %s", item.Role)
 			continue
 		}
-
 		messages = append(messages, msg)
-	}
-
-	for _, msg := range messages {
-		log.Debugf("历史消息: %+v", msg)
 	}
 
 	return messages, nil

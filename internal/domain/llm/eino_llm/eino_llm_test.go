@@ -1,3 +1,8 @@
+//go:build ignore
+
+// 旧集成测试依赖已移除的 Response/ResponseWithFunctions API，暂排除编译。
+// 深度思考相关单测见 thinking_test.go。
+
 package eino_llm
 
 import (

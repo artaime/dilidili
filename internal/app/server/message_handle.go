@@ -13,6 +13,7 @@ import (
 	"dili-esp32-server-golang/internal/data/history"
 	"dili-esp32-server-golang/internal/domain/eventbus"
 	"dili-esp32-server-golang/internal/domain/memory/llm_memory"
+	"dili-esp32-server-golang/internal/domain/memory/shortctx"
 	"dili-esp32-server-golang/internal/domain/story"
 	"dili-esp32-server-golang/internal/util"
 	log "dili-esp32-server-golang/logger"
@@ -136,6 +137,7 @@ func (w *MessageWorker) processMessage(event *eventbus.AddMessageEvent) {
 	// 长期记忆体（memobase/mem0）处理，不管是redis还是manager场景都需要
 	if !event.IsUpdate {
 		w.processMemoryProvider(event)
+		w.processShortContext(ctx, event)
 	}
 }
 
@@ -156,6 +158,41 @@ func (w *MessageWorker) processMemoryProvider(event *eventbus.AddMessageEvent) {
 		event.Msg)
 	if err != nil {
 		log.Errorf("add message to memory provider failed: %v", err)
+	}
+}
+
+// processShortContext 写入与 config_provider 解耦的 Redis 近期窗口
+func (w *MessageWorker) processShortContext(ctx context.Context, event *eventbus.AddMessageEvent) {
+	if event == nil || event.ClientState == nil {
+		return
+	}
+	if !viper.IsSet("chat.short_context.enabled") {
+		// 默认开启
+	} else if !viper.GetBool("chat.short_context.enabled") {
+		return
+	}
+	if viper.IsSet("chat.short_context.redis_enabled") && !viper.GetBool("chat.short_context.redis_enabled") {
+		return
+	}
+	clientState := event.ClientState
+	if clientState.GetMemoryMode() == data_client.MemoryModeNone {
+		return
+	}
+	if clientState.OwnerUserID == 0 || clientState.DeviceID == "" || clientState.AgentID == "" || clientState.AgentID == "0" {
+		return
+	}
+
+	limit := viper.GetInt("chat.short_context.load_limit")
+	if limit <= 0 {
+		limit = 20
+	}
+	ttl := viper.GetDuration("chat.short_context.redis_ttl")
+	if ttl <= 0 {
+		ttl = 24 * time.Hour
+	}
+
+	if err := shortctx.Get().AddMessage(ctx, clientState.OwnerUserID, clientState.DeviceID, clientState.AgentID, event.Msg, limit, ttl); err != nil {
+		log.Warnf("shortctx 写入失败 device=%s: %v", clientState.DeviceID, err)
 	}
 }
 

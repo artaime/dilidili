@@ -82,13 +82,14 @@ flowchart LR
 |------|-----------|----------|----------|
 | VAD | `internal/domain/vad/inter/` | `silero_vad/`、`webrtc_vad/`、`ten_vad/` | `config.yaml` vad 段 |
 | ASR | `AsrProvider` | `internal/domain/asr/`（FunASR、Doubao、讯飞、腾讯等） | config + manager |
-| LLM | `LLMProvider` | `internal/domain/llm/`（Eino、Dify、Coze 等）；主对话注入能力地面策略见 `llm/common.BuildCapabilityGroundingPolicy`；设备固件查/控依赖 MCP tools 描述增强见 `mcp.enrichFirmwareToolDescription` | config + manager |
+| LLM | `LLMProvider` | `internal/domain/llm/`（Eino、Dify、Coze 等）；主对话注入能力地面策略见 `llm/common.BuildCapabilityGroundingPolicy`；设备固件查/控依赖 MCP tools 描述增强见 `mcp.enrichFirmwareToolDescription`；DeepSeek `thinking.mode` 未配置时默认注入 `disabled`（见 `eino_llm/thinking.go`） | config + manager |
 | TTS | `TTSProvider` | `internal/domain/tts/`（Doubao、Edge、CosyVoice/linkerai、百炼 CosyVoice、腾讯等） | config + manager |
 | MCP | `internal/domain/mcp/` | SSE / WebSocket / StreamableHTTP；设备 IoT tools 转换时对固件 get/set 追加描述引导（`device_firmware_tools.go`） | manager MCP 配置 |
 | RAG | `Searcher` | `internal/domain/rag/`（Dify、RAGFlow、WeKnora） | manager 知识库 |
 | 用户配置 | `config_provider` | `internal/domain/config/manager/`、`redis/` | `config.yaml` |
+| 短时上下文 | `shortctx` + session 历史灌入 | `internal/domain/memory/shortctx/`；入口 `chat.initHistoryMessages`；隔离键 `user_id+device_id+agent_id` | `chat.short_context` |
 | Chat Hooks | `hooks.Hub` | `internal/domain/chat/hooks/` | `config.yaml` chat_hooks |
-| 儿童故事 | `story.Service` / `create_child_story` | `internal/domain/story/`（含双池 share）、`internal/app/server/chat/child_story_*.go`、`internal/data/storypersist/`；Manager `story_assets`/`story_asset_aliases`/`story_playbacks`；管理端 `/admin/story-assets`、设备故事删/清 | `config.yaml` story（含 share_*）/ local_mcp；FEATURE `docs/features/story-asset-playback/`、`story-asset-admin/`、`device-story-delete/` |
+| 儿童故事 | `story.Service` / `create_child_story` / 追问 followup | `internal/domain/story/`（含双池 share）、`internal/app/server/chat/child_story_*.go`、`story_followup.go`、`internal/data/storypersist/`；Manager `story_assets`/`story_asset_aliases`/`story_playbacks`；管理端 `/admin/story-assets`、设备故事删/清 | `config.yaml` story（含 share_*、followup_*）/ local_mcp；FEATURE `docs/features/story-asset-playback/`、`story-asset-admin/`、`device-story-delete/`、`story-followup-ondemand/` |
 | OpenClaw | `internal/domain/openclaw/` | 智能体 Endpoint / 关键词路由 | manager 智能体配置 |
 
 新增 provider 时：实现接口 → 注册工厂 → 配置样例 → L2 FEATURE.md → 更新本表。

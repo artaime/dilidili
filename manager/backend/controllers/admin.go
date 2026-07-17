@@ -159,6 +159,7 @@ func (ac *AdminController) GetDeviceConfigs(c *gin.Context) {
 		VoiceIdentify   map[string]SpeakerGroupInfo `json:"voice_identify"`
 		KnowledgeBases  []KnowledgeBaseInfo         `json:"knowledge_bases"`
 		Prompt          string                      `json:"prompt"`
+		UserID          uint                        `json:"user_id"` // 设备当前绑定用户，0 表示未绑定
 		AgentID         string                      `json:"agent_id"`
 		MemoryMode      string                      `json:"memory_mode"`
 		SpeakerChatMode string                      `json:"speaker_chat_mode"`
@@ -196,8 +197,9 @@ func (ac *AdminController) GetDeviceConfigs(c *gin.Context) {
 	} else {
 		// 设备存在，查找智能体
 		deviceFound = true
+		response.UserID = device.UserID
 		response.AgentID = fmt.Sprintf("%d", device.AgentID)
-		log.Printf("设备 %s 存在，AgentID: %d", deviceID, device.AgentID)
+		log.Printf("设备 %s 存在，UserID: %d AgentID: %d", deviceID, device.UserID, device.AgentID)
 		if err := ac.DB.First(&agent, device.AgentID).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				// 智能体不存在，使用默认配置

@@ -43,6 +43,18 @@ func (t thinkingConfig) enabled() bool {
 	return strings.TrimSpace(t.Mode) != "" && t.Mode != "default"
 }
 
+// applyProviderThinkingDefaults 对「API 侧默认开启 thinking」的供应商补默认关闭。
+// DeepSeek Chat Completions（含 V4）在未传 thinking 时默认 type=enabled，语音场景需显式 opt-out。
+func applyProviderThinkingDefaults(provider string, thinking thinkingConfig) thinkingConfig {
+	if thinking.enabled() {
+		return thinking
+	}
+	if provider == "deepseek" {
+		return thinkingConfig{Mode: "disabled"}
+	}
+	return thinking
+}
+
 func decodeConfigMap(input map[string]interface{}, target interface{}) error {
 	if len(input) == 0 {
 		return nil
@@ -293,21 +305,20 @@ func cloneRequestWithBody(req *http.Request, body []byte) *http.Request {
 
 func parseThinkingConfig(config map[string]interface{}) thinkingConfig {
 	parsed, err := decodeOpenAICompatibleConfig(config)
-	if err != nil || parsed.Thinking == nil {
+	if err != nil {
 		return thinkingConfig{}
 	}
 
-	return *parsed.Thinking
+	thinking := thinkingConfig{}
+	if parsed.Thinking != nil {
+		thinking = *parsed.Thinking
+	}
+	return applyProviderThinkingDefaults(parsed.Provider, thinking)
 }
 
 func buildThinkingHTTPClient(config map[string]interface{}, base *http.Client) *http.Client {
 	if base == nil {
 		base = &http.Client{}
-	}
-
-	thinking := parseThinkingConfig(config)
-	if !thinking.enabled() {
-		return base
 	}
 
 	parsed, err := decodeOpenAICompatibleConfig(config)
@@ -317,6 +328,16 @@ func buildThinkingHTTPClient(config map[string]interface{}, base *http.Client) *
 
 	provider := parsed.Provider
 	if provider == "" {
+		return base
+	}
+
+	thinking := thinkingConfig{}
+	if parsed.Thinking != nil {
+		thinking = *parsed.Thinking
+	}
+	thinking = applyProviderThinkingDefaults(provider, thinking)
+
+	if !thinking.enabled() && !shouldUseMaxCompletionTokens(provider, parsed.ModelName) {
 		return base
 	}
 

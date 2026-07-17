@@ -80,13 +80,45 @@ func (s *Service) PlanGenerate(ctx context.Context, req ToolRequest) (*ToolResul
 	params := resolved.Params
 	NormalizeStoryParams(&params)
 	weakThemes := s.store.TopReplayThemes(ctx, req.DeviceID, 3)
+	seed := s.diversitySeedFor(ctx, req.DeviceID, params, req.Now)
+	assumed := resolved.AssumedFields
+	if seed != nil && seed.Genre != "" {
+		if assumed == nil {
+			assumed = map[string]string{}
+		}
+		assumed["diversity_genre"] = seed.Genre
+	}
 	return nil, &GeneratePlan{
 		Params:        params,
-		AssumedFields: resolved.AssumedFields,
+		AssumedFields: assumed,
 		SystemPrompt:  BuildSystemPrompt(params),
-		UserPrompt:    BuildUserPrompt(params, weakThemes),
+		UserPrompt:    BuildUserPrompt(params, weakThemes, seed),
 		StoryID:       uuid.NewString(),
+		StoryMeta:     storyMetaFromSeed(seed),
 	}, nil
+}
+
+func (s *Service) diversitySeedFor(ctx context.Context, deviceID string, params StoryParams, now time.Time) *DiversitySeed {
+	if s == nil || s.store == nil {
+		return PickDiversitySeed(params, nil, nil)
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	since := now.Add(-time.Duration(diversityRecentDays) * 24 * time.Hour)
+	recent, _ := s.store.ListRecent(ctx, deviceID, since, diversityRecentLimit)
+	return PickDiversitySeed(params, recent, nil)
+}
+
+func storyMetaFromSeed(seed *DiversitySeed) StoryMeta {
+	if seed == nil {
+		return StoryMeta{}
+	}
+	meta := StoryMeta{Genre: seed.Genre, Theme: seed.SubjectHint}
+	if seed.ProtagonistHint != "" {
+		meta.Characters = []string{seed.ProtagonistHint}
+	}
+	return meta
 }
 
 // SaveDraftStory 流式生成开始前落库占位，便于管理端可见与打断后续写。
@@ -105,23 +137,29 @@ func (s *Service) SaveDraftStory(ctx context.Context, req ToolRequest, plan *Gen
 		Mode:           params.RequestType,
 		AgeBand:        params.AgeBand,
 		LastPlayStatus: PlayStatusPlaying,
-			ParamsSnapshot: map[string]any{
-					"theme":           params.Theme,
-					"theme_raw":       params.ThemeRaw,
-					"style":           params.Style,
-					"age_band":        params.AgeBand,
-					"narration_mode":  params.NarrationMode,
-					"assumed_fields":  plan.AssumedFields,
-					"draft":           true,
-				},
-			}
-		setGenerationComplete(record, false)
-		if params.IsBedtime != nil && *params.IsBedtime {
-			record.Tags = append(record.Tags, "bedtime")
-			record.Mode = StoryModeBedtime
-		}
-		return s.store.Save(persistContext(ctx), record)
+		ParamsSnapshot: map[string]any{
+			"theme":           params.Theme,
+			"theme_raw":       params.ThemeRaw,
+			"style":           params.Style,
+			"age_band":        params.AgeBand,
+			"narration_mode":  params.NarrationMode,
+			"assumed_fields":  plan.AssumedFields,
+			"draft":           true,
+		},
 	}
+	if plan.StoryMeta.Genre != "" {
+		record.ParamsSnapshot["genre"] = plan.StoryMeta.Genre
+	}
+	if len(plan.StoryMeta.Characters) > 0 {
+		record.ParamsSnapshot["characters"] = append([]string(nil), plan.StoryMeta.Characters...)
+	}
+	setGenerationComplete(record, false)
+	if params.IsBedtime != nil && *params.IsBedtime {
+		record.Tags = append(record.Tags, "bedtime")
+		record.Mode = StoryModeBedtime
+	}
+	return s.store.Save(persistContext(ctx), record)
+}
 
 // SavePartialStory 打断或失败时保存已生成片段（GenerationComplete=false）。
 func (s *Service) SavePartialStory(ctx context.Context, req ToolRequest, plan *GeneratePlan, partial string, interrupted bool) error {
@@ -339,12 +377,13 @@ func (s *Service) handleGenerate(ctx context.Context, req ToolRequest) (*ToolRes
 	params := resolved.Params
 	NormalizeStoryParams(&params)
 	weakThemes := s.store.TopReplayThemes(ctx, req.DeviceID, 3)
+	seed := s.diversitySeedFor(ctx, req.DeviceID, params, req.Now)
 	if s.generate == nil {
 		return nil, ErrGenerateUnavailable
 	}
 
 	systemPrompt := BuildSystemPrompt(params)
-	userPrompt := BuildUserPrompt(params, weakThemes)
+	userPrompt := BuildUserPrompt(params, weakThemes, seed)
 	fullText, err := s.generate(ctx, systemPrompt, userPrompt)
 	if err != nil {
 		return nil, err
@@ -357,6 +396,7 @@ func (s *Service) handleGenerate(ctx context.Context, req ToolRequest) (*ToolRes
 	if fullText == "" {
 		return &ToolResult{Status: StatusNotFound, Message: "故事生成失败，请稍后再试"}, nil
 	}
+	meta = mergeStoryMeta(storyMetaFromSeed(seed), meta)
 
 	segments := SegmentText(fullText)
 	record := &StoryRecord{
@@ -369,14 +409,14 @@ func (s *Service) handleGenerate(ctx context.Context, req ToolRequest) (*ToolRes
 		AgeBand:        params.AgeBand,
 		LastPlayStatus: PlayStatusPlaying,
 		ParamsSnapshot: map[string]any{
-				"theme":          params.Theme,
-				"style":          params.Style,
-				"age_band":       params.AgeBand,
-				"narration_mode": params.NarrationMode,
-				"assumed_fields": resolved.AssumedFields,
-			},
-		}
-		applyStoryMeta(record, meta, params)
+			"theme":          params.Theme,
+			"style":          params.Style,
+			"age_band":       params.AgeBand,
+			"narration_mode": params.NarrationMode,
+			"assumed_fields": resolved.AssumedFields,
+		},
+	}
+	applyStoryMeta(record, meta, params)
 	if params.IsBedtime != nil && *params.IsBedtime {
 		record.Tags = append(record.Tags, "bedtime")
 	}

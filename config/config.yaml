@@ -25,6 +25,14 @@ chat:
   first_speech_pre_audio_ms: 800   # 首次检测到语音时保留的前置音频（毫秒），避免句首被 VAD 截断
   speak_request_reuse_window_ms: 60000 # MQTT-UDP 主动播报链路复用窗口（毫秒）
   speak_request_enabled: false # AI 玩具协议无 speak_request/speak_ready，主动播报走 hello+UDP+tts
+  # 短时多轮衔接：跨 session 按 user+device+agent 加载近期原文；详见 docs/features/SHORT_CONTEXT_CONTINUITY.md
+  short_context:
+    enabled: true
+    recent_message_limit: 10       # 每次 LLM 请求携带的近期原文条数
+    load_limit: 20                 # 启动时从 Redis/DB 灌入 Dialogue 的条数
+    redis_enabled: true            # 与 config_provider 解耦的 Redis 滚动窗口
+    redis_ttl: 24h
+    reuse_session_on_fresh_hello: true  # fresh hello 时若 Dialogue 非空则复用 SessionID
   intent_router:
     enabled: true
     min_confidence: 0.70
@@ -265,12 +273,6 @@ tts:
     sample_rate: 16000                     # 采样率
     channels: 1                            # 声道数
     frame_duration: 20                     # 帧持续时间（毫秒）
-  # 狄哩TTS配置
-  dili:
-    server_addr: "wss://your-server/dili/v1/"  # 服务器地址
-    device_id: "your_device_id"                    # 设备ID
-    client_id: "your_client_id"                    # 客户端ID
-    token: "your_token"                            # 访问令牌
   # 讯飞在线TTS配置
   xunfei:
     app_id: ""
@@ -316,6 +318,16 @@ tts:
 # 大语言模型（LLM）配置
 llm:
   provider: "qwen_72b"  # 默认使用的LLM提供商
+  # DeepSeek 官方 API（provider=deepseek 时未配 thinking 也会默认注入 disabled）
+  deepseek_official:
+    type: "openai"
+    provider: "deepseek"
+    model_name: "deepseek-v4-flash"
+    api_key: "api_key"
+    base_url: "https://api.deepseek.com/v1"
+    max_tokens: 500
+    thinking:
+      mode: disabled   # enabled 开启深度思考；DeepSeek API 默认开启，本系统默认关闭
   # DeepSeek V3模型配置（硅基流动平台）
   deepseek:
     type: "openai"                               # 接口类型
@@ -323,6 +335,7 @@ llm:
     api_key: "api_key"                           # API密钥
     base_url: "https://api.siliconflow.cn/v1"    # API基础地址
     max_tokens: 500                              # 最大生成token数
+    # siliconflow 平台用 enable_thinking，需 provider=siliconflow 且 thinking.mode=disabled/enabled
   # DeepSeek V2.5模型配置（硅基流动平台）
   deepseek2_5:
     type: "openai"                               # 接口类型
@@ -452,6 +465,10 @@ story:
   generate_max_tokens: 2048
   stream_enabled: true
   llm_route_enabled: true         # 用户话术后 LLM 识别故事意图并直达（不用关键词/内置故事名）
+  followup_enabled: true          # 故事情节追问：意图判定后按需拉正文，非追问轮不注入全文
+  followup_ttl_minutes: 30        # 最近故事指针有效期（分钟）
+  followup_max_runes: 3000        # 追问本轮注入正文上限（字）
+  followup_clarify_max_rounds: 2  # 非经典未讲过时澄清轮次上限
   filler_enabled: true
   filler_default: "好呀，我给你讲一个故事。"
   filler_bedtime: "好呀，那我们讲个睡前故事，乖乖听哦。"

@@ -50,7 +50,12 @@ func BuildSystemPrompt(params StoryParams) string {
 ## 故事质量（原创）
 - 须含：开端、冲突、转折、解决、结尾；逻辑自洽
 - 开头吸引听众，中间有节奏，结尾完整收束
-- 避免网络热梗、成人流行语、Markdown 与列表格式`
+- 避免网络热梗、成人流行语、Markdown 与列表格式
+
+## 多样性（原创必须）
+- 题材与情节须轮换丰富，禁止总写「小动物在森林里交朋友」一类套路
+- 主角姓名每次须新鲜；禁止复用近期人物名，也禁止改回「小明」「小红」「小兔子」等高频默认名
+- 若用户提示给出了指定题材、切入点或主角名，必须遵守`
 	}
 
 	prompt += `
@@ -70,10 +75,11 @@ func BuildSystemPrompt(params StoryParams) string {
 
 ## 输出格式（必须严格遵守）
 - 第一行且仅第一行输出元信息（不会被朗读），格式：
-  [[meta:title=故事名称|genre=题材|theme=故事主题|canonical=规范名|aliases=别名1,别名2]]
+  [[meta:title=故事名称|genre=题材|theme=故事主题|characters=主角,配角|canonical=规范名|aliases=别名1,别名2]]
 - title：为本篇故事的名称（2~12 字，如「普罗米修斯盗火」「森林里的新朋友」）
 - genre：题材类型，必须从以下选一：童话、历史、神话、寓言、冒险、侦探、科幻、生活
 - theme：具体故事主题（可与 title 相同；用户未指定主题时由你拟定）
+- characters：主要人物名，逗号分隔 1~4 个（如「阿澄,灯笼精灵」）；原创须填写
 - canonical：经典/神话等正篇时填写社会通行规范名（如「哪吒闹海」）；原创可省略
 - aliases：常见口语异名，逗号分隔 1~5 个（如「哪吒三太子闹海,哪吒脑海」）；无则省略
 - 第二行起直接写故事正文第一句，禁止过渡语、前言、Markdown 与标题行
@@ -83,8 +89,8 @@ func BuildSystemPrompt(params StoryParams) string {
 	return prompt
 }
 
-// BuildUserPrompt 构建用户侧生成提示。
-func BuildUserPrompt(params StoryParams, weakThemes []string) string {
+// BuildUserPrompt 构建用户侧生成提示。seed 可为 nil。
+func BuildUserPrompt(params StoryParams, weakThemes []string, seed *DiversitySeed) string {
 	p := params
 	NormalizeStoryParams(&p)
 	canonical := ShouldTellCanonical(p)
@@ -108,8 +114,10 @@ func BuildUserPrompt(params StoryParams, weakThemes []string) string {
 	} else if p.DurationHint == "long" {
 		parts = append(parts, "篇幅偏长")
 	}
-	if !canonical && len(weakThemes) > 0 {
-		parts = append(parts, fmt.Sprintf("（可选弱参考，勿照搬：曾听过的主题 %v；本次须创作全新情节）", weakThemes))
+	parts = append(parts, FormatDiversityPromptLines(seed)...)
+	// 多样性种子未覆盖主题回避时，保留弱主题提示；有种子则已写「禁止复用」
+	if !canonical && seed == nil && len(weakThemes) > 0 {
+		parts = append(parts, fmt.Sprintf("禁止复用近期主题：%v；本次须创作全新情节与人物", weakThemes))
 	}
 	if len(parts) == 0 {
 		if canonical {

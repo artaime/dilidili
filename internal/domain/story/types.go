@@ -7,6 +7,7 @@ const (
 	ActionReplay     = "replay"
 	ActionResume     = "resume"
 	ActionListRecent = "list_recent"
+	ActionFollowup   = "followup" // 针对已讲/点名故事的情节追问，不复播
 
 	StoryRefLast      = "last"
 	StoryRefLastNight = "last_night"

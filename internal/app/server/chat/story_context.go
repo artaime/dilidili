@@ -88,12 +88,17 @@ func (c *ChatManager) rememberRecentStory(rec *story.StoryRecord) {
 	if c == nil || c.clientState == nil || rec == nil {
 		return
 	}
-	brief := story.BuildStoryContextBrief(rec)
-	if brief == "" {
+	if strings.TrimSpace(rec.StoryID) == "" {
 		return
 	}
-	c.clientState.SetRecentStoryContext(brief)
-	log.Infof("设备 %s 更新最近故事上下文 title=%q", c.DeviceID, rec.Title)
+	theme := ""
+	if rec.ParamsSnapshot != nil {
+		if t, ok := rec.ParamsSnapshot["theme"].(string); ok {
+			theme = strings.TrimSpace(t)
+		}
+	}
+	c.clientState.SetRecentStoryPointer(rec.StoryID, rec.Title, theme)
+	log.Infof("设备 %s 更新最近故事指针 story_id=%s title=%q", c.DeviceID, rec.StoryID, rec.Title)
 }
 
 	func (c *ChatManager) RememberStoryForFollowUp(ctx context.Context, session *ChatSession, storyID, spokenText string, completed bool) {

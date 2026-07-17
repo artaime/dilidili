@@ -32,17 +32,23 @@ func purgeRedisDeviceKeys(ctx context.Context, cfg *config.Config, deviceSN stri
 		fmt.Sprintf("%s:story:%s:by_replay", prefix, deviceSN),
 	}
 
-	pattern := fmt.Sprintf("%s:story:%s:*", prefix, deviceSN)
+	patterns := []string{
+		fmt.Sprintf("%s:story:%s:*", prefix, deviceSN),
+		fmt.Sprintf("%s:shortctx:*:%s:*", prefix, deviceSN),
+	}
 	var cursor uint64
-	for {
-		batch, next, err := client.Scan(ctx, cursor, pattern, 100).Result()
-		if err != nil {
-			return fmt.Errorf("scan story keys: %w", err)
-		}
-		keys = append(keys, batch...)
-		cursor = next
-		if cursor == 0 {
-			break
+	for _, pattern := range patterns {
+		cursor = 0
+		for {
+			batch, next, err := client.Scan(ctx, cursor, pattern, 100).Result()
+			if err != nil {
+				return fmt.Errorf("scan redis keys pattern=%s: %w", pattern, err)
+			}
+			keys = append(keys, batch...)
+			cursor = next
+			if cursor == 0 {
+				break
+			}
 		}
 	}
 

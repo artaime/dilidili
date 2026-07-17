@@ -24,19 +24,55 @@ func childStoryRoutingEnabled() bool {
 }
 
 func (c *ChatManager) tryHandleChildStoryRequest(ctx context.Context, text string) (bool, error) {
-	if c == nil || !childStoryRoutingEnabled() {
+	if c == nil {
 		return false, nil
 	}
-	if isStoryRecallQuestion(text) {
-		log.Infof("设备 %s 故事追问走主 LLM，跳过故事直达路由 text=%q", c.DeviceID, text)
-		return false, nil
-	}
-
-	params, ok := c.classifyChildStoryIntent(ctx, text)
-	if !ok || params == nil {
+	text = strings.TrimSpace(text)
+	if text == "" {
 		return false, nil
 	}
 
+	routingOn := childStoryRoutingEnabled()
+	followupOn := c.storyFollowupEnabled()
+	if !routingOn && !followupOn {
+		return false, nil
+	}
+
+	intent, classified := story.IntentResult{}, false
+	if routingOn || followupOn {
+		intent, classified = c.classifyStoryIntent(ctx, text)
+	}
+
+	// 澄清多轮：用户补充线索；若改口要求讲/复播则退出澄清走现网。
+	if followupOn && c.isFollowupClarifying() {
+		if classified && isStoryPlaybackAction(intent.Action) {
+			c.clearFollowupClarify()
+		} else {
+			log.Infof("设备 %s 故事追问澄清轮 text=%q", c.DeviceID, text)
+			return true, c.handleFollowupClarifyTurn(ctx, text, intent, classified)
+		}
+	}
+
+	// 启发式 / 分类器命中追问
+	if followupOn {
+		if isStoryRecallQuestion(text) {
+			log.Infof("设备 %s 故事追问快路径 text=%q", c.DeviceID, text)
+			return true, c.handleStoryFollowup(ctx, text, story.IntentResult{
+				IsStoryFollowup: true,
+				Action:          story.ActionFollowup,
+				Confidence:      1,
+			})
+		}
+		if classified && intent.IsStoryFollowup {
+			return true, c.handleStoryFollowup(ctx, text, intent)
+		}
+	}
+
+	if !routingOn || !classified || intent.IsStoryFollowup || !isStoryPlaybackAction(intent.Action) {
+		return false, nil
+	}
+
+	params := intentResultToCreateParams(intent)
 	log.Infof("设备 %s LLM 故事路由 action=%s theme=%q type=%s narration=%s text=%q",
 		c.DeviceID, params.Action, params.Theme, params.RequestType, params.NarrationMode, text)
 

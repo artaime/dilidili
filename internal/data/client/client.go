@@ -91,11 +91,13 @@ type ClientState struct {
 	ListenMode string
 	// listen start 流程状态: idle / starting / listening
 	ListenPhase string
-	// 设备ID
-	DeviceID string
-	AgentID  string
-	// 会话ID
-	SessionID string
+		// 设备ID
+		DeviceID string
+		AgentID  string
+		// 设备当前绑定用户（Manager user_id）；0 表示未知/未绑定，短上下文不可用
+		OwnerUserID uint
+		// 会话ID
+		SessionID string
 
 	//设备配置
 	DeviceConfig utypes.UConfig
@@ -111,9 +113,12 @@ type ClientState struct {
 	MemoryProvider memory.MemoryProvider
 	MemoryContext  string //memory context
 
-	recentStoryMu      sync.RWMutex
-	recentStoryContext string
-	recentStoryAt      time.Time
+	// 最近故事轻量指针（仅 id/标题/主题，追问时再按需拉正文）
+	recentStoryMu    sync.RWMutex
+	recentStoryID    string
+	recentStoryTitle string
+	recentStoryTheme string
+	recentStoryAt    time.Time
 
 	// 上下文控制
 	Ctx    context.Context
@@ -189,6 +194,28 @@ func (c *ClientState) GetMemoryMode() string {
 	return NormalizeMemoryMode(c.DeviceConfig.MemoryMode)
 }
 
+// ApplyOwnerIdentity 更新短上下文隔离身份；user/agent 变化时清空内存 Dialogue。
+func (c *ClientState) ApplyOwnerIdentity(userID uint, agentID string) {
+	if c == nil {
+		return
+	}
+	agentID = strings.TrimSpace(agentID)
+	changed := c.OwnerUserID != userID || c.AgentID != agentID
+	c.OwnerUserID = userID
+	c.AgentID = agentID
+	if changed {
+		_ = c.InitMessages(nil)
+	}
+}
+
+// ClearDialogueHistory 清空内存对话（换绑/解绑）。
+func (c *ClientState) ClearDialogueHistory() {
+	if c == nil {
+		return
+	}
+	_ = c.InitMessages(nil)
+}
+
 func (c *ClientState) GetSpeakerChatMode() string {
 	return NormalizeSpeakerChatMode(c.DeviceConfig.SpeakerChatMode)
 }
@@ -221,31 +248,53 @@ func (c *ClientState) GetMemoryUserID() string {
 	return c.AgentID
 }
 
-func (c *ClientState) SetRecentStoryContext(brief string) {
-	if c == nil {
-		return
+	// RecentStoryPointer 最近一篇故事的轻量指针。
+	type RecentStoryPointer struct {
+		StoryID string
+		Title   string
+		Theme   string
+		At      time.Time
 	}
-	c.recentStoryMu.Lock()
-	defer c.recentStoryMu.Unlock()
-	c.recentStoryContext = strings.TrimSpace(brief)
-	c.recentStoryAt = time.Now()
-}
 
-// RecentStoryContextForPrompt 返回最近故事摘要，供 LLM system prompt 注入；超过 30 分钟自动失效。
-func (c *ClientState) RecentStoryContextForPrompt() string {
-	if c == nil {
-		return ""
+	func (c *ClientState) SetRecentStoryPointer(storyID, title, theme string) {
+		if c == nil {
+			return
+		}
+		storyID = strings.TrimSpace(storyID)
+		if storyID == "" {
+			return
+		}
+		c.recentStoryMu.Lock()
+		defer c.recentStoryMu.Unlock()
+		c.recentStoryID = storyID
+		c.recentStoryTitle = strings.TrimSpace(title)
+		c.recentStoryTheme = strings.TrimSpace(theme)
+		c.recentStoryAt = time.Now()
 	}
-	c.recentStoryMu.RLock()
-	defer c.recentStoryMu.RUnlock()
-	if c.recentStoryContext == "" {
-		return ""
+
+	// RecentStoryPointer 返回有效期内的最近故事指针；ttl<=0 时默认 30 分钟。
+	func (c *ClientState) RecentStoryPointer(ttl time.Duration) (RecentStoryPointer, bool) {
+		if c == nil {
+			return RecentStoryPointer{}, false
+		}
+		if ttl <= 0 {
+			ttl = 30 * time.Minute
+		}
+		c.recentStoryMu.RLock()
+		defer c.recentStoryMu.RUnlock()
+		if c.recentStoryID == "" {
+			return RecentStoryPointer{}, false
+		}
+		if !c.recentStoryAt.IsZero() && time.Since(c.recentStoryAt) > ttl {
+			return RecentStoryPointer{}, false
+		}
+		return RecentStoryPointer{
+			StoryID: c.recentStoryID,
+			Title:   c.recentStoryTitle,
+			Theme:   c.recentStoryTheme,
+			At:      c.recentStoryAt,
+		}, true
 	}
-	if !c.recentStoryAt.IsZero() && time.Since(c.recentStoryAt) > 30*time.Minute {
-		return ""
-	}
-	return c.recentStoryContext
-}
 
 // 历史消息相关的方法开始
 func (c *ClientState) AddMessage(msg *schema.Message) {
@@ -361,6 +410,10 @@ func AlignToolMessages(messages []*schema.Message) []*schema.Message {
 func (c *ClientState) InitMessages(messages []*schema.Message) error {
 	c.Dialogue.mu.Lock()
 	defer c.Dialogue.mu.Unlock()
+	if messages == nil {
+		c.Dialogue.Messages = []*schema.Message{}
+		return nil
+	}
 	c.Dialogue.Messages = AlignToolMessages(messages)
 	return nil
 }

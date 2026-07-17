@@ -8,21 +8,25 @@ import (
 )
 
 type Config struct {
-	Enabled                   bool
-	MinRetentionDays          int
-	MaxRetentionDays          int
-	LastNightStartHour        int
-	LastNightEndHour          int
-	ReplaySuggestThreshold    int
-	ReplaySuggestInterval     int
-	MemoryHintMinConfidence   float64
-	StreamEnabled             bool
-	FillerEnabled             bool
-	FillerDefault             string
-	FillerBedtime             string
+	Enabled                  bool
+	MinRetentionDays         int
+	MaxRetentionDays         int
+	LastNightStartHour       int
+	LastNightEndHour         int
+	ReplaySuggestThreshold   int
+	ReplaySuggestInterval    int
+	MemoryHintMinConfidence  float64
+	StreamEnabled            bool
+	FillerEnabled            bool
+	FillerDefault            string
+	FillerBedtime            string
 	ProtectContinueThreshold int // 已播字数≥此值时停播不停写
 	ShareExcludeDays         int // 本设备近期排斥天数
 	SharePickTopK            int // 共享池 Top-K 随机
+	FollowupEnabled          bool
+	FollowupTTLMinutes       int
+	FollowupMaxRunes         int
+	FollowupClarifyMaxRounds int
 }
 
 func LoadConfig() Config {
@@ -42,6 +46,10 @@ func LoadConfig() Config {
 		ProtectContinueThreshold: DefaultProtectContinueThreshold,
 		ShareExcludeDays:         DefaultShareExcludeDays,
 		SharePickTopK:            DefaultSharePickTopK,
+		FollowupEnabled:          true,
+		FollowupTTLMinutes:       30,
+		FollowupMaxRunes:         3000,
+		FollowupClarifyMaxRounds: 2,
 	}
 	if viper.IsSet("story.enabled") {
 		cfg.Enabled = viper.GetBool("story.enabled")
@@ -96,6 +104,27 @@ func LoadConfig() Config {
 	}
 	if cfg.SharePickTopK <= 0 {
 		cfg.SharePickTopK = DefaultSharePickTopK
+	}
+	if viper.IsSet("story.followup_enabled") {
+		cfg.FollowupEnabled = viper.GetBool("story.followup_enabled")
+	}
+	if viper.IsSet("story.followup_ttl_minutes") {
+		cfg.FollowupTTLMinutes = viper.GetInt("story.followup_ttl_minutes")
+	}
+	if cfg.FollowupTTLMinutes <= 0 {
+		cfg.FollowupTTLMinutes = 30
+	}
+	if viper.IsSet("story.followup_max_runes") {
+		cfg.FollowupMaxRunes = viper.GetInt("story.followup_max_runes")
+	}
+	if cfg.FollowupMaxRunes <= 0 {
+		cfg.FollowupMaxRunes = 3000
+	}
+	if viper.IsSet("story.followup_clarify_max_rounds") {
+		cfg.FollowupClarifyMaxRounds = viper.GetInt("story.followup_clarify_max_rounds")
+	}
+	if cfg.FollowupClarifyMaxRounds <= 0 {
+		cfg.FollowupClarifyMaxRounds = 2
 	}
 	return cfg
 }

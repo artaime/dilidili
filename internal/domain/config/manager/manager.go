@@ -111,6 +111,7 @@ func (c *ConfigManager) GetUserConfig(ctx context.Context, deviceID string) (typ
 			} `json:"voice_identify"`
 			KnowledgeBases  []types.KnowledgeBaseRef `json:"knowledge_bases"`
 			Prompt          string                   `json:"prompt"`
+			UserID          uint                     `json:"user_id"`
 			AgentId         string                   `json:"agent_id"`
 			MemoryMode      string                   `json:"memory_mode"`
 			SpeakerChatMode string                   `json:"speaker_chat_mode"`
@@ -205,6 +206,7 @@ func (c *ConfigManager) GetUserConfig(ctx context.Context, deviceID string) (typ
 		VoiceIdentify:   voiceIdentifyData,
 		MemoryMode:      response.Data.MemoryMode,
 		SpeakerChatMode: response.Data.SpeakerChatMode,
+		UserID:          response.Data.UserID,
 		AgentId:         response.Data.AgentId,
 		MCPServiceNames: strings.TrimSpace(response.Data.MCPServiceNames),
 		OpenClaw: types.OpenClawConfig{

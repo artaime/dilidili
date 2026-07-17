@@ -17,6 +17,7 @@ type StoryMeta struct {
 	Title      string   `json:"title,omitempty"`
 	Genre      string   `json:"genre,omitempty"`
 	Theme      string   `json:"theme,omitempty"` // 具体故事主题/名称（可与 title 相同）
+	Characters []string `json:"characters,omitempty"`
 	Canonical  string   `json:"canonical,omitempty"`
 	Aliases    []string `json:"aliases,omitempty"`
 }
@@ -84,6 +85,13 @@ func ParseMetaLine(line string) (StoryMeta, bool) {
 			meta.Genre = NormalizeGenre(val)
 		case "theme", "主题":
 			meta.Theme = val
+		case "characters", "人物", "角色":
+			for _, a := range strings.Split(val, ",") {
+				a = strings.TrimSpace(a)
+				if a != "" {
+					meta.Characters = append(meta.Characters, a)
+				}
+			}
 		case "canonical", "规范名", "标准名":
 			meta.Canonical = val
 		case "aliases", "别名":
@@ -101,7 +109,7 @@ func ParseMetaLine(line string) (StoryMeta, bool) {
 	if meta.Theme == "" && meta.Title != "" {
 		meta.Theme = meta.Title
 	}
-	return meta, meta.Title != "" || meta.Genre != "" || meta.Theme != "" || meta.Canonical != "" || len(meta.Aliases) > 0
+	return meta, meta.Title != "" || meta.Genre != "" || meta.Theme != "" || meta.Canonical != "" || len(meta.Aliases) > 0 || len(meta.Characters) > 0
 }
 
 // StripLeadingMeta 从完整文本剥离首行 meta，返回元信息与纯正文。
@@ -201,6 +209,9 @@ func applyStoryMeta(rec *StoryRecord, meta StoryMeta, params StoryParams) {
 	if theme != "" {
 		rec.ParamsSnapshot["theme"] = theme
 	}
+	if len(meta.Characters) > 0 {
+		rec.ParamsSnapshot["characters"] = append([]string(nil), meta.Characters...)
+	}
 }
 
 func mergeStoryMeta(planMeta, parsed StoryMeta) StoryMeta {
@@ -213,6 +224,9 @@ func mergeStoryMeta(planMeta, parsed StoryMeta) StoryMeta {
 	}
 	if strings.TrimSpace(parsed.Theme) != "" {
 		out.Theme = parsed.Theme
+	}
+	if len(parsed.Characters) > 0 {
+		out.Characters = append([]string(nil), parsed.Characters...)
 	}
 	if strings.TrimSpace(parsed.Canonical) != "" {
 		out.Canonical = parsed.Canonical

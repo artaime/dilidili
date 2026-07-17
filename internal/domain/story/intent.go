@@ -10,35 +10,37 @@ const StoryIntentMinConfidence = 0.55
 
 // IntentResult LLM 故事意图识别结果。
 type IntentResult struct {
-	IsStoryRequest bool    `json:"is_story_request"`
-	Confidence     float64 `json:"confidence"`
-	Action         string  `json:"action"`
-	StoryRef       string  `json:"story_ref"`
-	Theme          string  `json:"theme"`      // 用户口中的主题（可含 ASR 错字）
-	Canonical      string  `json:"canonical"`  // 通行规范名（纠错后，用于查库/入池）
-	StoryType      string  `json:"story_type"`
-	NarrationMode  string  `json:"narration_mode"`
-	IsBedtime      *bool   `json:"is_bedtime"`
-	UserSaidCasual bool    `json:"user_said_casual"`
+	IsStoryRequest  bool    `json:"is_story_request"`
+	IsStoryFollowup bool    `json:"is_story_followup"`
+	Confidence      float64 `json:"confidence"`
+	Action          string  `json:"action"`
+	StoryRef        string  `json:"story_ref"`
+	Theme           string  `json:"theme"`     // 用户口中的主题（可含 ASR 错字）
+	Canonical       string  `json:"canonical"` // 通行规范名（纠错后，用于查库/入池）
+	StoryType       string  `json:"story_type"`
+	NarrationMode   string  `json:"narration_mode"`
+	IsBedtime       *bool   `json:"is_bedtime"`
+	UserSaidCasual  bool    `json:"user_said_casual"`
 }
 
 var storyIntentJSONPattern = regexp.MustCompile(`\{[\s\S]*\}`)
 
 // BuildStoryIntentSystemPrompt 故事意图分类器 system prompt。
 func BuildStoryIntentSystemPrompt() string {
-	return `你是儿童语音助手的「故事意图分类器」。根据用户一句话，判断是否在与「听故事/讲故事」相关，并提取结构化参数。
+	return `你是儿童语音助手的「故事意图分类器」。根据用户一句话，判断是否在与「听故事/讲故事/故事追问」相关，并提取结构化参数。
 
 只输出一个 JSON 对象，不要 markdown、不要解释。字段说明：
-- is_story_request: bool，用户是否在请求讲故事、听故事、编故事、复播/续讲故事等
+- is_story_request: bool，用户是否在请求讲故事、听故事、编故事、复播/续讲故事等（追问情节时为 false）
+- is_story_followup: bool，用户是否在追问已听过或点名故事的情节/角色/原因/结局/寓意/叫什么名（不是要整篇重讲）
 - confidence: 0~1，判断置信度
-- action: generate|replay|resume|list_recent|none（非故事请求填 none）
+- action: generate|replay|resume|list_recent|followup|none
 - story_ref: replay/resume 时用 last|last_night|favorite|空
-- theme: 用户口中提到的故事名/主题原意（可保留口语写法；无则空）
+- theme: 用户口中提到的故事名/主题原意（可保留口语写法；无名追问可空）
 - canonical: 经典/神话/寓言点名时的「通行规范故事名」；原创主题可与 theme 相同或空
-- story_type: classic|myth|fable|fairy_tale|bedtime|original（经典童话、神话、寓言、民间童话、睡前、用户要新编）
+- story_type: classic|myth|fable|fairy_tale|bedtime|original（经典童话、神话、寓言、民间童话、睡前、用户要新编/非经典）
 - narration_mode: canonical|creative
-  - canonical：用户点名经典/神话/寓言/民间故事，期望讲广为流传的正篇，不要新编
-  - creative：用户要编故事、随便讲、或主题需原创（如「讲个小恐龙」）
+  - canonical：点名经典/神话/寓言/民间故事的通行正篇
+  - creative：原创、新编、非通行故事
 - is_bedtime: bool，是否睡前/哄睡场景
 - user_said_casual: bool，用户说随便/都可以/你定
 
@@ -46,10 +48,11 @@ func BuildStoryIntentSystemPrompt() string {
 1. 「讲龟兔赛跑」「女娲补天」即使无「故事」二字也是故事请求；story_type 与 narration_mode 要准确
 2. 「编个故事」「讲个关于恐龙的新故事」→ original + creative
 3. 「再讲一遍」「昨晚的故事」→ replay；用户点名具体故事名（如「再讲一遍女娲补天」）→ replay 且填 theme/canonical；「接着讲」→ resume
-4. 问天气、闲聊、事实问答 → is_story_request=false，action=none
+4. 问天气、闲聊、事实问答 → is_story_request=false，is_story_followup=false，action=none
 5. theme/canonical 用简短名称，不要整句用户原话
-6. 用户追问「刚才/刚刚讲了什么故事、什么内容、叫什么名字」→ is_story_request=false，action=none（由主对话根据上下文回答，不是复播/续讲/列表）
-7. 【重要·规范名纠错】语音识别常有谐音/错字。点名经典时必须把 canonical 纠成社会通行故事名，theme 可保留用户原说法：
+6. 故事追问（非复播）：「刚才/刚刚讲了什么」「后来呢」「他为什么哭」「哪吒闹海里他为什么…」→ is_story_request=false，is_story_followup=true，action=followup；点名时填 theme/canonical 与 story_type；无名追问 theme 可空
+7. followup 与 generate/replay/resume 互斥；不要把追问当成再讲一遍
+8. 【重要·规范名纠错】语音识别常有谐音/错字。点名经典时必须把 canonical 纠成社会通行故事名，theme 可保留用户原说法：
    - 「后裔射太阳」「后羿射太阳」→ theme 可写口语，canonical=「后羿射日」
    - 「哪吒三太子闹海」「哪吒脑海」→ canonical=「哪吒闹海」
    - 「女娲补天的故事」「女哇补天」→ canonical=「女娲补天」
@@ -84,6 +87,11 @@ func ParseStoryIntentJSON(raw string) (IntentResult, error) {
 	result.Canonical = strings.TrimSpace(result.Canonical)
 	result.StoryType = normalizeStoryType(result.StoryType)
 	result.NarrationMode = normalizeNarrationMode(result.NarrationMode)
+	if result.Action == ActionFollowup || result.IsStoryFollowup {
+		result.Action = ActionFollowup
+		result.IsStoryFollowup = true
+		result.IsStoryRequest = false
+	}
 	if result.Action == "" && result.IsStoryRequest {
 		result.Action = ActionGenerate
 	}
@@ -125,4 +133,13 @@ func IntentToStoryParams(intent IntentResult) StoryParams {
 	}
 	NormalizeStoryParams(&p)
 	return p
+}
+
+// IsClassicFollowupTarget 点名追问时是否应按通行经典情节作答（本机未讲过时）。
+func IsClassicFollowupTarget(intent IntentResult) bool {
+	return ShouldTellCanonical(StoryParams{
+		RequestType:   intent.StoryType,
+		NarrationMode: intent.NarrationMode,
+		Theme:         intent.Canonical,
+	})
 }

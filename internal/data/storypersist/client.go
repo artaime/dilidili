@@ -241,3 +241,53 @@ func (c *Client) FindShareable(ctx context.Context, p FindShareableParams) (*sto
 		LastPlayStatus:     story.PlayStatusPlaying,
 	}, nil
 }
+
+// GetAsset 按 story_id 从 Manager 拉取资产正文（追问回退）。
+func (c *Client) GetAsset(ctx context.Context, storyID string) (*story.StoryRecord, error) {
+	if !c.Enabled() {
+		return nil, fmt.Errorf("persist client disabled")
+	}
+	storyID = strings.TrimSpace(storyID)
+	if storyID == "" {
+		return nil, fmt.Errorf("empty story_id")
+	}
+	raw, err := c.client.DoRequestRaw(ctx, httpc.RequestOptions{
+		Method: "GET",
+		Path:   "/api/internal/stories/assets/" + storyID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Data assetView `json:"data"`
+	}
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Data.StoryID == "" || strings.TrimSpace(resp.Data.FullText) == "" {
+		return nil, fmt.Errorf("empty asset")
+	}
+	params := resp.Data.ParamsSnapshot
+	if params == nil {
+		params = map[string]any{}
+	}
+	if resp.Data.ThemeKey != "" {
+		params["theme"] = resp.Data.ThemeKey
+	}
+	if resp.Data.NarrationMode != "" {
+		params["narration_mode"] = resp.Data.NarrationMode
+	}
+	if resp.Data.GenerationComplete {
+		params["generation_complete"] = true
+	}
+	return &story.StoryRecord{
+		StoryID:            resp.Data.StoryID,
+		Title:              resp.Data.Title,
+		FullText:           resp.Data.FullText,
+		Segments:           resp.Data.Segments,
+		Mode:               resp.Data.Mode,
+		AgeBand:            resp.Data.AgeBand,
+		GenerationComplete: resp.Data.GenerationComplete,
+		ParamsSnapshot:     params,
+	}, nil
+}

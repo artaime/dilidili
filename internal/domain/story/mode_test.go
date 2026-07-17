@@ -28,6 +28,27 @@ func TestParseStoryIntentJSON(t *testing.T) {
 	}
 }
 
+func TestParseStoryIntentFollowup(t *testing.T) {
+	raw := `{"is_story_request":false,"is_story_followup":true,"confidence":0.9,"action":"followup","theme":"哪吒闹海","canonical":"哪吒闹海","story_type":"myth","narration_mode":"canonical"}`
+	got, err := ParseStoryIntentJSON(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.IsStoryFollowup || got.IsStoryRequest || got.Action != ActionFollowup || got.Canonical != "哪吒闹海" {
+		t.Fatalf("unexpected followup: %+v", got)
+	}
+	if !IsClassicFollowupTarget(got) {
+		t.Fatal("expected classic followup target")
+	}
+}
+
+func TestIsClassicFollowupTargetOriginal(t *testing.T) {
+	got := IntentResult{StoryType: StoryModeOriginal, NarrationMode: NarrationCreative, Canonical: "小火龙探险"}
+	if IsClassicFollowupTarget(got) {
+		t.Fatal("original should not be classic")
+	}
+}
+
 func TestIntentToStoryParamsPrefersCanonical(t *testing.T) {
 	p := IntentToStoryParams(IntentResult{
 		StoryType:     StoryModeMyth,

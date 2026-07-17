@@ -32,6 +32,15 @@ done
 | `story.filler_enabled` | `true` | 生成前播放过渡语 |
 | `story.filler_default` | 见 config | 普通故事过渡语 |
 | `story.filler_bedtime` | 见 config | 睡前故事过渡语 |
+| `story.followup_enabled` | `true` | 情节追问按需拉正文 |
+| `story.followup_ttl_minutes` | `30` | 最近故事指针有效期 |
+| `story.followup_max_runes` | `3000` | 追问本轮注入正文上限 |
+| `story.followup_clarify_max_rounds` | `2` | 非经典未讲过澄清轮次 |
+
+情节追问详见 [`story-followup-ondemand/FEATURE.md`](./story-followup-ondemand/FEATURE.md)。
+
+开放/随便讲的题材轮换与人物名防复用详见 [`story-diversity/FEATURE.md`](./story-diversity/FEATURE.md)。
+
 
 ## 开发计划
 
@@ -53,3 +62,4 @@ go test ./...
 |------|------|
 | 2026-06-30 | 首期 P0~P2：create_child_story、Redis Story Store、复播/续讲、保留与弱偏好 |
 | 2026-06-30 | 流式生成：过渡语 + LLM 分句 TTS（`story.stream_enabled` / `filler_*`） |
+| 2026-07-17 | 开放生成题材轮换 + 主角名种子 + 近期人物回避（见 story-diversity） |

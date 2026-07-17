@@ -473,20 +473,28 @@ func serveChatMessageAudio(ctx *gin.Context, db *gorm.DB, audioBasePath string, 
 }
 
 // GetMessagesForInit 获取消息列表（用于初始化加载，内部服务接口，无需认证）
+// 短上下文要求按 user_id+device_id+agent_id 三维过滤，避免设备换绑串话。
 func (c *ChatHistoryController) GetMessagesForInit(ctx *gin.Context) {
 	deviceID := ctx.Query("device_id")
 	agentID := ctx.Query("agent_id")
 	sessionID := ctx.Query("session_id")
+	userID, _ := strconv.ParseUint(ctx.Query("user_id"), 10, 64)
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "20"))
 
 	if deviceID == "" || agentID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "device_id 和 agent_id 不能为空"})
 		return
 	}
+	if userID == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id 必须为正整数"})
+		return
+	}
+	if limit <= 0 {
+		limit = 20
+	}
 
-	// 构建查询（不按 user_id 过滤，因为这是内部服务接口）
 	query := c.DB.Model(&models.ChatMessage{}).
-		Where("device_id = ? AND agent_id = ? AND is_deleted = ?", deviceID, agentID, false)
+		Where("user_id = ? AND device_id = ? AND agent_id = ? AND is_deleted = ?", uint(userID), deviceID, agentID, false)
 
 	if sessionID != "" {
 		query = query.Where("session_id = ?", sessionID)

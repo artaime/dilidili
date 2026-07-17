@@ -136,6 +136,14 @@ const siliconflowThinkingConfig = {
   budgetStep: 128
 }
 
+// DeepSeek V4 API 默认 thinking=enabled；本系统默认关闭，需显式开启。
+const deepseekThinkingConfig = {
+  label: '深度思考',
+  options: [disableOption, enableOption],
+  defaultMode: 'disabled',
+  hint: 'DeepSeek 接口默认开启深度思考；本系统默认关闭（注入 thinking.type=disabled）。语音场景建议保持关闭以降低首包延迟。'
+}
+
 const providerTypeMap = {
   openai: 'openai',
   ollama: 'ollama',
@@ -335,19 +343,20 @@ const catalog = {
   deepseek: {
     quickUrl: 'https://api.deepseek.com/v1',
     modelPlaceholder: '请选择或输入模型名称',
-    modelHint: '官方 DeepSeek 通过选择不同模型切换思考模式：deepseek-chat 为非思考，deepseek-reasoner 为思考。',
+    modelHint: 'DeepSeek V4 可通过 thinking 开关控制深度思考；旧名 deepseek-chat / deepseek-reasoner 仍可用。',
     models: [
-      createModel('deepseek-chat', false, {
-        hint: 'deepseek-chat 是非思考模型，不需要额外 thinking 参数。'
+      createModel('deepseek-v4-flash', deepseekThinkingConfig),
+      createModel('deepseek-v4-pro', deepseekThinkingConfig),
+      createModel('deepseek-chat', deepseekThinkingConfig, {
+        hint: '兼容别名；建议迁移至 deepseek-v4-flash，并显式配置深度思考开关。'
       }),
-      createModel('deepseek-reasoner', false, {
-        hint: 'deepseek-reasoner 已内置思考模式，不需要额外 thinking 参数。'
+      createModel('deepseek-reasoner', deepseekThinkingConfig, {
+        hint: '兼容别名（偏思考）；建议迁移至 deepseek-v4-pro / flash，并用深度思考开关控制。'
       })
     ],
     fallbackThinking: {
-      label: '深度思考',
-      options: booleanThinkingOptions,
-      hint: '官方 DeepSeek 推荐通过模型名切换思考模式。自定义代理若额外支持 thinking.type，可在这里启用兼容开关。'
+      ...deepseekThinkingConfig,
+      hint: '未命中模型列表时仍按 DeepSeek thinking.type 透传；未配置时服务端默认注入 disabled。'
     }
   }
 }
@@ -455,6 +464,7 @@ export function getProviderThinkingConfig(provider, modelName) {
     visible: true,
     label: source.label || '深度思考',
     options: cloneOptions(source.options),
+    defaultMode: source.defaultMode || 'default',
     showBudgetFor: [...(source.showBudgetFor || [])],
     budgetMin: source.budgetMin || 1,
     budgetMax: source.budgetMax || 100000,

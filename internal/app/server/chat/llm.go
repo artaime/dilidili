@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	// MaxMessageCount 保留兼容旧引用；实际请求窗口读 chat.short_context.recent_message_limit
 	MaxMessageCount = 10
 
 	McpReadResourcePageSize       = 100 * 1024
@@ -1113,7 +1114,7 @@ func (l *LLMManager) DoLLmRequest(ctx context.Context, userMessage *schema.Messa
 	l.einoTools = einoTools
 
 	//组装历史消息和当前用户的消息
-	requestMessages := l.GetMessages(ctx, userMessage, MaxMessageCount, speakerResult)
+	requestMessages := l.GetMessages(ctx, userMessage, shortContextRecentMessageLimit(), speakerResult)
 
 	if l.session != nil {
 		payload, stop, hookErr := l.session.hookHub.EmitLLMInput(l.session.hookContext(ctx), chathooks.LLMInputData{
@@ -1273,10 +1274,6 @@ func (l *LLMManager) GetMessages(ctx context.Context, userMessage *schema.Messag
 	} else {
 		chatInfoLogf("[SystemPrompt] 未注入用户个性化信息: memoryMode=%s, MemoryContext为空=%v", memoryMode, l.clientState.MemoryContext == "")
 	}
-	if brief := l.clientState.RecentStoryContextForPrompt(); brief != "" {
-		systemPrompt += fmt.Sprintf("\n\n最近刚讲过的故事（用户可能会追问情节、角色或寓意，请基于下文回答，勿说不知道刚才讲了什么）:\n%s", brief)
-	}
-
 	chatDebugLogf("speakerResult: %+v, voiceIdentify: %+v", speakerResult, l.clientState.DeviceConfig.VoiceIdentify)
 
 	// 整合说话人识别结果到 systemPrompt

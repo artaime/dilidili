@@ -101,6 +101,7 @@ func (c *HistoryClient) UpdateMessageAudio(ctx context.Context, req *UpdateMessa
 
 // GetMessagesRequest 获取消息请求
 type GetMessagesRequest struct {
+	UserID    uint   `json:"user_id"` // 设备绑定用户；0 时内部接口应拒绝跨 session 加载
 	DeviceID  string `json:"device_id"`
 	AgentID   string `json:"agent_id"`
 	SessionID string `json:"session_id,omitempty"`
@@ -133,6 +134,9 @@ func (c *HistoryClient) GetMessages(ctx context.Context, req *GetMessagesRequest
 		"device_id": req.DeviceID,
 		"agent_id":  req.AgentID,
 		"limit":     fmt.Sprintf("%d", req.Limit),
+	}
+	if req.UserID > 0 {
+		queryParams["user_id"] = fmt.Sprintf("%d", req.UserID)
 	}
 	if req.SessionID != "" {
 		queryParams["session_id"] = req.SessionID

@@ -181,6 +181,11 @@ const apiKeyRequired = computed(() => !isOllama.value)
 
 const defaultThinkingMode = 'default'
 
+function resolveDefaultThinkingMode(providerName, modelName) {
+  const config = getProviderThinkingConfig(providerName, modelName)
+  return config?.defaultMode || defaultThinkingMode
+}
+
 const provider = computed(() => resolvedProvider.value || '')
 const modelFieldLabel = computed(() => getProviderModelFieldLabel(provider.value))
 const modelPlaceholder = computed(() => getProviderModelPlaceholder(provider.value))
@@ -259,8 +264,9 @@ function normalizeThinkingState(provider) {
   }
 
   const config = getProviderThinkingConfig(provider, props.model?.model_name)
+  const fallbackMode = resolveDefaultThinkingMode(provider, props.model?.model_name)
   if (!config?.visible) {
-    props.model.thinking_mode = defaultThinkingMode
+    props.model.thinking_mode = fallbackMode
     props.model.thinking_budget_tokens = null
     props.model.thinking_clear_thinking = 'default'
     return
@@ -268,7 +274,7 @@ function normalizeThinkingState(provider) {
 
   const options = config.options.map(option => option.value)
   if (!options.includes(props.model.thinking_mode)) {
-    props.model.thinking_mode = defaultThinkingMode
+    props.model.thinking_mode = options.includes(fallbackMode) ? fallbackMode : (options[0] || defaultThinkingMode)
   }
 
   if (props.model.thinking_budget_tokens !== null && props.model.thinking_budget_tokens !== undefined && props.model.thinking_budget_tokens !== '') {
@@ -385,8 +391,10 @@ function buildThinkingPayload(model) {
     return undefined
   }
 
-  const mode = model?.thinking_mode || defaultThinkingMode
-  if (mode === defaultThinkingMode) {
+  const fallbackMode = resolveDefaultThinkingMode(providerName, model?.model_name)
+  const mode = model?.thinking_mode || fallbackMode
+  // 仅当「通用默认」时不透传；DeepSeek 等提供商的 defaultMode=disabled 需显式写入配置
+  if (mode === defaultThinkingMode && fallbackMode === defaultThinkingMode) {
     return undefined
   }
 
