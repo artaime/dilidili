@@ -34,3 +34,13 @@ func TestResetGoodbyeIdleWindowRestartsTimer(t *testing.T) {
 		t.Fatalf("expected reset to restart idle window, got elapsed=%s", elapsed)
 	}
 }
+
+func TestNoteUplinkActivityResetsNormalAudioIdle(t *testing.T) {
+	state := &ClientState{ListenMode: "auto"}
+	state.StartAudioIdleWindow(time.Now().Add(-10 * time.Second))
+	state.NoteUplinkActivity(time.Now())
+
+	if elapsed := state.GetAudioIdleElapsed(time.Now()); elapsed > time.Second {
+		t.Fatalf("expected uplink activity to restart idle window, got elapsed=%s", elapsed)
+	}
+}

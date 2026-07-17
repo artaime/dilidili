@@ -154,9 +154,6 @@ func (s *UdpServer) processPacket(addr *net.UDPAddr, data []byte) {
 	if currentAddr == nil || currentAddr.String() != addr.String() {
 		udpSession.SetRemoteAddr(addr)
 	}
-	Debugf("收到音频数据, addr: %s, 大小: %d 字节", addr, len(decrypted))
-	DeviceInfof(DeviceTagUDP, udpSession.DeviceId,
-		"UDP 音频上行 addr=%s bytes=%d", addr, len(decrypted))
 	ok, err := udpSession.RecvData(decrypted)
 	if err != nil {
 		Errorf("addr: %s 接收数据失败: %v", addr, err)

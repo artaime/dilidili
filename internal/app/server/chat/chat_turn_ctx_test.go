@@ -40,6 +40,20 @@ func TestTryRecoverStuckVoiceCaptureSkipsActiveChatTurn(t *testing.T) {
 	require.False(t, session.TryRecoverStuckVoiceCapture(), "对话处理中不应自动恢复拾音")
 }
 
+func TestTryRecoverStuckVoiceCaptureClearsSoftVoiceStop(t *testing.T) {
+	session, clientState := newAbortTestSession("auto")
+	clientState.SetClientVoiceStop(true)
+	clientState.SetStatus(client.ClientStatusListening)
+	clientState.SetListenPhase(client.ListenPhaseListening)
+	clientState.Asr.AsrAudioChannel = make(chan []float32, 1)
+	session.asrManager = NewASRManager(clientState, nil)
+	session.asrManager.recognitionLoopActive.Store(true)
+
+	require.True(t, session.TryRecoverStuckVoiceCapture())
+	require.False(t, clientState.GetClientVoiceStop())
+	require.NotNil(t, clientState.Asr.AsrAudioChannel, "soft recover must not close ASR channel")
+}
+
 func TestIsBenignAsrDisconnectError(t *testing.T) {
 	require.True(t, isBenignAsrDisconnectError(errors.New("aliyun funasr task failed: EmptyAudio")))
 	require.False(t, isBenignAsrDisconnectError(errors.New("unrelated failure")))

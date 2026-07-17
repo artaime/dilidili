@@ -91,7 +91,11 @@ type ChatSession struct {
 	vadLoopStarted              bool
 	listenStartSeq              atomic.Uint64
 	realtimeListenSessionActive atomic.Bool
-	lastVoiceRecoverAttempt    atomic.Int64
+	lastVoiceRecoverAttempt     atomic.Int64
+
+	// 欢迎语/助手输出期间收到的 listen start 暂存，输出结束后补发，避免误打断 TTS 又丢下一次拾音。
+	pendingListenStartMu   sync.Mutex
+	pendingListenStartMode string
 
 	// 未激活设备高频触发时，短时间内复用最近一次“未激活”判定，避免频繁打接口。
 	activationCheckMu     sync.Mutex
@@ -613,6 +617,23 @@ func shouldIgnoreListenStartDuringWelcome(mode string, welcomePlaying bool) bool
 	return mode != "realtime" && welcomePlaying
 }
 
+// shouldDeferListenStartDuringOutput 欢迎语/助手输出期间收到的 listen start 应暂存而非立刻 StopSpeaking。
+func shouldDeferListenStartDuringOutput(mode string, welcomePlaying bool, ttsStart bool, status string, chatTurnActive bool) bool {
+	// realtime 欢迎语期间允许直接建立长驻监听（上层不会 StopSpeaking）。
+	if mode == "realtime" && welcomePlaying {
+		return false
+	}
+	if welcomePlaying || ttsStart || chatTurnActive {
+		return true
+	}
+	switch status {
+	case ClientStatusLLMStart, ClientStatusTTSStart:
+		return true
+	default:
+		return false
+	}
+}
+
 func shouldWaitRealtimeListenStartDuringWelcome(mode string, welcomePlaying bool) bool {
 	return false
 }
@@ -622,6 +643,61 @@ func shouldInterruptOutputOnListenStart(mode string, welcomePlaying bool) bool {
 		return false
 	}
 	return true
+}
+
+func (s *ChatSession) stashPendingListenStart(mode string) {
+	if s == nil {
+		return
+	}
+	mode = strings.TrimSpace(mode)
+	if mode == "" {
+		return
+	}
+	s.pendingListenStartMu.Lock()
+	s.pendingListenStartMode = mode
+	s.pendingListenStartMu.Unlock()
+	deviceID := ""
+	if s.clientState != nil {
+		deviceID = s.clientState.DeviceID
+	}
+	log.Infof("设备 %s 暂存 listen start，待输出结束后再启动: mode=%s", deviceID, mode)
+}
+
+func (s *ChatSession) flushPendingListenStartAfterOutput() {
+	if s == nil || s.IsClosing() || s.clientState == nil {
+		return
+	}
+	s.pendingListenStartMu.Lock()
+	mode := s.pendingListenStartMode
+	s.pendingListenStartMode = ""
+	s.pendingListenStartMu.Unlock()
+	if mode == "" {
+		return
+	}
+	if shouldDeferListenStartDuringOutput(
+		mode,
+		s.clientState.IsWelcomePlaying,
+		s.clientState.GetTtsStart(),
+		s.clientState.GetStatus(),
+		s.hasActiveChatTurn(),
+	) {
+		s.stashPendingListenStart(mode)
+		return
+	}
+	phase := s.clientState.GetListenPhase()
+	if phase == ListenPhaseStarting || phase == ListenPhaseListening {
+		log.Debugf("设备 %s 输出结束时已在拾音中，丢弃暂存 listen start: mode=%s phase=%s", s.clientState.DeviceID, mode, phase)
+		return
+	}
+	log.Infof("设备 %s 输出结束，补发暂存的 listen start: mode=%s", s.clientState.DeviceID, mode)
+	if err := s.HandleListenStart(&ClientMessage{
+		Type:     MessageTypeListen,
+		DeviceID: s.clientState.DeviceID,
+		Mode:     mode,
+		State:    MessageStateStart,
+	}); err != nil {
+		log.Warnf("设备 %s 补发 listen start 失败: mode=%s err=%v", s.clientState.DeviceID, mode, err)
+	}
 }
 
 func completeWelcomePlaybackWaitCh(ch chan welcomePlaybackResult, natural bool) {
@@ -831,13 +907,24 @@ func (s *ChatSession) HandleListenDetect(msg *ClientMessage) error {
 			s.clientState.IsWelcomePlaying,
 		)
 
-		if action == detectActionSilent {
-			return nil
-		}
+			if action == detectActionSilent {
+				return nil
+			}
 
-		// detect 决定要播欢迎语或接管对话时，要先停掉当前残留输出，
-		// 避免旧一轮 TTS/LLM 与新一轮 detect 动作交叉。
-		s.StopSpeakingWithReason(true, fmt.Sprintf("HandleListenDetect action=%s text=%q", action, text))
+			// 助手/欢迎语输出期间忽略 detect，避免 StopSpeaking 误杀正在播放的 TTS。
+			if s.clientState.IsWelcomePlaying || s.isAssistantOutputAudioGateActive() {
+				log.Infof(
+					"设备 %s 助手输出中忽略 detect，避免打断 TTS: text=%q action=%s",
+					msg.DeviceID,
+					text,
+					action,
+				)
+				return nil
+			}
+
+			// detect 决定要播欢迎语或接管对话时，要先停掉当前残留输出，
+			// 避免旧一轮 TTS/LLM 与新一轮 detect 动作交叉。
+			s.StopSpeakingWithReason(true, fmt.Sprintf("HandleListenDetect action=%s text=%q", action, text))
 
 		if action == detectActionWelcome {
 			s.HandleWelcome()
@@ -1215,22 +1302,37 @@ func (s *ChatSession) HandleListenStart(msg *ClientMessage) error {
 	now := time.Now()
 	prevHistory := s.clientState.GetCommandHistorySnapshot()
 
-	// auto/manual 模式下，欢迎语播放期间设备可能会自动补发 listen start；
-	// 这类包不应抢占欢迎语，因此欢迎语仍在播放时直接忽略。
-	if shouldIgnoreListenStartDuringWelcome(msg.Mode, s.clientState.IsWelcomePlaying) {
-		log.Infof("设备 %s 欢迎语播放中，忽略 listen start: history={%s}", msg.DeviceID, prevHistory.DebugString(now))
-		return nil
-	}
+	// 欢迎语/助手输出期间设备可能会自动补发 listen start；
+		// 暂存后待输出结束再启动，避免打断 TTS 又丢掉下一次拾音。
+		if shouldDeferListenStartDuringOutput(
+			msg.Mode,
+			s.clientState.IsWelcomePlaying,
+			s.clientState.GetTtsStart(),
+			s.clientState.GetStatus(),
+			s.hasActiveChatTurn(),
+		) {
+			s.stashPendingListenStart(msg.Mode)
+			log.Infof(
+				"设备 %s 输出中暂存 listen start: mode=%s history={%s} welcomePlaying=%v tts=%v status=%s",
+				msg.DeviceID,
+				msg.Mode,
+				prevHistory.DebugString(now),
+				s.clientState.IsWelcomePlaying,
+				s.clientState.GetTtsStart(),
+				s.clientState.GetStatus(),
+			)
+			return nil
+		}
 
-	log.Debugf(
-		"ListenStart recv: device=%s mode=%s history={%s} welcomeSpeaking=%v welcomePlaying=%v phase=%s",
-		msg.DeviceID,
-		msg.Mode,
-		prevHistory.DebugString(now),
-		s.clientState.IsWelcomeSpeaking,
-		s.clientState.IsWelcomePlaying,
-		s.clientState.GetListenPhase(),
-	)
+		log.Debugf(
+			"ListenStart recv: device=%s mode=%s history={%s} welcomeSpeaking=%v welcomePlaying=%v phase=%s",
+			msg.DeviceID,
+			msg.Mode,
+			prevHistory.DebugString(now),
+			s.clientState.IsWelcomeSpeaking,
+			s.clientState.IsWelcomePlaying,
+			s.clientState.GetListenPhase(),
+		)
 
 	// realtime 和 auto/manual 的处理目标不同：
 	// realtime 更像“长驻监听会话”，尽量不中断当前链路；
@@ -1533,17 +1635,14 @@ func (s *ChatSession) TryRecoverStuckVoiceCapture() bool {
 	if s.hasActiveChatTurn() {
 		return false
 	}
+	if state.IsWelcomePlaying || s.isAssistantOutputAudioGateActive() {
+		return false
+	}
 	if state.GetTtsStart() {
 		return false
 	}
 	switch state.GetStatus() {
 	case ClientStatusLLMStart, ClientStatusTTSStart:
-		return false
-	}
-	if s.asrManager.IsRecognitionLoopActive() {
-		return false
-	}
-	if state.Asr.HasOpenAudioInput() {
 		return false
 	}
 
@@ -1553,6 +1652,23 @@ func (s *ChatSession) TryRecoverStuckVoiceCapture() bool {
 		return false
 	}
 	s.lastVoiceRecoverAttempt.Store(nowMs)
+
+	// soft listen stop：ASR 仍开着，仅 VoiceStop 挡住上行；清标志即可恢复，勿再 Restart。
+	if s.asrManager.IsRecognitionLoopActive() || state.Asr.HasOpenAudioInput() {
+		state.SetClientVoiceStop(false)
+		if state.GetListenPhase() == ListenPhaseIdle {
+			state.SetListenPhase(ListenPhaseListening)
+			state.SetStatus(ClientStatusListening)
+		}
+		log.Infof(
+			"设备 %s 清除 soft VoiceStop，恢复上行拾音: provider=%s mode=%s phase=%s",
+			state.DeviceID,
+			state.DeviceConfig.Asr.Provider,
+			state.ListenMode,
+			state.GetListenPhase(),
+		)
+		return true
+	}
 
 	ctx := state.SessionCtx.Get(state.Ctx)
 	if ctx == nil {

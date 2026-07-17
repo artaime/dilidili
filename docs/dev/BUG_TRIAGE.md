@@ -28,6 +28,9 @@ ESP32 设备
 | LLM 回复异常/超时 | `internal/app/server/chat/llm.go`、`internal/domain/llm/` |
 | ASR 正确但无回复 / `DoLLmRequest context canceled` / DeepSeek `context canceled` | `session.go`：chat turn 勿绑 `AfterAsrSessionCtx`；`realtime_mode=4` 空闲态勿 Stop；auto 下对话中勿 `TryRecoverStuckVoiceCapture` |
 | auto 第二轮无回复并 goodbye / `EmptyAudio` → `ChatSession.Close` | ASR 入队后误恢复拾音 + listen stop；查 `TryRecoverStuckVoiceCapture` / soft listen stop / `isBenignAsrDisconnectError` |
+| 唤醒后说话无识别、仅刷收包日志 / soft `VoiceStop` 卡住 | `HandleListenStop` soft stop、`TryRecoverStuckVoiceCapture` 清 soft stop；欢迎语期间 listen start 暂存见 `stashPendingListenStart` |
+| TTS 播报中被 detect/listen start 误打断 | `HandleListenDetect` 助手输出门控；`shouldDeferListenStartDuringOutput` |
+| 未满 `max_idle_duration` 就 goodbye | 上行须 `NoteUplinkActivity` 重置空闲；勿在 VoiceStop 跳过音频时仍累计 idle |
 | 固件调音量后先拒再说成功/说「做不到」 | `llm.go` 能力地面改写 + `toolsSucceededInTurn`；`mcp/device_firmware_tools.go` |
 | 问电量/调音量被闲聊截走、不调 MCP | `intent` 路由：`device` 意图应 fallthrough；查 `intent_router.go` / `prompt.go` |
 | TTS 无声音/音色错误 | `internal/app/server/chat/tts.go`、`internal/domain/tts/` |

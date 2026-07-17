@@ -1123,9 +1123,14 @@ func (t *TTSManager) finishTtsStopWithReason(ctx context.Context, sendTtsStop bo
 				t.clientState.SetStatus(ClientStatusListenStop)
 				t.clientState.SetTtsStart(false)
 			}
+			// soft listen stop 可能留下 VoiceStop；无论是否走空闲时钟都要清掉，否则上行音频被永久跳过。
+			t.clientState.SetClientVoiceStop(false)
 			if t.clientState.UsesAudioIdleClock() {
 				t.clientState.StartAudioIdleWindow(time.Now())
 			}
+		}
+		if stopErr == nil && t.session != nil {
+			go t.session.flushPendingListenStartAfterOutput()
 		}
 		return false
 	}
@@ -1152,8 +1157,11 @@ func (t *TTSManager) finishTtsStopWithReason(ctx context.Context, sendTtsStop bo
 		t.clientState.SetStatus(ClientStatusListenStop)
 		t.clientState.SetTtsStart(false)
 	}
-	if t.clientState != nil && t.clientState.UsesAudioIdleClock() {
-		t.clientState.StartAudioIdleWindow(time.Now())
+	if t.clientState != nil {
+		t.clientState.SetClientVoiceStop(false)
+		if t.clientState.UsesAudioIdleClock() {
+			t.clientState.StartAudioIdleWindow(time.Now())
+		}
 	}
 	if t.session != nil {
 		t.session.completeWelcomePlaybackWait(stopErr == nil)
@@ -1167,6 +1175,10 @@ func (t *TTSManager) finishTtsStopWithReason(ctx context.Context, sendTtsStop bo
 
 	t.forceStopTtsMetric(ctx, stopErr)
 	t.dispatchTTSTurnEndPolicy(ctx, stopErr)
+
+	if stopErr == nil && t.session != nil {
+		go t.session.flushPendingListenStartAfterOutput()
+	}
 
 	return true
 }

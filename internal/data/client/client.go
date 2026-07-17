@@ -481,6 +481,28 @@ func (c *ClientState) ResetGoodbyeIdleWindow(now time.Time) {
 	c.SetClientVoiceStop(false)
 }
 
+// NoteUplinkActivity 在收到设备上行音频时调用：重置 goodbye/空闲计时，
+// 避免 VoiceStop 跳过识别期间仍把“正在说话”算成空闲，提前触发 goodbye。
+func (c *ClientState) NoteUplinkActivity(now time.Time) {
+	if c == nil {
+		return
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	if c.GoodbyeIdleArmed() {
+		c.ResetGoodbyeIdleWindow(now)
+		return
+	}
+	if !c.UsesAudioIdleClock() || !c.AudioIdleStarted() || c.AudioIdlePaused() {
+		return
+	}
+	if !c.ShouldCountAudioIdleTimeout() {
+		return
+	}
+	c.AudioIdle.Start(now)
+}
+
 func (c *ClientState) ShouldCountAudioIdleTimeout() bool {
 	if c == nil {
 		return false

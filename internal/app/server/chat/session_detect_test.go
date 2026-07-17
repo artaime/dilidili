@@ -412,6 +412,21 @@ func TestShouldSoftListenStopDuringOutput(t *testing.T) {
 	}
 }
 
+func TestShouldDeferListenStartDuringOutput(t *testing.T) {
+	if !shouldDeferListenStartDuringOutput("auto", true, false, data_client.ClientStatusListening, false) {
+		t.Fatal("expected defer listen start while welcome playing in auto")
+	}
+	if shouldDeferListenStartDuringOutput("realtime", true, false, data_client.ClientStatusListening, false) {
+		t.Fatal("expected realtime welcome listen start not deferred")
+	}
+	if !shouldDeferListenStartDuringOutput("auto", false, true, data_client.ClientStatusListening, false) {
+		t.Fatal("expected defer listen start while tts active")
+	}
+	if shouldDeferListenStartDuringOutput("auto", false, false, data_client.ClientStatusListening, false) {
+		t.Fatal("expected no defer while idle listening")
+	}
+}
+
 func TestHandleListenStopSoftDuringWelcomeDoesNotManualStop(t *testing.T) {
 	session := newDetectDebounceTestSession(t)
 	session.clientState.IsWelcomePlaying = true
