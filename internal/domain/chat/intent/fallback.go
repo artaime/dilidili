@@ -58,7 +58,8 @@ func inferMsgPlayData(text string) (MsgPlayData, bool) {
 		return MsgPlayData{}, false
 	}
 	if strings.Contains(normalized, "最近") || strings.Contains(normalized, "最新") {
-		return MsgPlayData{Action: MsgPlayActionLatest}, true
+		role, _ := extractFamilyRole(normalized)
+		return MsgPlayData{Action: MsgPlayActionLatest, FamilyRole: role}, true
 	}
 
 	role, hasRole := extractFamilyRole(normalized)

@@ -23,9 +23,10 @@
 | 意图 | 触发示例 | 行为 |
 |------|----------|------|
 | `msg_inquiry` | 「有留言吗」「爸爸留言了吗」 | 查档案 + pending，播报摘要，**不自动播放** |
-| `msg_play` | 「播放留言」「继续播放」 | 有待播则播待播；无待播则播最近一条（含已播） |
+| `msg_play` | 「播放留言」「继续播放」 | 有待播则播待播；无待播则播刚播过的那条 |
 | `msg_play` | 「再播一遍」 | 重播上一条（不改 DB 状态） |
-| `msg_play` | 「播放最近一条留言」 | `action=latest`，播时间最近一条（待播+已播） |
+| `msg_play` | 「播放最近一条留言」 | `action=latest`，**刚播过的那条**；从未播过则回退创建时间最新 |
+| `msg_play` | 「播放妈妈最近的留言」 | `action=latest` + `family_role`，该家长按 `created_at` 最新一条 |
 | `msg_play` | 「播放妈妈昨天早上的留言」「播放爸爸下午的留言」「播放下午的留言」 | `action=select` + `family_role`/`start`/`end`；**含已播留言**，按 `created_at` 在库内检索 |
 | `general` | 其它聊天 | LLM 在 `data.reply` 中生成回复，直接 TTS |
 
@@ -34,6 +35,7 @@
 ```json
 {"intent":"msg_inquiry","confidence":"0.95","data":{"action":"list"}}
 {"intent":"msg_play","confidence":"0.92","data":{"action":"latest"}}
+{"intent":"msg_play","confidence":"0.92","data":{"action":"latest","family_role":"妈妈"}}
 {"intent":"msg_play","confidence":"0.90","data":{"action":"select","family_role":"妈妈","start":"2026-06-14T05:00:00","end":"2026-06-14T11:00:00"}}
 {"intent":"general","confidence":"0.88","data":{"reply":"今天天气不错呀"}}
 ```

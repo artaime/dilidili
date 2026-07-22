@@ -44,7 +44,7 @@ func (c *ChatManager) HandleMsgPlay(ctx context.Context, data intent.MsgPlayData
 		}
 		return c.replayParentMessageByID(ctx, data.MessageID)
 	case intent.MsgPlayActionLatest:
-		return c.playLatestParentMessage(ctx)
+		return c.playLatestParentMessage(ctx, data)
 	case intent.MsgPlayActionSelect:
 		return c.playSelectedParentMessage(ctx, data)
 	default:
@@ -60,8 +60,8 @@ func (c *ChatManager) playPendingParentMessages(ctx context.Context) error {
 	}
 	if len(messages) == 0 {
 		_, _ = c.syncDeviceMessageProfile(ctx)
-		log.Infof("设备 %s msg_play pending empty, fallback to latest", c.DeviceID)
-		return c.playLatestParentMessage(ctx)
+		log.Infof("设备 %s msg_play pending empty, fallback to latest(刚播)", c.DeviceID)
+		return c.playLatestParentMessage(ctx, intent.MsgPlayData{Action: intent.MsgPlayActionLatest})
 	}
 	_, _ = c.syncDeviceMessageProfile(ctx)
 	log.Infof("设备 %s msg_play pending count=%d", c.DeviceID, len(messages))
@@ -108,10 +108,18 @@ func (c *ChatManager) replayParentMessageByID(ctx context.Context, messageID uin
 	}
 	transition := buildTransitionPrompt(item.FamilyRole, item.CreatedAt, time.Now())
 	if err := c.injectSpeechSegment(transition, true, ttsTurnEndPolicyNone); err != nil {
+		if isParentMessageUserInterrupted(err) {
+			log.Infof("设备 %s 留言重播过渡语被打断 id=%d", c.DeviceID, messageID)
+			return nil
+		}
 		return err
 	}
 	c.waitInjectedSpeechSettled(ctx, transition)
 	if err := c.playParentMessage(ctx, item); err != nil {
+		if isParentMessageUserInterrupted(err) {
+			log.Infof("设备 %s 留言重播被打断 id=%d", c.DeviceID, messageID)
+			return nil
+		}
 		log.Warnf("设备 %s 重播留言失败 id=%d: %v", c.DeviceID, messageID, err)
 		return c.InjectMessage("播放留言失败了，稍后再试试吧。", true, true)
 	}

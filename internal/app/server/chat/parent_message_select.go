@@ -133,7 +133,59 @@ func containsAlias(aliases []string, label string) bool {
 	return false
 }
 
-func (c *ChatManager) playLatestParentMessage(ctx context.Context) error {
+// playLatestParentMessage 「最近留言」语义：
+// - 未指定家长：重播刚播过的那条；若从未播过则回退到全设备创建时间最新一条
+// - 指定家长（family_role）：播放该家长按 created_at 最新的一条
+func (c *ChatManager) playLatestParentMessage(ctx context.Context, data intent.MsgPlayData) error {
+	role := strings.TrimSpace(data.FamilyRole)
+	if role != "" {
+		return c.playLatestParentMessageByFamilyRole(ctx, role)
+	}
+	return c.playLastPlayedOrNewestParentMessage(ctx)
+}
+
+func (c *ChatManager) playLatestParentMessageByFamilyRole(ctx context.Context, familyRole string) error {
+	messages, err := c.searchParentMessages(ctx, parentMessageSelectFilter{FamilyRole: familyRole})
+	if err != nil {
+		log.Warnf("设备 %s 按家长拉取留言失败 role=%s: %v", c.DeviceID, familyRole, err)
+		return c.InjectMessage("播放留言失败了，稍后再试试吧。", true, true)
+	}
+	if len(messages) == 0 {
+		return c.InjectMessage("没有找到"+normalizeFamilyRoleLabel(familyRole)+"的留言哦。", true, true)
+	}
+	log.Infof("设备 %s msg_play latest by role=%s id=%d", c.DeviceID, familyRole, messages[0].ID)
+	return c.playSingleParentMessage(ctx, messages[0])
+}
+
+func (c *ChatManager) playLastPlayedOrNewestParentMessage(ctx context.Context) error {
+	store := c.ensureMessageProfileStore()
+	var messageID uint
+	if store != nil {
+		if profile, ok := store.Get(c.DeviceID); ok && profile != nil {
+			if ref, ok := profile.LastPlayedRef(); ok {
+				messageID = ref.MessageID
+			} else if profile.LastPlayedMessageID > 0 {
+				messageID = profile.LastPlayedMessageID
+			}
+		}
+	}
+	if messageID == 0 {
+		_, _ = c.syncDeviceMessageProfile(ctx)
+		if store != nil {
+			if profile, ok := store.Get(c.DeviceID); ok && profile != nil {
+				if ref, ok := profile.LastPlayedRef(); ok {
+					messageID = ref.MessageID
+				} else if profile.LastPlayedMessageID > 0 {
+					messageID = profile.LastPlayedMessageID
+				}
+			}
+		}
+	}
+	if messageID > 0 {
+		log.Infof("设备 %s msg_play latest → 刚播 id=%d", c.DeviceID, messageID)
+		return c.replayParentMessageByID(ctx, messageID)
+	}
+
 	messages, err := c.listAccessibleParentMessages(ctx)
 	if err != nil {
 		log.Warnf("设备 %s 拉取留言列表失败: %v", c.DeviceID, err)
@@ -142,6 +194,7 @@ func (c *ChatManager) playLatestParentMessage(ctx context.Context) error {
 	if len(messages) == 0 {
 		return c.InjectMessage("没有找到可以播放的留言哦。", true, true)
 	}
+	log.Infof("设备 %s msg_play latest 无刚播记录，回退创建时间最新 id=%d", c.DeviceID, messages[0].ID)
 	return c.playSingleParentMessage(ctx, messages[0])
 }
 
@@ -240,10 +293,18 @@ func (c *ChatManager) playSingleParentMessage(ctx context.Context, msg parentMes
 	}
 	transition := buildTransitionPrompt(msg.FamilyRole, msg.CreatedAt, time.Now())
 	if err := c.injectSpeechSegment(transition, true, ttsTurnEndPolicyNone); err != nil {
+		if isParentMessageUserInterrupted(err) {
+			log.Infof("设备 %s 留言过渡语被打断 id=%d", c.DeviceID, msg.ID)
+			return nil
+		}
 		return err
 	}
 	c.waitInjectedSpeechSettled(ctx, transition)
 	if err := c.playParentMessage(ctx, msg); err != nil {
+		if isParentMessageUserInterrupted(err) {
+			log.Infof("设备 %s 留言播放被打断 id=%d", c.DeviceID, msg.ID)
+			return nil
+		}
 		log.Warnf("设备 %s 播放留言失败 id=%d: %v", c.DeviceID, msg.ID, err)
 		return c.InjectMessage("播放留言失败了，稍后再试试吧。", true, true)
 	}

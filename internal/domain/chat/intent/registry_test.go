@@ -39,8 +39,17 @@ func TestFallbackClassify(t *testing.T) {
 		t.Fatalf("unexpected latest fallback: %+v", resp)
 	}
 	data, err = intent.ParseData[intent.MsgPlayData](resp.Data)
-	if err != nil || data.Action != intent.MsgPlayActionLatest {
+	if err != nil || data.Action != intent.MsgPlayActionLatest || data.FamilyRole != "" {
 		t.Fatalf("latest data=%+v err=%v", data, err)
+	}
+
+	resp, ok = intent.FallbackClassify("播放妈妈最近的留言")
+	if !ok || resp.Intent != intent.IntentMsgPlay {
+		t.Fatalf("unexpected latest+role fallback: %+v", resp)
+	}
+	data, err = intent.ParseData[intent.MsgPlayData](resp.Data)
+	if err != nil || data.Action != intent.MsgPlayActionLatest || data.FamilyRole != "妈妈" {
+		t.Fatalf("latest+role data=%+v err=%v", data, err)
 	}
 
 	resp, ok = intent.FallbackClassify("播放妈妈昨天早上的留言")

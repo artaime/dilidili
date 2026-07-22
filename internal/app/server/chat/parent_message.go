@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -582,6 +583,14 @@ func isParentMessageRetryableError(err error) bool {
 		strings.Contains(msg, "hello尚未初始化") ||
 		strings.Contains(msg, "重新发送hello") ||
 		strings.Contains(msg, "parent message not ready")
+}
+
+// isParentMessageUserInterrupted 按键打断 / StopSpeaking 等导致的取消，不应再播失败提示。
+func isParentMessageUserInterrupted(err error) bool {
+	if err == nil {
+		return false
+	}
+	return errors.Is(err, context.Canceled)
 }
 
 func (c *ChatManager) handleParentMessagePlaybackError(ctx context.Context, msg parentMessageItem, state *parentMessageFlowState, err error, stage string) bool {

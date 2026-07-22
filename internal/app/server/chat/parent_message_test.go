@@ -138,3 +138,15 @@ func TestIsParentMessageRetryableError(t *testing.T) {
 		t.Fatal("expected content error to be non-retryable")
 	}
 }
+
+func TestIsParentMessageUserInterrupted(t *testing.T) {
+	if !isParentMessageUserInterrupted(context.Canceled) {
+		t.Fatal("expected context.Canceled to be user interrupt")
+	}
+	if !isParentMessageUserInterrupted(fmt.Errorf("wrap: %w", context.Canceled)) {
+		t.Fatal("expected wrapped context.Canceled to be user interrupt")
+	}
+	if isParentMessageUserInterrupted(fmt.Errorf("文字留言内容为空")) {
+		t.Fatal("expected content error not to be user interrupt")
+	}
+}

@@ -26,6 +26,8 @@
 
 ### Fixed
 
+- 家长留言播放被按键打断（context canceled）时不再播「播放留言失败了，稍后再试试吧」
+- 家长留言「播放最近的留言」：未指定家长时重播刚播过的那条（多家长不再误播他人创建时间更新的留言）；指定家长（如「妈妈最近的留言」）则播该家长按创建时间最新一条。详见 `docs/features/PARENT_MESSAGE.md`
 - 空拾音 `listen start`→`listen stop`（无语音、无 chat turn）触发 FunASR `EmptyAudio` 时不再 `fatal` 关会话并发 MQTT goodbye，仅结束本轮 ASR、保持 ChatSession
 - 流畅对话：欢迎语/助手 TTS 期间 `listen start` 改为暂存、输出结束后补发，避免误 `StopSpeaking` 打断播报又丢掉下次拾音；助手输出中忽略 `detect`；soft `VoiceStop` 在 TTS 结束或 ASR 仍开着时自动清除；上行音频重置空闲计时，避免未满 `max_idle_duration` 就 goodbye；去掉逐包 UDP/收包 debug 刷屏
 - auto 模式连续对话（如调音量 80 后再调 50）无回复并 goodbye：ASR 入队后误触发「拾音卡住恢复」，紧接着 listen stop 产生 FunASR `EmptyAudio` 被当成 fatal 关闭会话；对话处理中禁止自动恢复拾音，listen stop 走软停，EmptyAudio 等断开类错误不关会话
