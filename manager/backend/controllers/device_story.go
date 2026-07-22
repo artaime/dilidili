@@ -7,6 +7,7 @@ import (
 
 	"dili/manager/backend/config"
 	"dili/manager/backend/models"
+	"dili/manager/backend/services/device_acl"
 	"dili/manager/backend/services/device_story"
 
 	"github.com/gin-gonic/gin"
@@ -97,7 +98,7 @@ func (ctrl *DeviceStoryController) ClearDeviceStories(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": result, "ok": true})
 }
 
-// MpGetDeviceStory 小程序按 story_id 拉取全文（需设备归属当前用户）。
+// MpGetDeviceStory 小程序按 story_id 拉取全文（需设备访问权限）。
 func (ctrl *DeviceStoryController) MpGetDeviceStory(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	uid, _ := userID.(uint)
@@ -111,7 +112,7 @@ func (ctrl *DeviceStoryController) MpGetDeviceStory(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "设备不存在"})
 		return
 	}
-	if device.UserID != uid {
+	if !device_acl.CanAccess(ctrl.DB, device.ID, uid) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该设备"})
 		return
 	}

@@ -21,11 +21,15 @@
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| DELETE | `/api/mp/devices/:id` | 出厂重置：删除设备全部数据，清零绑定字段，**保留**出厂 `agent_id` |
+| DELETE | `/api/mp/devices/:id` | 出厂重置：删除设备全部数据，清零绑定字段，**保留**出厂 `agent_id`；仅属主可操作 |
 
-解绑会清理：Memobase 记忆、Redis 故事/短期记忆、对话记录、家长留言及音频；并通过 WebSocket 通知主服务踢线。详见 [DEVICE_UNBIND_RESET.md](./DEVICE_UNBIND_RESET.md)。
+解绑会清理：Memobase 记忆、Redis 故事/短期记忆、对话记录、家长留言及音频、**家庭成员与邀请码**；并通过 WebSocket 通知主服务踢线。详见 [DEVICE_UNBIND_RESET.md](./DEVICE_UNBIND_RESET.md)。
 
-小程序「我的设备」页提供二次确认解绑（不可逆删除提示）。
+小程序「我的设备」页提供二次确认解绑（不可逆删除提示）。属主可改孩子昵称（`PATCH /api/mp/devices/:id`）；家庭成员授权见 [device-family-auth/FEATURE.md](./device-family-auth/FEATURE.md)。
+
+## 家庭成员
+
+首位绑定者为属主。属主可生成邀请码，其他家长登录后通过 `POST /api/mp/devices/join` 加入，无需再次 BLE 绑定。成员可查看设备、发留言；不可解绑、不可改昵称。
 
 ## 登录资料
 

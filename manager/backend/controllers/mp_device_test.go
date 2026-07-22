@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"dili/manager/backend/models"
+	"dili/manager/backend/services/device_acl"
 	"dili/manager/backend/services/device_reset"
 
 	"github.com/glebarez/sqlite"
@@ -22,6 +23,8 @@ func setupMpDeviceTestDB(t *testing.T) *gorm.DB {
 		&models.Config{},
 		&models.Agent{},
 		&models.Device{},
+		&models.DeviceMember{},
+		&models.DeviceInvite{},
 		&models.MCPMarketService{},
 		&models.AgentKnowledgeBase{},
 	); err != nil {
@@ -143,6 +146,42 @@ func TestMpDeviceUnbindPreservesFactoryAgent(t *testing.T) {
 	}
 	if unbound.NickName != "" || unbound.RoleID != nil {
 		t.Fatalf("nick_name/role_id not cleared: nick=%q role=%v", unbound.NickName, unbound.RoleID)
+	}
+}
+
+func TestMpDeviceBindWritesOwnerMember(t *testing.T) {
+	db := setupMpDeviceTestDB(t)
+	user := createServiceTestUser(t, db, "mp-owner-member", "user")
+	admin := createServiceTestUser(t, db, "mp-admin-om", "admin")
+	agent := models.Agent{UserID: admin.ID, Name: "factory-agent", Nickname: "狄哩"}
+	if err := db.Create(&agent).Error; err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	device := models.Device{DeviceName: "SN-TEST-OWNER-MEMBER", DeviceCode: "555555", AgentID: agent.ID}
+	if err := db.Create(&device).Error; err != nil {
+		t.Fatalf("create device: %v", err)
+	}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := updateDeviceColumns(tx, device.ID, map[string]interface{}{
+			"user_id":   user.ID,
+			"activated": true,
+			"nick_name": "豆豆",
+		}); err != nil {
+			return err
+		}
+		return device_acl.EnsureOwnerMember(tx, device.ID, user.ID)
+	})
+	if err != nil {
+		t.Fatalf("bind+owner: %v", err)
+	}
+
+	var member models.DeviceMember
+	if err := db.Where("device_id = ? AND user_id = ?", device.ID, user.ID).First(&member).Error; err != nil {
+		t.Fatalf("owner member missing: %v", err)
+	}
+	if member.Role != "owner" || member.Status != "active" {
+		t.Fatalf("member = %+v", member)
 	}
 }
 

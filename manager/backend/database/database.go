@@ -4,6 +4,7 @@ import (
 	"dili/manager/backend/config"
 	"dili/manager/backend/models"
 	"dili/manager/backend/services/configprovider"
+	"dili/manager/backend/services/device_acl"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -61,6 +62,8 @@ func Init(cfg config.DatabaseConfig) *gorm.DB {
 			&models.User{},
 			&models.APIToken{},
 			&models.Device{},
+			&models.DeviceMember{},
+			&models.DeviceInvite{},
 			&models.Agent{},
 			&models.KnowledgeBase{},
 			&models.KnowledgeBaseDocument{},
@@ -87,6 +90,12 @@ func Init(cfg config.DatabaseConfig) *gorm.DB {
 			return nil
 		}
 		log.Println("数据库表结构迁移成功")
+	}
+
+	if n, err := device_acl.BackfillOwnerMembers(db); err != nil {
+		log.Printf("补插设备属主成员失败: %v", err)
+	} else if n > 0 {
+		log.Printf("已为 %d 台已绑定设备补插属主成员", n)
 	}
 
 	if err := dropDeprecatedAgentStatusColumn(db); err != nil {

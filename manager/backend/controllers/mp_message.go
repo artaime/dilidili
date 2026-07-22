@@ -10,6 +10,7 @@ import (
 
 	"dili/manager/backend/config"
 	"dili/manager/backend/models"
+	"dili/manager/backend/services/device_acl"
 	"dili/manager/backend/storage"
 
 	"github.com/gin-gonic/gin"
@@ -156,15 +157,19 @@ func (ctrl *MpMessageController) saveMessage(c *gin.Context, userID uint, input 
 		return
 	}
 
-	var device models.Device
-	if err := ctrl.DB.Where("id = ? AND user_id = ?", input.DeviceID, userID).First(&device).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		var device models.Device
+		if err := ctrl.DB.Where("id = ?", input.DeviceID).First(&device).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "设备不存在或不属于当前用户"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询设备失败"})
+			return
+		}
+		if !device_acl.CanAccess(ctrl.DB, device.ID, userID) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "设备不存在或不属于当前用户"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询设备失败"})
-		return
-	}
 
 	now := time.Now()
 	msg := models.ParentMessage{

@@ -6,6 +6,7 @@ import (
 
 	"dili/manager/backend/config"
 	"dili/manager/backend/models"
+	"dili/manager/backend/services/device_acl"
 
 	"gorm.io/gorm"
 )
@@ -14,7 +15,10 @@ func purgeDeviceDatabaseRecords(db *gorm.DB, cfg *config.Config, device *models.
 	if err := purgeParentMessages(db, cfg, device.ID); err != nil {
 		return err
 	}
-	return purgeChatMessages(db, cfg, device.DeviceName)
+	if err := purgeChatMessages(db, cfg, device.DeviceName); err != nil {
+		return err
+	}
+	return device_acl.DeleteDeviceFamily(db, device.ID)
 }
 
 func purgeChatMessages(db *gorm.DB, cfg *config.Config, deviceSN string) error {

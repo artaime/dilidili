@@ -12,6 +12,7 @@
 
 ### Added
 
+- 设备家庭成员授权：属主可邀请其他家长加入同一设备（邀请码）；成员可查看设备/发留言，仅属主可改孩子昵称、解绑与踢人。详见 `docs/features/device-family-auth/FEATURE.md`、`docs/adr/0002-device-family-members.md`
 - 短时多轮衔接：跨 session 按 `user_id+device_id+agent_id` 从 Manager DB / Redis shortctx 灌入近期对话；配置 `chat.short_context`；fresh hello 可复用 SessionID；出厂重置清理 shortctx。详见 `docs/features/SHORT_CONTEXT_CONTINUITY.md`
 - 设备固件状态问答与控制：IoT MCP 工具（`get_device_status` / `set_speaker_volume` / `set_screen_brightness` / `enter_sleep_mode` / `power_off_device`）转换时追加调用引导（问状态须主动 get，相对调节先 get 再 ±10）；能力地面补强状态查询与睡眠/关机完成态护栏。详见 `docs/features/DEVICE_FIRMWARE_STATUS.md`
 - LLM 能力地面（防乱答）：按本轮 tools 注入能力白名单与诚实回答规则；无 tool call 时改写「已帮你关/调/设…」类虚构完成态话术；意图路由 general 同步约束。详见 `docs/features/LLM_CAPABILITY_GROUNDING.md`

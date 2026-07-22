@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"dili/manager/backend/models"
+	"dili/manager/backend/services/device_acl"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -531,6 +532,11 @@ func (svc *DeviceService) Create(scope accessScope, payload DevicePayload) (*Dev
 	if err := svc.DB.Create(&device).Error; err != nil {
 		return nil, wrapDevicePersistenceError(err)
 	}
+	if targetUserID > 0 {
+		if err := device_acl.EnsureOwnerMember(svc.DB, device.ID, targetUserID); err != nil {
+			return nil, err
+		}
+	}
 	return svc.Get(scope, device.ID)
 }
 
@@ -611,6 +617,11 @@ func (svc *DeviceService) Update(scope accessScope, id uint, payload DevicePaylo
 	}
 	if err := updateDeviceColumns(svc.DB, device.ID, updates); err != nil {
 		return nil, wrapDevicePersistenceError(err)
+	}
+	if nextUserID > 0 {
+		if err := device_acl.EnsureOwnerMember(svc.DB, device.ID, nextUserID); err != nil {
+			return nil, err
+		}
 	}
 	return svc.Get(scope, device.ID)
 }
@@ -709,6 +720,9 @@ func (svc *DeviceService) Bind(scope accessScope, payload DevicePayload) (*Devic
 		"activated": device.Activated,
 		"nick_name": device.NickName,
 	}); err != nil {
+		return nil, err
+	}
+	if err := device_acl.EnsureOwnerMember(svc.DB, device.ID, targetUserID); err != nil {
 		return nil, err
 	}
 	return svc.Get(accessScope{ActorUserID: targetUserID, IsAdmin: scope.IsAdmin}, device.ID)

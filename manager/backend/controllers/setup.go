@@ -88,6 +88,8 @@ func (sc *SetupController) InitializeDatabase(c *gin.Context) {
 	err := tx.AutoMigrate(
 		&models.User{},
 		&models.Device{},
+		&models.DeviceMember{},
+		&models.DeviceInvite{},
 		&models.Agent{},
 		&models.Config{},
 		&models.MCPMarketService{},

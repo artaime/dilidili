@@ -30,7 +30,7 @@ done
 |------|------|------|
 | Memobase | SN → primary + legacy user_id | 未配置 memobase 时 skip |
 | Redis | `{prefix}:story:{sn}:*`、`llm:{sn}`、`llm:system:{sn}`、`userconfig:{sn}` | 未配置 Redis 时 skip |
-| MySQL | `chat_messages`（`device_id`=SN）、`parent_messages`（`device_id`=设备 DB id） | 硬删 + 音频文件 |
+| MySQL | `chat_messages`（`device_id`=SN）、`parent_messages`（`device_id`=设备 DB id）、`device_members`、`device_invites` | 硬删 + 音频文件；家庭成员与邀请一并清空 |
 | 主服务内存 | ChatManager、OpenClaw offline、MCP session | 经 WS `POST /api/device/reset` |
 
 **不删**：声纹组（属 user）、智能体（出厂关联）。

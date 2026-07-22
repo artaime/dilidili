@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"dili/manager/backend/models"
+	"dili/manager/backend/services/device_acl"
 
 	"gorm.io/gorm"
 )
@@ -242,12 +243,13 @@ func parseConversationCursor(sortTimeRaw, recordType string, idRaw uint) (*conve
 
 func loadDeviceForConversation(db *gorm.DB, deviceID uint, userID *uint) (*models.Device, error) {
 	var device models.Device
-	query := db.Where("id = ?", deviceID)
-	if userID != nil {
-		query = query.Where("user_id = ?", *userID)
-	}
-	if err := query.First(&device).Error; err != nil {
+	if err := db.Where("id = ?", deviceID).First(&device).Error; err != nil {
 		return nil, err
+	}
+	if userID != nil {
+		if !device_acl.CanAccess(db, device.ID, *userID) {
+			return nil, gorm.ErrRecordNotFound
+		}
 	}
 	return &device, nil
 }

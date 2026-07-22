@@ -56,6 +56,42 @@ type Device struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
+// DeviceMember 设备家庭成员（含属主行）
+type DeviceMember struct {
+	ID        uint       `json:"id" gorm:"primarykey"`
+	DeviceID  uint       `json:"device_id" gorm:"not null;uniqueIndex:idx_device_member_unique,priority:1;index"`
+	UserID    uint       `json:"user_id" gorm:"not null;uniqueIndex:idx_device_member_unique,priority:2;index"`
+	Role      string     `json:"role" gorm:"type:varchar(20);not null;default:'member'"`   // owner, member
+	Status    string     `json:"status" gorm:"type:varchar(20);not null;default:'active'"` // active, revoked
+	InvitedBy *uint      `json:"invited_by,omitempty" gorm:"index"`
+	JoinedAt  time.Time  `json:"joined_at"`
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+
+func (DeviceMember) TableName() string {
+	return "device_members"
+}
+
+// DeviceInvite 设备家庭成员邀请码
+type DeviceInvite struct {
+	ID        uint      `json:"id" gorm:"primarykey"`
+	DeviceID  uint      `json:"device_id" gorm:"not null;index"`
+	Code      string    `json:"code" gorm:"type:varchar(16);not null;uniqueIndex"`
+	CreatedBy uint      `json:"created_by" gorm:"not null;index"`
+	ExpiresAt time.Time `json:"expires_at" gorm:"not null;index"`
+	MaxUses   int       `json:"max_uses" gorm:"not null;default:5"`
+	UsedCount int       `json:"used_count" gorm:"not null;default:0"`
+	Status    string    `json:"status" gorm:"type:varchar(20);not null;default:'active';index"` // active, exhausted, revoked, expired
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (DeviceInvite) TableName() string {
+	return "device_invites"
+}
+
 // 智能体模型
 type Agent struct {
 	ID              uint    `json:"id" gorm:"primarykey"`

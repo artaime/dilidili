@@ -21,6 +21,8 @@ func setupAgentDeviceServiceTestDB(t *testing.T) *gorm.DB {
 		&models.Config{},
 		&models.Agent{},
 		&models.Device{},
+		&models.DeviceMember{},
+		&models.DeviceInvite{},
 		&models.KnowledgeBase{},
 		&models.AgentKnowledgeBase{},
 		&models.Role{},

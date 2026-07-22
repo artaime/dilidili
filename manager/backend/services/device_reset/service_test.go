@@ -20,6 +20,8 @@ func setupDeviceResetTestDB(t *testing.T) *gorm.DB {
 	if err := db.AutoMigrate(
 		&models.User{},
 		&models.Device{},
+		&models.DeviceMember{},
+		&models.DeviceInvite{},
 		&models.ChatMessage{},
 		&models.ParentMessage{},
 		&models.Config{},
@@ -82,6 +84,25 @@ func TestResetToFactoryClearsRecordsAndResetsDevice(t *testing.T) {
 	if err := db.Create(&parent).Error; err != nil {
 		t.Fatalf("create parent message: %v", err)
 	}
+	if err := db.Create(&models.DeviceMember{
+		DeviceID: device.ID,
+		UserID:   user.ID,
+		Role:     "owner",
+		Status:   "active",
+		JoinedAt: now,
+	}).Error; err != nil {
+		t.Fatalf("create member: %v", err)
+	}
+	if err := db.Create(&models.DeviceInvite{
+		DeviceID:  device.ID,
+		Code:      "RESET1",
+		CreatedBy: user.ID,
+		ExpiresAt: now.Add(time.Hour),
+		MaxUses:   5,
+		Status:    "active",
+	}).Error; err != nil {
+		t.Fatalf("create invite: %v", err)
+	}
 
 	svc := NewService(db, nil, noopNotifier{})
 	if err := svc.ResetToFactory(context.Background(), device.ID, user.ID); err != nil {
@@ -113,6 +134,13 @@ func TestResetToFactoryClearsRecordsAndResetsDevice(t *testing.T) {
 	}
 	if reset.AgentID != agentID || reset.DeviceName != "SN-RESET-001" {
 		t.Fatalf("factory fields changed: agent=%d sn=%s", reset.AgentID, reset.DeviceName)
+	}
+
+	var memberCount, inviteCount int64
+	_ = db.Model(&models.DeviceMember{}).Where("device_id = ?", device.ID).Count(&memberCount)
+	_ = db.Model(&models.DeviceInvite{}).Where("device_id = ?", device.ID).Count(&inviteCount)
+	if memberCount != 0 || inviteCount != 0 {
+		t.Fatalf("family not cleared: members=%d invites=%d", memberCount, inviteCount)
 	}
 }
 
