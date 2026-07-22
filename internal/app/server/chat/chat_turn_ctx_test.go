@@ -56,6 +56,8 @@ func TestTryRecoverStuckVoiceCaptureClearsSoftVoiceStop(t *testing.T) {
 
 func TestIsBenignAsrDisconnectError(t *testing.T) {
 	require.True(t, isBenignAsrDisconnectError(errors.New("aliyun funasr task failed: EmptyAudio")))
+	require.True(t, isBenignAsrDisconnectError(errors.New("empty audio")))
+	require.True(t, isBenignAsrDisconnectError(errors.New("ASR短时间内连续返回空结果(3次/3s)，触发保护并断开连接")))
 	require.False(t, isBenignAsrDisconnectError(errors.New("unrelated failure")))
 }
 

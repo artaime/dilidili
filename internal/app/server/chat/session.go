@@ -1559,8 +1559,13 @@ func (s *ChatSession) OnListenStart(startSeq uint64, shouldStartAudioIdleWindow 
 			chatWarnLogf("设备 %s 助手输出期间忽略 ASR 循环错误，不关闭会话: %v", s.clientState.DeviceID, err)
 			return
 		}
-		if s.hasActiveChatTurn() && isBenignAsrDisconnectError(err) {
-			chatWarnLogf("设备 %s 对话处理中忽略 ASR 断开类错误，不关闭会话: %v", s.clientState.DeviceID, err)
+		// EmptyAudio / 空拾音等：本轮 ASR 结束即可，勿抬成 fatal（无 chat turn 时也会误发 MQTT goodbye）。
+		if isBenignAsrDisconnectError(err) {
+			deviceID := ""
+			if s.clientState != nil {
+				deviceID = s.clientState.DeviceID
+			}
+			chatWarnLogf("设备 %s 忽略 ASR 断开类错误，保持会话: %v", deviceID, err)
 			return
 		}
 		log.Errorf("ASR识别循环错误: %v", err)
@@ -1607,8 +1612,13 @@ func (s *ChatSession) startAsrResultLoop(
 				chatWarnLogf("设备 %s 助手输出期间忽略 ASR 循环错误，不关闭会话: %v", s.clientState.DeviceID, err)
 				return
 			}
-			if s.hasActiveChatTurn() && isBenignAsrDisconnectError(err) {
-				chatWarnLogf("设备 %s 对话处理中忽略 ASR 断开类错误，不关闭会话: %v", s.clientState.DeviceID, err)
+			// EmptyAudio / 空拾音等：本轮 ASR 结束即可，勿抬成 fatal（无 chat turn 时也会误发 MQTT goodbye）。
+			if isBenignAsrDisconnectError(err) {
+				deviceID := ""
+				if s.clientState != nil {
+					deviceID = s.clientState.DeviceID
+				}
+				chatWarnLogf("设备 %s 忽略 ASR 断开类错误，保持会话: %v", deviceID, err)
 				return
 			}
 			log.Errorf("ASR识别循环错误: %v", err)

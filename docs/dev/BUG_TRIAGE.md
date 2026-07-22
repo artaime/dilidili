@@ -27,7 +27,7 @@ ESP32 设备
 | 语音识别无结果/延迟高 | `internal/app/server/chat/asr.go`、`internal/domain/asr/` |
 | LLM 回复异常/超时 | `internal/app/server/chat/llm.go`、`internal/domain/llm/` |
 | ASR 正确但无回复 / `DoLLmRequest context canceled` / DeepSeek `context canceled` | `session.go`：chat turn 勿绑 `AfterAsrSessionCtx`；`realtime_mode=4` 空闲态勿 Stop；auto 下对话中勿 `TryRecoverStuckVoiceCapture` |
-| auto 第二轮无回复并 goodbye / `EmptyAudio` → `ChatSession.Close` | ASR 入队后误恢复拾音 + listen stop；查 `TryRecoverStuckVoiceCapture` / soft listen stop / `isBenignAsrDisconnectError` |
+| auto 第二轮无回复 / 空拾音后 goodbye / `EmptyAudio` → `ChatSession.Close` | `isBenignAsrDisconnectError` 应始终保持会话（勿要求 hasActiveChatTurn）；另查 `TryRecoverStuckVoiceCapture` / soft listen stop |
 | 唤醒后说话无识别、仅刷收包日志 / soft `VoiceStop` 卡住 | `HandleListenStop` soft stop、`TryRecoverStuckVoiceCapture` 清 soft stop；欢迎语期间 listen start 暂存见 `stashPendingListenStart` |
 | TTS 播报中被 detect/listen start 误打断 | `HandleListenDetect` 助手输出门控；`shouldDeferListenStartDuringOutput` |
 | 未满 `max_idle_duration` 就 goodbye | 上行须 `NoteUplinkActivity` 重置空闲；勿在 VoiceStop 跳过音频时仍累计 idle |

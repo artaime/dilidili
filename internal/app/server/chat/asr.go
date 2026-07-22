@@ -1213,7 +1213,8 @@ func isTencentASRNoAudioTimeout(err error) bool {
 		(strings.Contains(msg, "tencent_asr") && strings.Contains(msg, "15秒") && strings.Contains(msg, "未发送音频"))
 }
 
-// isBenignAsrDisconnectError 识别链路被 listen stop / 空音频等正常打断时产生的错误，不应抬成会话 fatal。
+// isBenignAsrDisconnectError 识别链路被 listen stop / 空音频等正常打断时产生的错误。
+// 无论是否已有 chat turn / 助手输出，都不应抬成会话 fatal（否则会 MQTT goodbye）。
 func isBenignAsrDisconnectError(err error) bool {
 	if err == nil {
 		return false
