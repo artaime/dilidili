@@ -32,6 +32,7 @@ ESP32 设备
 | TTS 播报中被 detect/listen start 误打断 | `HandleListenDetect` 助手输出门控；`shouldDeferListenStartDuringOutput` |
 | 未满 `max_idle_duration` 就 goodbye | 上行须 `NoteUplinkActivity` 重置空闲；勿在 VoiceStop 跳过音频时仍累计 idle |
 | 固件调音量后先拒再说成功/说「做不到」 | `llm.go` 能力地面改写 + `toolsSucceededInTurn`；`mcp/device_firmware_tools.go` |
+| 先说能查天气/定闹钟，被问后又说不会 | `capability_grounding.go` 推销禁令 + `LooksLikeUngroundedCapabilityOffer`；`intent_router` general 回退主对话 |
 | 问电量/调音量被闲聊截走、不调 MCP | `intent` 路由：`device` 意图应 fallthrough；查 `intent_router.go` / `prompt.go` |
 | TTS 无声音/音色错误 | `internal/app/server/chat/tts.go`、`internal/domain/tts/` |
 | VAD 误切/漏检 | `internal/domain/vad/` |

@@ -26,6 +26,7 @@
 
 ### Fixed
 
+- 智能体虚构能力推销（如主动说能查天气/定闹钟，被问后又说不会）：能力地面禁令补强；`general` 含推销话术改交主对话；无对应工具时落历史前改写为仅陪伴向短句。详见 `docs/features/LLM_CAPABILITY_GROUNDING.md`
 - 家长留言播放被按键打断（context canceled）时不再播「播放留言失败了，稍后再试试吧」
 - 家长留言「播放最近的留言」：未指定家长时重播刚播过的那条（多家长不再误播他人创建时间更新的留言）；指定家长（如「妈妈最近的留言」）则播该家长按创建时间最新一条。详见 `docs/features/PARENT_MESSAGE.md`
 - 空拾音 `listen start`→`listen stop`（无语音、无 chat turn）触发 FunASR `EmptyAudio` 时不再 `fatal` 关会话并发 MQTT goodbye，仅结束本轮 ASR、保持 ChatSession

@@ -15,6 +15,9 @@ func TestBuildCapabilityGroundingPolicyEmptyTools(t *testing.T) {
 	if !strings.Contains(got, "不要编造") {
 		t.Fatalf("expected no-fabricate rule, got %q", got)
 	}
+	if !strings.Contains(got, "禁止声称或邀请尝试查天气") {
+		t.Fatalf("expected no-advertise rule, got %q", got)
+	}
 }
 
 func TestBuildCapabilityGroundingPolicyWithTools(t *testing.T) {
@@ -30,6 +33,9 @@ func TestBuildCapabilityGroundingPolicyWithTools(t *testing.T) {
 	}
 	if !strings.Contains(got, "必须先调用对应工具") {
 		t.Fatalf("expected must-call-tool rule, got %q", got)
+	}
+	if !strings.Contains(got, "禁止主动列举、推销") {
+		t.Fatalf("expected no-advertise rule, got %q", got)
 	}
 	// duplicates collapsed
 	if strings.Count(got, "search_knowledge") != 1 {
@@ -128,5 +134,44 @@ func TestLooksLikeUngroundedActionClaim(t *testing.T) {
 	}
 	if LooksLikeUngroundedActionClaim("明天天气不错") {
 		t.Fatal("unexpected match")
+	}
+}
+
+func TestLooksLikeUngroundedCapabilityOffer(t *testing.T) {
+	offer := "嘿嘿，我可以陪你聊天、讲故事、唱歌，还可以帮你查天气、定闹钟，甚至当你的小闹钟叫你起床哦！你想先试试哪一个呀？"
+	if !LooksLikeUngroundedCapabilityOffer(offer, nil) {
+		t.Fatal("expected ungrounded offer without tools")
+	}
+	if !LooksLikeUngroundedCapabilityOffer(offer, []*schema.ToolInfo{{Name: "search_knowledge"}}) {
+		t.Fatal("expected ungrounded offer when tools lack weather/alarm")
+	}
+	if LooksLikeUngroundedCapabilityOffer(offer, []*schema.ToolInfo{
+		{Name: "maps_weather", Desc: "天气查询"},
+		{Name: "set_alarm", Desc: "设置闹钟"},
+		{Name: "play_music"},
+	}) {
+		t.Fatal("should allow offer when tools cover weather/alarm/music")
+	}
+	if LooksLikeUngroundedCapabilityOffer("明天天气不错，我们出去玩吧。", nil) {
+		t.Fatal("casual weather chat should not count as offer")
+	}
+	if LooksLikeUngroundedCapabilityOffer("嘿嘿，虽然我很想帮你查天气，可是我还不会联网查天气预报呢~", nil) {
+		t.Fatal("refusal should not count as offer")
+	}
+	if LooksLikeUngroundedCapabilityOffer("我可以陪你聊天、讲故事呀。", nil) {
+		t.Fatal("companion-only offer should pass")
+	}
+}
+
+func TestMaybeRewriteUngroundedCapabilityOffer(t *testing.T) {
+	text := "我还可以帮你查天气、定闹钟哦！你想先试试哪一个呀？"
+	got, ok := MaybeRewriteUngroundedCapabilityOffer(text, nil)
+	if !ok || got != UngroundedCapabilityOfferFallback {
+		t.Fatalf("got %q ok=%v", got, ok)
+	}
+	keep := "你今天想听什么故事呀？"
+	got, ok = MaybeRewriteUngroundedCapabilityOffer(keep, nil)
+	if ok || got != keep {
+		t.Fatalf("unexpected rewrite: %q ok=%v", got, ok)
 	}
 }

@@ -1056,6 +1056,11 @@ func (l *LLMManager) handleLLMResponse(ctx context.Context, userMessage *schema.
 							if rewritten, ok := llm_common.MaybeRewriteUngroundedActionClaim(strFullText, toolsSucceededInTurn(ctx)); ok {
 								chatInfoLogf("无工具调用却声称完成操作，落历史前改写 session=%s", l.clientState.SessionID)
 								strFullText = rewritten
+							} else if !toolsSucceededInTurn(ctx) {
+								if rewritten, ok := llm_common.MaybeRewriteUngroundedCapabilityOffer(strFullText, l.einoTools); ok {
+									chatInfoLogf("推销未接入能力，落历史前改写 session=%s", l.clientState.SessionID)
+									strFullText = rewritten
+								}
 							}
 						}
 						if strings.TrimSpace(strFullText) != "" || len(toolCalls) > 0 {
