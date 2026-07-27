@@ -33,6 +33,7 @@ L0/L1 **不要** FEATURE.md。
 ## 规则
 
 - alwaysApply：`.cursor/rules/00-core.mdc`
+- 小程序素材：`.cursor/rules/05-miniprogram-assets.mdc`（**>50KB** 才 `/static/mp` 网络下发）
 - 其他：编辑匹配文件时按 glob 加载
 
 ## 禁止

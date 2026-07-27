@@ -6,7 +6,7 @@
 
 ## 范围
 
-- 小程序：`pages/device-records/`
+- 小程序：`pages/device-records/`（UI 对齐 Figma 325:1536，见 `mp-profile-records-ui/FEATURE.md`）
 - 管理端：`/admin/devices/:id/conversation-records`
 - API：`/api/mp/devices/:id/conversation-records`、`/api/admin/devices/:id/conversation-records`
 - 数据：复用 `chat_messages` 写入链路与 `ChatHistoryController` 音频存储

@@ -6,12 +6,28 @@
 
 ### Changed
 
+- 小程序语音球 / 扫描球：空闲与结束后用静帧 `voice-ball.png` / `ble-ball.png`，仅录音·试听·列表播放 / 扫描中播对应 GIF；绑定设备页进入不再自动扫描。详见 `docs/features/mp-ball-still-anim/FEATURE.md`
+- 小程序素材：`dili-ble-connect.gif` gifsicle 有损压缩（约 7.0MB → 4.4MB），分辨率仍为 480×480、25fps / 121 帧
+- 设备蓝牙绑定页：顶部吉祥物 `dili-ble-connect.gif`，中间扫描动效 `ble-ball.gif`；语音中间球文件对齐为 `voice-ball.gif`。详见 `docs/features/mp-mascot-remote/FEATURE.md`
+- 小程序素材：语音留言中间录音球改用 `dili-voice-ball.gif`；「我的」页顶部改用 `dili-screen.gif`；设备蓝牙绑定页改用 `dili-ble-ball.gif`。详见 `docs/features/mp-mascot-remote/FEATURE.md`
+- 「我的」页与设备绑定页吉祥物：统一使用 `ble-connect.gif` 网络下发（替换原 `profile-mascot.svg` / 包内 `hero-mascot.png`）。详见 `docs/features/mp-mascot-remote/FEATURE.md`
+- 新建留言页英雄区动效：语音模式展示 `dili-voice-record.gif`，文字模式展示 `dili-type-record.gif`（替换原统一 `record.webp`）；切换模式时同步切换，并预热另一模式缓存。详见 `docs/features/mp-mascot-remote/FEATURE.md`
+- 小程序首页背景 `home-bg.png`：pngquant 压缩（约 770KB → 138KB），尺寸仍为 750×842
+- 首页头部：改为 `home-bg.png` 背景 + 右侧 `dili-flower.gif` 吉祥物（不再使用 `home.mp4`）；logo / 问候语叠在左侧。详见 `docs/features/mp-mascot-remote/FEATURE.md`
+- 首页头部：`home.mp4` 底层循环播放（VideoContext 强制起播）；logo / 问候语叠在视频上层左侧；原透明 WebP 改名为 `record.webp` 用于留言页。详见 `docs/features/mp-mascot-remote/FEATURE.md`
+- 首页吉祥物：透明 animated WebP `thankful_plush.webp`（960² / 16fps，约 5MB），`<image webp>` 播放，失败回退透明海报；源片备份为 `thankful_plush_source.mp4`（不嵌入）。详见 `docs/features/mp-mascot-remote/FEATURE.md`
+- `thankful_plush.svg`：去掉白底，内嵌透明 PNG，并加上 SMIL/CSS 轻浮动呼吸动画（体积约 53KB）
+- 小程序「绑定设备」「系统配置」按 Figma（296:799 / 402:344）复刻：扫描球与设备列表「链接设备」、空态重新扫描；配置页滑块调亮度/音量、Wi-Fi 单选与毛玻璃风格卡片。详见 `docs/features/mp-bind-config-ui/FEATURE.md`
+- 小程序「我的设备」「家庭成员」按 Figma（488:788 / 585:3171 / 523:1875）复刻：设备卡菜单行、空态插画、邀请码与成员列表；改昵称 / 输入邀请码为毛玻璃弹窗并随键盘上移。空态吉祥物 `devices-empty-mascot.svg`（>50KB）走 `/static/mp/`。详见 `docs/features/mp-devices-members-ui/FEATURE.md`
+- 小程序「对话记录」按 Figma（325:1536）改造：淡蓝底、半透明筛选条+日历、左右气泡与圆角方头像；「我的」页按 Figma（300:1152）复刻毛玻璃用户卡（吉祥物压在卡下）、无头像用默认吉祥物头像。详见 `docs/features/mp-profile-records-ui/FEATURE.md`
+- 小程序新建留言页按 Figma（语音待录/录音中/录音完成）重构：英雄区问候+吉祥物、分段切换、音球与胶囊按钮；录音完成后不再强制弹标题，改为「试听留言 / 设置标题」；音球 `create-orb.png`（>50KB）走 `/static/mp/` 网络下发；标题弹窗对齐授权页毛玻璃蒙层；多设备时「新建留言」先选对象，单设备直达创建页
 - 儿童故事开放/随便生成：随机指定题材与切入点，强制新鲜主角名，并注入近 7 天人物名/主题回避名单，减轻题材雷同与人物名复用。详见 `docs/features/story-diversity/FEATURE.md`
 - DeepSeek LLM：未配置 `thinking` 时默认注入 `thinking.type=disabled`（官方 API 默认开启思考）；管理端表单默认「关闭」，可通过 `thinking.mode: enabled` 开启。详见 `docs/features/deepseek-thinking-default-off/FEATURE.md`
 - 儿童故事追问：去掉每轮 system 注入全文；会话只留 `story_id`/标题指针，意图判为 followup 后按需从 Redis→MySQL 取正文本轮作答；点名经典未讲过可直答，非经典未讲过澄清后礼貌收尾。详见 `docs/features/story-followup-ondemand/FEATURE.md`
 
 ### Added
 
+- 小程序素材分发阈值改为 **>50KB** 才网络下发（`/static/mp/*`）；≤50KB 打进包；首页 `thankful_plush.mp4` 固定远端。规范见 `.cursor/rules/05-miniprogram-assets.mdc`、`docs/features/mp-mascot-remote/FEATURE.md`
 - 设备家庭成员授权：属主可邀请其他家长加入同一设备（邀请码）；成员可查看设备/发留言，仅属主可改孩子昵称、解绑与踢人。详见 `docs/features/device-family-auth/FEATURE.md`、`docs/adr/0002-device-family-members.md`
 - 短时多轮衔接：跨 session 按 `user_id+device_id+agent_id` 从 Manager DB / Redis shortctx 灌入近期对话；配置 `chat.short_context`；fresh hello 可复用 SessionID；出厂重置清理 shortctx。详见 `docs/features/SHORT_CONTEXT_CONTINUITY.md`
 - 设备固件状态问答与控制：IoT MCP 工具（`get_device_status` / `set_speaker_volume` / `set_screen_brightness` / `enter_sleep_mode` / `power_off_device`）转换时追加调用引导（问状态须主动 get，相对调节先 get 再 ±10）；能力地面补强状态查询与睡眠/关机完成态护栏。详见 `docs/features/DEVICE_FIRMWARE_STATUS.md`

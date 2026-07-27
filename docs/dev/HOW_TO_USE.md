@@ -11,6 +11,7 @@
 | 层级 | 文件 |
 |------|------|
 | 日常 | `.cursor/rules/00-core.mdc` |
+| 小程序素材 | `.cursor/rules/05-miniprogram-assets.mdc`（>50KB → `/static/mp`） |
 | 地图 | `docs/PROJECT_MAP.md` |
 | 按需 | WORKFLOW、BUG_TRIAGE、DOC_SYNC（standard+） |
 

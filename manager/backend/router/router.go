@@ -500,6 +500,11 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	// 运行时监控 SSE（使用短期 stream token，不经过 JWT 中间件）
 	r.GET("/api/admin/runtime/stream", runtimeReportController.StreamNodes)
 
+	// 小程序公开静态资源（吉祥物等，无需鉴权；须在 NoRoute 之前）
+	if mpSub, err := fs.Sub(static.MpFS, "mp"); err == nil {
+		r.StaticFS("/static/mp", http.FS(mpSub))
+	}
+
 	// 发版时嵌入的前端静态资源（-tags embed_ui）：NoRoute 时先尝试静态文件，再 SPA 回退
 	if sub, err := fs.Sub(static.FS, "dist"); err == nil {
 		r.NoRoute(serveEmbedStatic(sub))
