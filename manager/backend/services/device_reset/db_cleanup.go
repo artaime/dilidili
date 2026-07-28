@@ -43,7 +43,7 @@ func purgeChatMessages(db *gorm.DB, cfg *config.Config, deviceSN string) error {
 }
 
 func purgeParentMessages(db *gorm.DB, cfg *config.Config, deviceDBID uint) error {
-	audioBasePath := "./storage/parent_messages/audio"
+	audioBasePath := "./data/parent_messages/audio"
 	if cfg != nil && cfg.ParentMessage.AudioBasePath != "" {
 		audioBasePath = cfg.ParentMessage.AudioBasePath
 	}
@@ -54,7 +54,11 @@ func purgeParentMessages(db *gorm.DB, cfg *config.Config, deviceDBID uint) error
 	}
 	for _, msg := range messages {
 		if msg.AudioPath != "" {
-			_ = os.Remove(filepath.Join(audioBasePath, msg.AudioPath))
+			path := msg.AudioPath
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				path = filepath.Join(audioBasePath, msg.AudioPath)
+			}
+			_ = os.Remove(path)
 		}
 	}
 	if len(messages) == 0 {

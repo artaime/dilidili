@@ -32,7 +32,7 @@ dili-esp32-server-golang/
 │   ├── data/                # 历史记录等数据访问
 │   └── pool/                # 外部资源连接池
 ├── manager/
-│   ├── backend/             # Gin 管理后台 API（:8080）
+│   ├── backend/             # Gin 管理后台 API（:8080）；运行时数据见 backend/data/（用户聊天录音、家长留言音频等）
 │   ├── frontend/            # Vue Web 控制台
 │   └── miniprogram/         # 家长留言微信小程序（git submodule: dilidili_mp）
 ├── config/                  # 配置样例（*.pro/dev/local 勿提交）

@@ -10,6 +10,8 @@
 
 ### Changed
 
+- 聊天历史仅持久化用户 ASR 语音；AI TTS（回复 / 故事短卡片 / 文字留言播报）不再写入 `chat_history` 音频。详见 `docs/features/chat-history-user-audio-only/FEATURE.md`
+- 家长留言音频默认落盘路径由 `./storage/parent_messages/audio` 迁至 `./data/parent_messages/audio`（与聊天录音同属 `data/`）。详见 `docs/features/parent-message-audio-data-dir/FEATURE.md`
 - 小程序语音球 / 扫描球：空闲与结束后用静帧 `voice-ball.png` / `ble-ball.png`，仅录音·试听·列表播放 / 扫描中播对应 GIF；绑定设备页进入不再自动扫描。详见 `docs/features/mp-ball-still-anim/FEATURE.md`
 - 小程序素材：`dili-ble-connect.gif` gifsicle 有损压缩（约 7.0MB → 4.4MB），分辨率仍为 480×480、25fps / 121 帧
 - 设备蓝牙绑定页：顶部吉祥物 `dili-ble-connect.gif`，中间扫描动效 `ble-ball.gif`；语音中间球文件对齐为 `voice-ball.gif`。详见 `docs/features/mp-mascot-remote/FEATURE.md`

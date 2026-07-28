@@ -48,7 +48,7 @@ func main() {
 	}
 	parentAudioBase := cfg.ParentMessage.AudioBasePath
 	if parentAudioBase == "" {
-		parentAudioBase = "./storage/parent_messages/audio"
+		parentAudioBase = "./data/parent_messages/audio"
 	}
 
 	var chatMsgs []models.ChatMessage

@@ -99,37 +99,33 @@ type TTSManager struct {
 	audioGeneration           atomic.Uint64         // 会话级音频代际：打断时递增，旧代际元素会被发送协程丢弃
 	audioInterruptMu          sync.RWMutex
 	audioInterruptCh          chan struct{}
-	ttsActive                 atomic.Bool // 当前是否存在已开始但未结束的 TTS 段
-	senderLoopActive          atomic.Bool
-	senderLoopDone            chan struct{} // runSenderLoop 退出时关闭，供同步打断在关闭路径下快速返回
+		ttsActive                 atomic.Bool // 当前是否存在已开始但未结束的 TTS 段
+		senderLoopActive          atomic.Bool
+		senderLoopDone            chan struct{} // runSenderLoop 退出时关闭，供同步打断在关闭路径下快速返回
 
-	ttsQueueSeq   atomic.Uint64
-	droppedTTSSeq atomic.Uint64
+		ttsQueueSeq   atomic.Uint64
+		droppedTTSSeq atomic.Uint64
 
-	mediaPlaybackMu     sync.RWMutex
-	mediaPlaybackActive bool
-	mediaPlaybackWaitCh chan struct{}
+		mediaPlaybackMu     sync.RWMutex
+		mediaPlaybackActive bool
+		mediaPlaybackWaitCh chan struct{}
 
-	interruptStopMu          sync.Mutex
-	interruptStopPending     bool
-	interruptStopSendTtsStop bool
-	interruptStopErr         error
-	interruptStopReason      string
+		interruptStopMu          sync.Mutex
+		interruptStopPending     bool
+		interruptStopSendTtsStop bool
+		interruptStopErr         error
+		interruptStopReason      string
 
-	// 聊天历史音频缓存：持续累积多段TTS音频（Opus帧数组）
-	audioHistoryBuffer [][]byte
-	audioMutex         sync.Mutex
+		// 双流式 TTS 内部 StreamChan：由 handleTextResponse 在 IsStart 时创建，IsEnd 时关闭
+		dualStreamChan     chan llm_common.LLMResponseStruct
+		dualStreamDone     chan struct{} // 双流式 isSync 等待用：StreamChan 对应的 onEndFunc 信号
+		dualStreamOwnerCtx context.Context
+		dualStreamMu       sync.Mutex
+		dualStreamEpoch    atomic.Uint64
 
-	// 双流式 TTS 内部 StreamChan：由 handleTextResponse 在 IsStart 时创建，IsEnd 时关闭
-	dualStreamChan     chan llm_common.LLMResponseStruct
-	dualStreamDone     chan struct{} // 双流式 isSync 等待用：StreamChan 对应的 onEndFunc 信号
-	dualStreamOwnerCtx context.Context
-	dualStreamMu       sync.Mutex
-	dualStreamEpoch    atomic.Uint64
-
-	ttsMetricMu    sync.Mutex
-	ttsMetricState ttsMetricState
-}
+		ttsMetricMu    sync.Mutex
+		ttsMetricState ttsMetricState
+	}
 
 // NewTTSManager 只接受WithClientState
 func NewTTSManager(clientState *ClientState, serverTransport *ServerTransport, session *ChatSession, opts ...TTSManagerOption) *TTSManager {
@@ -332,11 +328,6 @@ func (t *TTSManager) runSenderLoop(ctx context.Context) {
 				}
 				if elem.Kind == AudioQueueKindFrame {
 					t.markTtsMetricFirstAudio(t.clientState.Ctx, elem.MetricCycle)
-					t.audioMutex.Lock()
-					frameCopy := make([]byte, len(elem.Data))
-					copy(frameCopy, elem.Data)
-					t.audioHistoryBuffer = append(t.audioHistoryBuffer, frameCopy)
-					t.audioMutex.Unlock()
 				}
 				totalFrames++
 				currentSentenceFrames++
@@ -2050,7 +2041,7 @@ func getAlignedDuration(startTime time.Time, frameDuration time.Duration) time.D
 	return time.Duration(alignedMs) * time.Millisecond
 }
 
-func (t *TTSManager) sendAudioStream(ctx context.Context, audioChan <-chan []byte, isStart bool, recordHistory bool) error {
+func (t *TTSManager) sendAudioStream(ctx context.Context, audioChan <-chan []byte, isStart bool) error {
 	totalFrames := 0 // 跟踪已发送的总帧数
 
 	isStatistic := true
@@ -2107,15 +2098,6 @@ func (t *TTSManager) sendAudioStream(ctx context.Context, audioChan <-chan []byt
 				return fmt.Errorf("发送 TTS 音频 len: %d 失败: %v", len(frame), err)
 			}
 
-			if recordHistory {
-				// 累积音频数据到历史缓存（每一帧作为独立的[]byte）
-				t.audioMutex.Lock()
-				frameCopy := make([]byte, len(frame))
-				copy(frameCopy, frame)
-				t.audioHistoryBuffer = append(t.audioHistoryBuffer, frameCopy)
-				t.audioMutex.Unlock()
-			}
-
 			totalFrames++
 			if totalFrames%100 == 0 {
 				log.Debugf("SendTTSAudio 已发送 %d 帧", totalFrames)
@@ -2134,25 +2116,9 @@ func (t *TTSManager) SendTTSAudio(ctx context.Context, audioChan <-chan []byte, 
 	if err := t.waitForMediaPlaybackRelease(ctx); err != nil {
 		return err
 	}
-	return t.sendAudioStream(ctx, audioChan, isStart, true)
+	return t.sendAudioStream(ctx, audioChan, isStart)
 }
 
 func (t *TTSManager) SendMediaAudio(ctx context.Context, audioChan <-chan []byte) error {
-	return t.sendAudioStream(ctx, audioChan, false, false)
-}
-
-// ClearAudioHistory 清空TTS音频历史缓存
-func (t *TTSManager) ClearAudioHistory() {
-	t.audioMutex.Lock()
-	defer t.audioMutex.Unlock()
-	t.audioHistoryBuffer = nil
-}
-
-// GetAndClearAudioHistory 获取并清空TTS音频历史缓存
-func (t *TTSManager) GetAndClearAudioHistory() [][]byte {
-	t.audioMutex.Lock()
-	defer t.audioMutex.Unlock()
-	data := t.audioHistoryBuffer
-	t.audioHistoryBuffer = nil
-	return data
+	return t.sendAudioStream(ctx, audioChan, false)
 }

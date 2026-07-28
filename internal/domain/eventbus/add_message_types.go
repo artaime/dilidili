@@ -24,9 +24,9 @@ type AddMessageEvent struct {
 	MessageID string
 
 	// 音频数据（可选，不属于 schema.Message 标准格式）
-	// 第一阶段：AudioData = nil（仅保存文本）
-	// 第二阶段：AudioData != nil（更新音频）
-	AudioData [][]byte // TTS/ASR 音频帧数组（Opus格式或PCM格式）
+	// 聊天历史仅持久化用户 ASR 音频：用户消息可在新增时携带 AudioData；
+	// AI TTS 不再写入 chat_history（IsUpdate 仅兼容旧路径，非 user 会被跳过）。
+	AudioData [][]byte // ASR 音频帧数组（PCM float32 字节）
 	AudioSize int      // 音频大小（字节）
 
 	// 音频格式信息（不属于 schema.Message 标准格式）
@@ -38,5 +38,5 @@ type AddMessageEvent struct {
 	TTSDuration int // TTS 耗时（毫秒）
 
 	// 阶段标识
-	IsUpdate bool // true=更新音频，false=新增消息
+	IsUpdate bool // true=更新音频（仅 user），false=新增消息
 }

@@ -34,7 +34,7 @@ docker compose up -d
 
 按 `doc/docker.md` 构建或拉取镜像后运行。常见建议：
 
-- 映射 `config/`、`logs/`、`storage/` 目录为数据卷
+- 映射 `config/`、`logs/`、`storage/`、以及 Manager 的 `data/`（聊天录音 / 家长留言音频）目录为数据卷
 - 对外暴露 WebSocket / MQTT / UDP 端口
 - 需要管理后台时启用对应参数或使用 Compose
 

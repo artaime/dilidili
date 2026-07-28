@@ -33,7 +33,7 @@ func NewMpMessageController(db *gorm.DB, cfg *config.Config, priv *privacy.Servi
 	basePath := cfg.ParentMessage.AudioBasePath
 	maxSize := cfg.ParentMessage.MaxFileSize
 	if basePath == "" {
-		basePath = "./storage/parent_messages/audio"
+			basePath = "./data/parent_messages/audio"
 	}
 	if maxSize <= 0 {
 		maxSize = 10 * 1024 * 1024

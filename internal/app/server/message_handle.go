@@ -126,7 +126,12 @@ func (w *MessageWorker) processMessage(event *eventbus.AddMessageEvent) {
 
 	// 判断是新增还是更新
 	if event.IsUpdate {
-		// 第二阶段：更新音频
+		// 聊天历史仅持久化用户 ASR 音频；跳过 assistant/其他角色的音频更新
+		if event.Msg.Role != schema.User {
+			log.Debugf("跳过非用户消息音频更新, device_id: %s, message_id: %s, role: %s",
+				event.ClientState.DeviceID, event.MessageID, event.Msg.Role)
+			return
+		}
 		w.updateMessageAudio(ctx, event)
 	} else {
 		// 第一阶段：保存文本消息（包含Redis处理）
@@ -278,29 +283,17 @@ func (w *MessageWorker) saveMessageText(ctx context.Context, event *eventbus.Add
 		return
 	}
 
-	// 转换音频格式（如果存在）
+	// 转换音频格式（仅用户 ASR；非 user 角色忽略 AudioData）
 	var audioBase64 string
 	var audioFormat string
 	var audioSize int
 
-	if len(event.AudioData) > 0 {
-		// ASR 消息：文本和音频同时获取，一次性保存
+	if len(event.AudioData) > 0 && event.Msg.Role == schema.User {
 		var wavData []byte
 		var err error
-
-		// 根据消息角色选择不同的音频转换方法
-		if event.Msg.Role == schema.User {
-			// User 消息（ASR）：PCM float32 格式
-			if len(event.AudioData) > 0 {
-				wavData, err = util.PCMFloat32BytesToWav(
-					event.AudioData[0], // User 消息只有一个元素
-					event.SampleRate,
-					event.Channels)
-			}
-		} else {
-			// Assistant 消息（TTS）：Opus 格式（理论上不应该在这里，因为 Assistant 是两阶段保存）
-			wavData, err = util.OpusFramesToWav(
-				event.AudioData,
+		if len(event.AudioData) > 0 {
+			wavData, err = util.PCMFloat32BytesToWav(
+				event.AudioData[0],
 				event.SampleRate,
 				event.Channels)
 		}
@@ -308,14 +301,13 @@ func (w *MessageWorker) saveMessageText(ctx context.Context, event *eventbus.Add
 		if err != nil {
 			log.Errorf("音频转换失败, device_id: %s, message_id: %s, role: %s, error: %v",
 				event.ClientState.DeviceID, event.MessageID, event.Msg.Role, err)
-			// 降级处理：直接拼接所有帧
 			var fallbackData []byte
 			for _, frame := range event.AudioData {
 				fallbackData = append(fallbackData, frame...)
 			}
 			audioBase64 = base64.StdEncoding.EncodeToString(fallbackData)
 			audioSize = event.AudioSize
-			audioFormat = "raw" // 降级处理使用原始格式
+			audioFormat = "raw"
 		} else {
 			audioBase64 = base64.StdEncoding.EncodeToString(wavData)
 			audioSize = len(wavData)
@@ -372,40 +364,19 @@ func (w *MessageWorker) saveMessageText(ctx context.Context, event *eventbus.Add
 	}
 }
 
-// updateMessageAudio 更新消息音频（第二阶段）
+// updateMessageAudio 更新消息音频（仅用户 ASR；非 user 已在 processMessage 拦截）
 func (w *MessageWorker) updateMessageAudio(ctx context.Context, event *eventbus.AddMessageEvent) {
-	// 转换音频格式
 	var audioBase64 string
 	var audioSize int
 
 	if len(event.AudioData) > 0 {
-		var wavData []byte
-		var err error
-
-		// 根据消息角色选择不同的音频转换方法
-		// User 消息（ASR）：PCM float32 格式，使用 PCMFloat32BytesToWav
-		// Assistant 消息（TTS）：Opus 格式，使用 OpusFramesToWav
-		if event.Msg.Role == schema.User {
-			// User 消息：PCM float32 格式
-			// event.AudioData 是 [][]byte，但 User 消息只有一个元素（完整的 PCM float32 字节数组）
-			if len(event.AudioData) > 0 {
-				wavData, err = util.PCMFloat32BytesToWav(
-					event.AudioData[0], // User 消息只有一个元素
-					event.SampleRate,
-					event.Channels)
-			}
-		} else {
-			// Assistant 消息：Opus 格式
-			wavData, err = util.OpusFramesToWav(
-				event.AudioData,
-				event.SampleRate,
-				event.Channels)
-		}
-
+		wavData, err := util.PCMFloat32BytesToWav(
+			event.AudioData[0],
+			event.SampleRate,
+			event.Channels)
 		if err != nil {
 			log.Errorf("音频转换失败, device_id: %s, message_id: %s, role: %s, error: %v",
 				event.ClientState.DeviceID, event.MessageID, event.Msg.Role, err)
-			// 降级处理：直接拼接所有帧
 			var fallbackData []byte
 			for _, frame := range event.AudioData {
 				fallbackData = append(fallbackData, frame...)
@@ -418,7 +389,6 @@ func (w *MessageWorker) updateMessageAudio(ctx context.Context, event *eventbus.
 		}
 	}
 
-	// 构建更新请求
 	req := &history.UpdateMessageAudioRequest{
 		MessageID:   event.MessageID,
 		AudioData:   audioBase64,
@@ -429,7 +399,6 @@ func (w *MessageWorker) updateMessageAudio(ctx context.Context, event *eventbus.
 		},
 	}
 
-	// 调用更新接口
 	if err := w.client.UpdateMessageAudio(ctx, req); err != nil {
 		log.Errorf("更新消息音频失败, device_id: %s, message_id: %s, error: %v",
 			event.ClientState.DeviceID, event.MessageID, err)

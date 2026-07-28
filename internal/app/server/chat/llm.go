@@ -59,7 +59,7 @@ const (
 	interruptContentSuffix = " [用户打断]"
 )
 
-// GetLastMessageID 获取最近保存的消息的 MessageID（用于两阶段保存）
+// GetLastMessageID 获取最近保存的消息的 MessageID
 func (l *LLMManager) GetLastMessageID(role string) (string, bool) {
 	l.lastMessageIDMu.RLock()
 	defer l.lastMessageIDMu.RUnlock()
@@ -706,13 +706,6 @@ func (l *LLMManager) handleLLMResponseChannelAsync(ctx context.Context, userMess
 
 	if needSendTtsCmd {
 		onStartFunc = func(...any) {
-			// 判断是否为首次LLM调用（通过context的nest值），仅首次调用时清空TTS音频缓存
-			val := ctx.Value("nest")
-			if nest, ok := val.(int); !ok || nest <= 1 {
-				// 首次调用或没有nest值，清空TTS音频缓存
-				l.ttsManager.ClearAudioHistory()
-				chatDebugLogf("onStartFunc 首次调用，已清空TTS音频缓存")
-			}
 			l.ttsManager.EnqueueTtsStartWithReason(ctx, "LLMManager.handleLLMResponseChannelAsync onStart")
 		}
 		deferProtocolTtsStop := options.deferProtocolTtsStop
@@ -725,43 +718,8 @@ func (l *LLMManager) handleLLMResponseChannelAsync(ctx context.Context, userMess
 			if l.session != nil {
 				l.session.TraceLlmEnd(ctx, time.Now().UnixMilli(), err)
 			}
-			strFullText := fullText.String()
-
+			// 文本已在 handleLLMResponse 第一阶段落库；聊天历史不持久化 AI TTS 音频
 			l.finishTTSTurnWithReason(ctx, err, handleResult, "LLMManager.handleLLMResponseChannelAsync onEnd")
-
-			// 从 closure 中获取 fullText
-			audioData := l.ttsManager.GetAndClearAudioHistory()
-
-			// 计算总音频大小（所有帧的字节数之和）
-			audioSize := 0
-			for _, frame := range audioData {
-				audioSize += len(frame)
-			}
-
-			// 只有在首次调用（nest<=1）时才发送事件
-			if nest <= 1 {
-				// 从 LLMManager 中获取 MessageID（Assistant 角色）
-				// 如果没有找到 MessageID，说明第一阶段保存未完成，不进行第二阶段更新
-				messageID, ok := l.GetLastMessageID(string(schema.Assistant))
-				if !ok {
-					log.Warnf("TTS 完成时未找到 MessageID，跳过第二阶段音频更新")
-					return
-				}
-
-				// 发布事件：第二阶段（更新音频）
-				assistantMsg := schema.AssistantMessage(strFullText, nil)
-				eventbus.Get().Publish(eventbus.TopicAddMessage, &eventbus.AddMessageEvent{
-					ClientState: l.clientState,
-					Msg:         *assistantMsg,
-					MessageID:   messageID,
-					AudioData:   audioData, // 第二阶段：有音频
-					AudioSize:   audioSize,
-					SampleRate:  l.clientState.OutputAudioFormat.SampleRate,
-					Channels:    l.clientState.OutputAudioFormat.Channels,
-					Timestamp:   time.Now(),
-					IsUpdate:    true, // 更新消息
-				})
-			}
 		}
 	}
 
@@ -812,12 +770,6 @@ func (l *LLMManager) HandleLLMResponseChannelSync(ctx context.Context, userMessa
 	}
 
 	if needSendTtsCmd {
-		// 判断是否为首次LLM调用（通过context的nest值），仅首次调用时清空TTS音频缓存
-		if nest <= 1 {
-			// 首次调用或没有nest值，清空TTS音频缓存
-			l.ttsManager.ClearAudioHistory()
-			chatDebugLogf("HandleLLMResponseChannelSync 首次调用，已清空TTS音频缓存")
-		}
 		l.ttsManager.EnqueueTtsStartWithReason(ctx, "LLMManager.HandleLLMResponseChannelSync start")
 	}
 
@@ -829,49 +781,9 @@ func (l *LLMManager) HandleLLMResponseChannelSync(ctx context.Context, userMessa
 	if l.session != nil {
 		l.session.TraceLlmEnd(ctx, time.Now().UnixMilli(), err)
 	}
-	strFullText := fullText.String()
 
 	if needSendTtsCmd {
 		l.finishTTSTurnWithReason(ctx, err, result, "LLMManager.HandleLLMResponseChannelSync end")
-
-		// 收集TTS音频并发送聊天历史事件
-		// 注意：工具调用后的LLM响应（nest > 1）也会累积音频到缓存中，但不会清空
-		// 只有在首次调用（nest<=1）时才清空缓存并发送事件
-		audioData := l.ttsManager.GetAndClearAudioHistory()
-
-		// 计算总音频大小（所有帧的字节数之和）
-		audioSize := 0
-		for _, frame := range audioData {
-			audioSize += len(frame)
-		}
-
-		// 只有在首次调用（nest<=1）时才发送事件
-		if nest <= 1 {
-			// 从 LLMManager 中获取 MessageID（Assistant 角色）
-			// 如果没有找到 MessageID，说明第一阶段保存未完成，不进行第二阶段更新
-			messageID, ok := l.GetLastMessageID(string(schema.Assistant))
-			if !ok {
-				log.Warnf("TTS 完成时未找到 MessageID，跳过第二阶段音频更新")
-				return result.ok, err
-			}
-
-			// 发布事件：第二阶段（更新音频）
-			assistantMsg := schema.AssistantMessage(strFullText, nil)
-			eventbus.Get().Publish(eventbus.TopicAddMessage, &eventbus.AddMessageEvent{
-				ClientState: l.clientState,
-				Msg:         *assistantMsg,
-				MessageID:   messageID,
-				AudioData:   audioData, // 第二阶段：有音频
-				AudioSize:   audioSize,
-				SampleRate:  l.clientState.OutputAudioFormat.SampleRate,
-				Channels:    l.clientState.OutputAudioFormat.Channels,
-				Timestamp:   time.Now(),
-			})
-		}
-	} else {
-		// nest > 1 的情况：虽然不发送TTS命令，但音频数据仍然会累积到缓存中
-		// 这些音频会在首次响应结束时（nest <= 1）一起收集
-		chatDebugLogf("工具调用后的LLM响应（nest=%d），音频数据将累积到缓存中", nest)
 	}
 
 	return result.ok, err
@@ -1065,7 +977,7 @@ func (l *LLMManager) handleLLMResponse(ctx context.Context, userMessage *schema.
 						}
 						if strings.TrimSpace(strFullText) != "" || len(toolCalls) > 0 {
 							if l.session != nil && l.session.IsStoryPlaybackActive() {
-								// 故事正文不写入对话历史；改为短卡片，音频挂到该卡片消息上。
+								// 故事正文不写入对话历史；改为短卡片（不挂 TTS 音频）。
 								storyID, title := l.session.StoryPlaybackIdentity()
 								msg := schema.AssistantMessage(story.StoryCardContent(title), toolCalls)
 								msg.Extra = story.StoryCardExtra(storyID, title, false)
@@ -1214,26 +1126,25 @@ func (l *LLMManager) AddMessage(ctx context.Context, msg *schema.Message) error 
 		return nil
 	}
 
-	// User/Assistant 角色：两阶段保存
-	// 将 MessageID 存储到 LLMManager 中，供后续音频更新使用
-	if msg.Role == schema.User || msg.Role == schema.Assistant {
-		l.lastMessageIDMu.Lock()
-		l.lastMessageID[string(msg.Role)] = messageID
-		l.lastMessageIDMu.Unlock()
-	}
+		// User/Assistant 角色：落库文本（用户 ASR 音频由 session 一次保存；AI TTS 不写入 chat_history）
+		if msg.Role == schema.User || msg.Role == schema.Assistant {
+			l.lastMessageIDMu.Lock()
+			l.lastMessageID[string(msg.Role)] = messageID
+			l.lastMessageIDMu.Unlock()
+		}
 
-	// 发布事件：第一阶段（仅文本，无音频）
-	eventbus.Get().Publish(eventbus.TopicAddMessage, &eventbus.AddMessageEvent{
-		ClientState: l.clientState,
-		Msg:         *msg,
-		MessageID:   messageID,
-		AudioData:   nil, // 第一阶段：无音频
-		AudioSize:   0,
-		SampleRate:  0,
-		Channels:    0,
-		Timestamp:   time.Now(),
-		IsUpdate:    false, // 新增消息
-	})
+		// 发布事件：仅文本（无音频）
+		eventbus.Get().Publish(eventbus.TopicAddMessage, &eventbus.AddMessageEvent{
+			ClientState: l.clientState,
+			Msg:         *msg,
+			MessageID:   messageID,
+			AudioData:   nil,
+			AudioSize:   0,
+			SampleRate:  0,
+			Channels:    0,
+			Timestamp:   time.Now(),
+			IsUpdate:    false,
+		})
 
 	return nil
 }

@@ -297,7 +297,6 @@ func (s *ChatSession) beginOpenClawSpeech(task *openClawWarmupTask) {
 	if !task.markSpeechStarted() {
 		return
 	}
-	s.ttsManager.ClearAudioHistory()
 	s.ttsManager.EnqueueTtsStartWithReason(task.sessionCtx, fmt.Sprintf("OpenClaw warmup start correlation_id=%s", task.correlationID))
 }
 
@@ -305,10 +304,7 @@ func (s *ChatSession) endOpenClawSpeech(task *openClawWarmupTask) {
 	if task == nil {
 		return
 	}
-	if !task.markSpeechEnded() {
-		return
-	}
-	s.ttsManager.GetAndClearAudioHistory()
+	task.markSpeechEnded()
 }
 
 func (s *ChatSession) runOpenClawWarmupTask(task *openClawWarmupTask, userText string) {

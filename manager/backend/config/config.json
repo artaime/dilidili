@@ -41,7 +41,7 @@
     }
   },
   "parent_message": {
-    "audio_base_path": "./storage/parent_messages/audio",
+    "audio_base_path": "./data/parent_messages/audio",
     "max_file_size": 10485760
   },
   "encryption": {

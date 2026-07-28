@@ -100,3 +100,4 @@ pending → notified → played
 
 - 主服务与 Manager 内网可达
 - 固件需主动发 hello 并建立 UDP 后方能下行 TTS
+- 留言语音默认落盘：`manager/backend/data/parent_messages/audio`（配置 `parent_message.audio_base_path`；与聊天录音同属 `data/`）

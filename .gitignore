@@ -32,9 +32,6 @@ chat_history/
 /governance-kit/
 .cursor/
 
-**/parent_messages/
-
-# manager/backend/storage/parent_messages
-
+# 运行时数据（含 chat_history / parent_messages 音频）；旧路径 **/parent_messages/ 兼容残留
 manager/backend/data/
-manager/backend/storage/parent_messages
+**/parent_messages/
