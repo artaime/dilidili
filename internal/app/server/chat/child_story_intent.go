@@ -18,21 +18,27 @@ func (c *ChatManager) classifyStoryIntent(ctx context.Context, text string) (sto
 		return story.IntentResult{}, false
 	}
 
-	raw, err := c.callLLMSyncText(ctx, story.BuildStoryIntentSystemPrompt(), "用户说："+text)
-	if err != nil {
-		log.Warnf("设备 %s 故事 LLM 意图识别失败: %v", c.DeviceID, err)
-		return story.IntentResult{}, false
-	}
+		userPrompt := buildClassifierUserPrompt(c.clientState, text)
+		raw, err := c.callLLMSyncText(ctx, story.BuildStoryIntentSystemPrompt(), userPrompt)
+		if err != nil {
+			log.Warnf("设备 %s 故事 LLM 意图识别失败: %v", c.DeviceID, err)
+			return story.IntentResult{}, false
+		}
 
-	intent, err := story.ParseStoryIntentJSON(raw)
-	if err != nil {
-		log.Warnf("设备 %s 故事意图 JSON 解析失败 raw=%q err=%v", c.DeviceID, raw, err)
-		return story.IntentResult{}, false
-	}
-	if intent.Confidence < story.StoryIntentMinConfidence {
-		return intent, false
-	}
-	if intent.IsStoryFollowup || intent.Action == story.ActionFollowup {
+		intent, err := story.ParseStoryIntentJSON(raw)
+		if err != nil {
+			log.Warnf("设备 %s 故事意图 JSON 解析失败 raw=%q err=%v", c.DeviceID, raw, err)
+			return story.IntentResult{}, false
+		}
+		if intent.Confidence < story.StoryIntentMinConfidence {
+			return intent, false
+		}
+		if intent.NeedsDialogue || intent.Action == story.ActionNone || intent.Action == "none" {
+			log.Infof("设备 %s 故事意图交主对话 needs_dialogue=%v action=%s text=%q",
+				c.DeviceID, intent.NeedsDialogue, intent.Action, text)
+			return intent, false
+		}
+		if intent.IsStoryFollowup || intent.Action == story.ActionFollowup {
 		intent.Action = story.ActionFollowup
 		intent.IsStoryFollowup = true
 		intent.IsStoryRequest = false

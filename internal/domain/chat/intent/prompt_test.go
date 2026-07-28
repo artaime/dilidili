@@ -17,8 +17,14 @@ func TestBuildClassifierSystemPromptIncludesDeviceIntent(t *testing.T) {
 	if !strings.Contains(got, "音量") || !strings.Contains(got, "电量") {
 		t.Fatalf("expected volume/battery examples, got %q", got)
 	}
-	if !strings.Contains(got, "本机音量/电量等请用 intent=device") {
-		t.Fatalf("expected general must not steal device ops, got %q", got)
+	if !strings.Contains(got, "needs_dialogue") {
+		t.Fatalf("expected needs_dialogue field, got %q", got)
+	}
+	if !strings.Contains(got, "近期对话") {
+		t.Fatalf("expected recent dialogue guidance, got %q", got)
+	}
+	if !strings.Contains(got, "一律交主对话") {
+		t.Fatalf("expected general pass-through to main dialogue, got %q", got)
 	}
 }
 

@@ -29,8 +29,8 @@ done
 | 键 | 默认 | 说明 |
 |----|------|------|
 | `story.stream_enabled` | `true` | 生成走流式路径 |
-| `story.filler_enabled` | `true` | 生成前播放过渡语 |
-| `story.filler_default` | 见 config | 普通故事过渡语 |
+| `story.filler_enabled` | `true` | 生成/复播前播放过渡语（含标题告知） |
+| `story.filler_default` | 见 config | 普通故事过渡语（无标题时） |
 | `story.filler_bedtime` | 见 config | 睡前故事过渡语 |
 | `story.followup_enabled` | `true` | 情节追问按需拉正文 |
 | `story.followup_ttl_minutes` | `30` | 最近故事指针有效期 |
@@ -63,3 +63,5 @@ go test ./...
 | 2026-06-30 | 首期 P0~P2：create_child_story、Redis Story Store、复播/续讲、保留与弱偏好 |
 | 2026-06-30 | 流式生成：过渡语 + LLM 分句 TTS（`story.stream_enabled` / `filler_*`） |
 | 2026-07-17 | 开放生成题材轮换 + 主角名种子 + 近期人物回避（见 story-diversity） |
+| 2026-07-28 | 复播/续讲/开放流式：讲前礼貌告知标题（见 story-narration-intro） |
+| 2026-07-28 | 故事意图带近期对话；事实「的故事」不进 generate（见 INTENT_ROUTER_CONTEXT） |

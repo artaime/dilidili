@@ -4,13 +4,18 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- 儿童故事开场过渡语重复两遍：开放流式不再先播通用 filler 再播标题告知，改为 meta 后单句开场；续讲正文已有「上次讲到」时不叠标题引导；跳过模型重复开场白。详见 `docs/features/story-narration-intro/FEATURE.md`
+- 意图/故事旁路抢答：分类注入近期 Dialogue；去掉关键词 fallback 与故事召回快路径；`general` 一律交主对话；无名故事追问无正文时放行；「介绍……的故事」事实介绍不进儿童编故事。详见 `docs/features/INTENT_ROUTER_CONTEXT.md`
+
 ### Added
 
 - 用户对话与留言落盘加密：AES-256-GCM + 设备级 DEK（`PRIVACY_KEK_BASE64` / `encryption.enabled`）；小程序读路径统一 `CanAccess`；存量迁移命令 `manager/backend/cmd/migrate_privacy_encrypt`。详见 `docs/dev/FEATURE_privacy_encryption.md`
 
 ### Changed
 
-- 聊天历史仅持久化用户 ASR 语音；AI TTS（回复 / 故事短卡片 / 文字留言播报）不再写入 `chat_history` 音频。详见 `docs/features/chat-history-user-audio-only/FEATURE.md`
+- 意图路由：分类器注入近期 Dialogue，删除关键词 fallback；`general`/`device`/`needs_dialogue` 交主 LLM；事实介绍 vs 儿童讲故事消歧。详见 `docs/features/INTENT_ROUTER_CONTEXT.md`
 - 家长留言音频默认落盘路径由 `./storage/parent_messages/audio` 迁至 `./data/parent_messages/audio`（与聊天录音同属 `data/`）。详见 `docs/features/parent-message-audio-data-dir/FEATURE.md`
 - 小程序语音球 / 扫描球：空闲与结束后用静帧 `voice-ball.png` / `ble-ball.png`，仅录音·试听·列表播放 / 扫描中播对应 GIF；绑定设备页进入不再自动扫描。详见 `docs/features/mp-ball-still-anim/FEATURE.md`
 - 小程序素材：`dili-ble-connect.gif` gifsicle 有损压缩（约 7.0MB → 4.4MB），分辨率仍为 480×480、25fps / 121 帧

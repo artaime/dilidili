@@ -11,9 +11,10 @@ const (
 )
 
 type RouterResponse struct {
-	Intent     string          `json:"intent"`
-	Confidence string          `json:"confidence"`
-	Data       json.RawMessage `json:"data"`
+	Intent        string          `json:"intent"`
+	Confidence    string          `json:"confidence"`
+	NeedsDialogue bool            `json:"needs_dialogue,omitempty"`
+	Data          json.RawMessage `json:"data"`
 }
 
 type GeneralData struct {

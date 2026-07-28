@@ -1,6 +1,9 @@
 package story
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestShouldTellCanonical(t *testing.T) {
 	if !ShouldTellCanonical(StoryParams{RequestType: StoryModeClassic, NarrationMode: NarrationCanonical, Theme: "龟兔赛跑"}) {
@@ -14,6 +17,30 @@ func TestShouldTellCanonical(t *testing.T) {
 	}
 	if ShouldTellCanonical(StoryParams{RequestType: StoryModeOriginal, Theme: "小恐龙"}) {
 		t.Fatal("original should be creative")
+	}
+}
+
+func TestBuildStoryIntentSystemPromptFactDisambiguation(t *testing.T) {
+	got := BuildStoryIntentSystemPrompt()
+	if !strings.Contains(got, "事实介绍") {
+		t.Fatalf("expected fact vs story rule: %q", got)
+	}
+	if !strings.Contains(got, "needs_dialogue") {
+		t.Fatalf("expected needs_dialogue field: %q", got)
+	}
+	if !strings.Contains(got, "近期对话") {
+		t.Fatalf("expected recent dialogue guidance: %q", got)
+	}
+}
+
+func TestParseStoryIntentNeedsDialogueNone(t *testing.T) {
+	raw := `{"is_story_request":false,"is_story_followup":false,"needs_dialogue":true,"confidence":0.92,"action":"none"}`
+	got, err := ParseStoryIntentJSON(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.NeedsDialogue || got.Action != ActionNone || got.IsStoryRequest || got.IsStoryFollowup {
+		t.Fatalf("unexpected: %+v", got)
 	}
 }
 

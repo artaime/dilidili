@@ -28,17 +28,19 @@
 | `msg_play` | 「播放最近一条留言」 | `action=latest`，**刚播过的那条**；从未播过则回退创建时间最新 |
 | `msg_play` | 「播放妈妈最近的留言」 | `action=latest` + `family_role`，该家长按 `created_at` 最新一条 |
 | `msg_play` | 「播放妈妈昨天早上的留言」「播放爸爸下午的留言」「播放下午的留言」 | `action=select` + `family_role`/`start`/`end`；**含已播留言**，按 `created_at` 在库内检索 |
-| `general` | 其它聊天 | LLM 在 `data.reply` 中生成回复，直接 TTS |
+| `general` / `device` | 闲聊、设备能力 | **不截获**，交主 LLM（带 short_context） |
 
 严格 JSON 示例：
 
 ```json
-{"intent":"msg_inquiry","confidence":"0.95","data":{"action":"list"}}
-{"intent":"msg_play","confidence":"0.92","data":{"action":"latest"}}
-{"intent":"msg_play","confidence":"0.92","data":{"action":"latest","family_role":"妈妈"}}
-{"intent":"msg_play","confidence":"0.90","data":{"action":"select","family_role":"妈妈","start":"2026-06-14T05:00:00","end":"2026-06-14T11:00:00"}}
-{"intent":"general","confidence":"0.88","data":{"reply":"今天天气不错呀"}}
+{"intent":"msg_inquiry","confidence":"0.95","needs_dialogue":false,"data":{"action":"list"}}
+{"intent":"msg_play","confidence":"0.92","needs_dialogue":false,"data":{"action":"latest"}}
+{"intent":"msg_play","confidence":"0.92","needs_dialogue":false,"data":{"action":"latest","family_role":"妈妈"}}
+{"intent":"msg_play","confidence":"0.90","needs_dialogue":false,"data":{"action":"select","family_role":"妈妈","start":"2026-06-14T05:00:00","end":"2026-06-14T11:00:00"}}
+{"intent":"general","confidence":"0.88","needs_dialogue":true,"data":{}}
 ```
+
+分类器会注入近期 Dialogue；`needs_dialogue=true` 或 `general`/`device` 一律放行主对话。无关键词 fallback。详见 [`INTENT_ROUTER_CONTEXT.md`](./INTENT_ROUTER_CONTEXT.md)。
 
 配置：`config.yaml` → `chat.intent_router`、`chat.device_message_profile`。
 

@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// BuildSelectTimeRange 根据口语中的日期/时段推算 start/end（供 fallback 使用）。
+// BuildSelectTimeRange 根据口语中的日期/时段推算 start/end（供 msg_play select 使用）。
 func BuildSelectTimeRange(dayLabel, dayPeriod string, now time.Time) (start, end string) {
 	loc := now.Location()
 	day := resolveDayBase(dayLabel, now, loc)

@@ -47,9 +47,10 @@ func (c *ChatManager) isFollowupClarifying() bool {
 	return c.followupClarifyRound > 0
 }
 
-func (c *ChatManager) handleStoryFollowup(ctx context.Context, userText string, intent story.IntentResult) error {
+// handleStoryFollowup 处理故事情节追问。handled=false 表示应交主对话（无近期故事可答等）。
+func (c *ChatManager) handleStoryFollowup(ctx context.Context, userText string, intent story.IntentResult) (handled bool, err error) {
 	if c == nil {
-		return fmt.Errorf("会话不可用")
+		return true, fmt.Errorf("会话不可用")
 	}
 	userText = strings.TrimSpace(userText)
 	theme, _ := story.ResolveIntentTheme(intent)
@@ -57,20 +58,22 @@ func (c *ChatManager) handleStoryFollowup(ctx context.Context, userText string, 
 	rec := c.resolveFollowupStory(ctx, theme)
 	if rec != nil && story.HasStoryContent(rec) {
 		c.clearFollowupClarify()
-		return c.answerStoryFollowupWithBody(ctx, userText, rec)
+		return true, c.answerStoryFollowupWithBody(ctx, userText, rec)
 	}
 
 	if theme != "" && story.IsClassicFollowupTarget(intent) {
 		c.clearFollowupClarify()
-		return c.answerClassicStoryFollowup(ctx, userText, theme)
+		return true, c.answerClassicStoryFollowup(ctx, userText, theme)
 	}
 
 	if theme == "" {
+		// 无名追问且无最近故事指针 → 放行主对话，避免「刚才好像还没讲故事」误伤
 		c.clearFollowupClarify()
-		return c.InjectMessage("刚才好像还没讲故事哦，你想问哪一个故事呢？", true, true)
+		log.Infof("设备 %s 故事追问无可用正文，交主对话 text=%q", c.DeviceID, userText)
+		return false, nil
 	}
 
-	return c.askFollowupClarify(userText, theme)
+	return true, c.askFollowupClarify(userText, theme)
 }
 
 func (c *ChatManager) handleFollowupClarifyTurn(ctx context.Context, userText string, intent story.IntentResult, classified bool) error {

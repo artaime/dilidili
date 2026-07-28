@@ -193,6 +193,113 @@ func BuildFillerText(params StoryParams, cfg Config) string {
 	return strings.TrimSpace(cfg.FillerDefault)
 }
 
+// SpeakableStoryTitle 口语化故事标题，避免「…的故事的故事」。
+func SpeakableStoryTitle(title string) string {
+	title = strings.TrimSpace(title)
+	if title == "" || title == "儿童故事" || looksLikeStoryOpening(title) {
+		return ""
+	}
+	if strings.Contains(title, "故事") || strings.Contains(title, "童话") ||
+		strings.Contains(title, "神话") || strings.Contains(title, "寓言") {
+		return title
+	}
+	return title + "的故事"
+}
+
+// BuildNarrationIntro 复播/直读正文前的礼貌过渡语（告知标题）。
+func BuildNarrationIntro(title string, cfg Config) string {
+	if !cfg.FillerEnabled {
+		return ""
+	}
+	if label := SpeakableStoryTitle(title); label != "" {
+		return fmt.Sprintf("好呀，接下来给你讲%s。", label)
+	}
+	return strings.TrimSpace(cfg.FillerDefault)
+}
+
+// BuildResumeTitleLead 续讲前点明标题的引导语（接在断点衔接语之前）。
+func BuildResumeTitleLead(title string, cfg Config) string {
+	if !cfg.FillerEnabled {
+		return ""
+	}
+	if label := SpeakableStoryTitle(title); label != "" {
+		return fmt.Sprintf("好的，我们继续讲%s。", label)
+	}
+	return ""
+}
+
+// BuildMetaTitleAnnounce 流式开放生成在收到 meta 标题后、正文前的短告知。
+func BuildMetaTitleAnnounce(title string, cfg Config) string {
+	if !cfg.FillerEnabled {
+		return ""
+	}
+	title = strings.TrimSpace(title)
+	if title == "" || title == "儿童故事" || looksLikeStoryOpening(title) {
+		return ""
+	}
+	return fmt.Sprintf("这篇故事叫%s。", title)
+}
+
+// HasNarrationIntroPrefix 判断文本是否已含讲前过渡语，避免重复拼接。
+func HasNarrationIntroPrefix(s string) bool {
+	s = strings.TrimSpace(s)
+	for _, p := range []string{
+		"好呀，接下来给你讲",
+		"好呀，我给你讲",
+		"好呀，那我们讲",
+		"好的，我们继续讲",
+		"这篇故事叫",
+	} {
+		if strings.HasPrefix(s, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// HasResumeTransitionPrefix 正文是否已含续讲衔接过渡语。
+func HasResumeTransitionPrefix(s string) bool {
+	s = strings.TrimSpace(s)
+	for _, p := range []string{
+		"上次讲到",
+		"好的，我们继续讲",
+		"上次讲到这儿",
+	} {
+		if strings.HasPrefix(s, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// StripRedundantStoryOpening 去掉与系统过渡语重复的模型开场白。
+// 返回 (处理后文本, 是否应整句跳过)。
+func StripRedundantStoryOpening(sentence string) (string, bool) {
+	s := strings.TrimSpace(sentence)
+	if s == "" {
+		return "", true
+	}
+	if HasNarrationIntroPrefix(s) {
+		return "", true
+	}
+	for _, p := range []string{
+		"好的，我来给你讲",
+		"好的，我来为你讲",
+		"好的，我来讲述",
+		"让我来给你讲",
+		"让我给你讲",
+		"我来给你讲一个故事",
+		"我给你讲一个故事",
+		"今天给大家讲",
+		"今天我给你们讲",
+	} {
+		if strings.HasPrefix(s, p) {
+			return "", true
+		}
+	}
+	return s, false
+}
+
 // BuildQuestionForMissing 生成语音友好的追问文案。
 func BuildQuestionForMissing(missing []string) string {
 	if len(missing) == 0 {

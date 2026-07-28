@@ -8,6 +8,7 @@ const (
 	ActionResume     = "resume"
 	ActionListRecent = "list_recent"
 	ActionFollowup   = "followup" // 针对已讲/点名故事的情节追问，不复播
+	ActionNone       = "none"     // 非儿童故事动作，交主对话
 
 	StoryRefLast      = "last"
 	StoryRefLastNight = "last_night"

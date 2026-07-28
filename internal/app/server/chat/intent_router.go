@@ -36,37 +36,26 @@ func (c *ChatManager) RouteUserIntent(ctx context.Context, text string, speakerR
 		log.Infof("设备 %s 意图置信度不足 intent=%s confidence=%.2f text=%q", c.DeviceID, resp.Intent, confidence, text)
 		return false, nil
 	}
+	if resp.NeedsDialogue {
+		log.Infof("设备 %s 意图需主对话 needs_dialogue intent=%s text=%q", c.DeviceID, resp.Intent, text)
+		return false, nil
+	}
 
-		log.Infof("设备 %s 意图路由 intent=%s confidence=%.2f text=%q", c.DeviceID, resp.Intent, confidence, text)
-		switch resp.Intent {
-		case intent.IntentMsgInquiry:
-			data, _ := intent.ParseData[intent.MsgInquiryData](resp.Data)
-			return true, c.HandleMsgInquiry(ctx, data)
-		case intent.IntentMsgPlay:
-			data, _ := intent.ParseData[intent.MsgPlayData](resp.Data)
-			return true, c.HandleMsgPlay(ctx, data)
-		case intent.IntentDevice:
-			// 本机音量/电量/亮度/睡眠/关机：必须走主 LLM + 设备 MCP，禁止意图路由短接口胡编。
-			log.Infof("设备 %s 设备能力意图，交主对话 tools 处理 text=%q", c.DeviceID, text)
-			return false, nil
-		case intent.IntentGeneral:
-			data, err := intent.ParseData[intent.GeneralData](resp.Data)
-			if err != nil || strings.TrimSpace(data.Reply) == "" {
-				return false, nil
-			}
-				// 分类器若仍用 general 假装设备操作或推销未接入能力，交给主对话工具链。
-				if llm_common.LooksLikeUngroundedActionClaim(data.Reply) {
-					log.Infof("设备 %s general 回复含设备操作声称，改交主对话 tools text=%q", c.DeviceID, text)
-					return false, nil
-				}
-				if llm_common.LooksLikeUngroundedCapabilityOffer(data.Reply, nil) {
-					log.Infof("设备 %s general 回复含虚构能力推销，改交主对话 tools text=%q", c.DeviceID, text)
-					return false, nil
-				}
-				return true, c.HandleGeneralIntent(ctx, data)
-		default:
-			return false, nil
-		}
+	log.Infof("设备 %s 意图路由 intent=%s confidence=%.2f text=%q", c.DeviceID, resp.Intent, confidence, text)
+	switch resp.Intent {
+	case intent.IntentMsgInquiry:
+		data, _ := intent.ParseData[intent.MsgInquiryData](resp.Data)
+		return true, c.HandleMsgInquiry(ctx, data)
+	case intent.IntentMsgPlay:
+		data, _ := intent.ParseData[intent.MsgPlayData](resp.Data)
+		return true, c.HandleMsgPlay(ctx, data)
+	case intent.IntentDevice, intent.IntentGeneral:
+		// device / general：一律交主 LLM（带 short_context），禁止旁路单句编答。
+		log.Infof("设备 %s intent=%s 交主对话处理 text=%q", c.DeviceID, resp.Intent, text)
+		return false, nil
+	default:
+		return false, nil
+	}
 }
 
 func (c *ChatManager) classifyUserIntent(ctx context.Context, text string) (intent.RouterResponse, float64, error) {
@@ -74,26 +63,13 @@ func (c *ChatManager) classifyUserIntent(ctx context.Context, text string) (inte
 		return intent.RouterResponse{}, 0, fmt.Errorf("client state unavailable")
 	}
 	systemPrompt := intent.BuildClassifierSystemPrompt(c.clientState.SystemPrompt)
-	raw, err := c.callLLMSyncText(ctx, systemPrompt, "用户说："+strings.TrimSpace(text))
+	userPrompt := buildClassifierUserPrompt(c.clientState, text)
+	raw, err := c.callLLMSyncText(ctx, systemPrompt, userPrompt)
 	if err != nil {
-		if fallback, ok := intent.FallbackClassify(text); ok {
-			conf, confErr := intent.ParseConfidence(fallback.Confidence)
-			if confErr != nil {
-				conf = 0.75
-			}
-			return fallback, conf, nil
-		}
 		return intent.RouterResponse{}, 0, err
 	}
 	resp, err := intent.ParseRouterResponse(raw)
 	if err != nil {
-		if fallback, ok := intent.FallbackClassify(text); ok {
-			conf, confErr := intent.ParseConfidence(fallback.Confidence)
-			if confErr != nil {
-				conf = 0.75
-			}
-			return fallback, conf, nil
-		}
 		return intent.RouterResponse{}, 0, err
 	}
 	confidence, err := intent.ParseConfidence(resp.Confidence)
@@ -101,21 +77,6 @@ func (c *ChatManager) classifyUserIntent(ctx context.Context, text string) (inte
 		confidence = 0.5
 	}
 	return resp, confidence, nil
-}
-
-func (c *ChatManager) HandleGeneralIntent(ctx context.Context, data intent.GeneralData) error {
-	reply := strings.TrimSpace(data.Reply)
-	if reply == "" {
-		return fmt.Errorf("general intent missing reply")
-	}
-		if rewritten, ok := llm_common.MaybeRewriteUngroundedActionClaim(reply, false); ok {
-			log.Infof("设备 %s general 意图回复含虚构操作，已改写", c.DeviceID)
-			reply = rewritten
-		} else if rewritten, ok := llm_common.MaybeRewriteUngroundedCapabilityOffer(reply, nil); ok {
-			log.Infof("设备 %s general 意图回复含虚构能力推销，已改写", c.DeviceID)
-			reply = rewritten
-		}
-		return c.InjectMessage(reply, true, true)
 }
 
 func (c *ChatManager) buildParentMessageSummary(messages []parentMessageItem) string {
@@ -140,4 +101,21 @@ func (c *ChatManager) buildParentMessageSummary(messages []parentMessageItem) st
 		return fmt.Sprintf("你有1条新留言，%s；想听可以说播放留言。", summary)
 	}
 	return fmt.Sprintf("你有%d条新留言，%s；想听可以说播放留言。", len(messages), summary)
+}
+
+// HandleGeneralIntent 保留供测试/兼容；路由已不再截获 general。
+func (c *ChatManager) HandleGeneralIntent(ctx context.Context, data intent.GeneralData) error {
+	_ = ctx
+	reply := strings.TrimSpace(data.Reply)
+	if reply == "" {
+		return fmt.Errorf("general intent missing reply")
+	}
+	if rewritten, ok := llm_common.MaybeRewriteUngroundedActionClaim(reply, false); ok {
+		log.Infof("设备 %s general 意图回复含虚构操作，已改写", c.DeviceID)
+		reply = rewritten
+	} else if rewritten, ok := llm_common.MaybeRewriteUngroundedCapabilityOffer(reply, nil); ok {
+		log.Infof("设备 %s general 意图回复含虚构能力推销，已改写", c.DeviceID)
+		reply = rewritten
+	}
+	return c.InjectMessage(reply, true, true)
 }

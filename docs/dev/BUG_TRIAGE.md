@@ -32,8 +32,10 @@ ESP32 设备
 | TTS 播报中被 detect/listen start 误打断 | `HandleListenDetect` 助手输出门控；`shouldDeferListenStartDuringOutput` |
 | 未满 `max_idle_duration` 就 goodbye | 上行须 `NoteUplinkActivity` 重置空闲；勿在 VoiceStop 跳过音频时仍累计 idle |
 | 固件调音量后先拒再说成功/说「做不到」 | `llm.go` 能力地面改写 + `toolsSucceededInTurn`；`mcp/device_firmware_tools.go` |
-| 先说能查天气/定闹钟，被问后又说不会 | `capability_grounding.go` 推销禁令 + `LooksLikeUngroundedCapabilityOffer`；`intent_router` general 回退主对话 |
+| 先说能查天气/定闹钟，被问后又说不会 | `capability_grounding.go` 推销禁令 + `LooksLikeUngroundedCapabilityOffer`；`intent_router` general 交主对话 |
 | 问电量/调音量被闲聊截走、不调 MCP | `intent` 路由：`device` 意图应 fallthrough；查 `intent_router.go` / `prompt.go` |
+| 指代/回忆被留言或故事抢答（如「第二个」答成播放留言） | `INTENT_ROUTER_CONTEXT`：分类带 Dialogue；general 不截；无关键词 fallback |
+| 「介绍 X 的故事」被编成儿童故事 | 故事意图 + `buildStoryRoutingPolicy` 事实介绍消歧；见 `INTENT_ROUTER_CONTEXT` |
 | TTS 无声音/音色错误 | `internal/app/server/chat/tts.go`、`internal/domain/tts/` |
 | VAD 误切/漏检 | `internal/domain/vad/` |
 | MCP 工具调用失败 | `internal/domain/mcp/`、`internal/app/server/chat/mcp.go` |

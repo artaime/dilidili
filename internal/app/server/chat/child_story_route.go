@@ -53,19 +53,13 @@ func (c *ChatManager) tryHandleChildStoryRequest(ctx context.Context, text strin
 		}
 	}
 
-	// 启发式 / 分类器命中追问
-	if followupOn {
-		if isStoryRecallQuestion(text) {
-			log.Infof("设备 %s 故事追问快路径 text=%q", c.DeviceID, text)
-			return true, c.handleStoryFollowup(ctx, text, story.IntentResult{
-				IsStoryFollowup: true,
-				Action:          story.ActionFollowup,
-				Confidence:      1,
-			})
+	// 分类器命中追问（无关键词快路径）
+	if followupOn && classified && intent.IsStoryFollowup {
+		handled, err := c.handleStoryFollowup(ctx, text, intent)
+		if !handled {
+			return false, nil
 		}
-		if classified && intent.IsStoryFollowup {
-			return true, c.handleStoryFollowup(ctx, text, intent)
-		}
+		return true, err
 	}
 
 	if !routingOn || !classified || intent.IsStoryFollowup || !isStoryPlaybackAction(intent.Action) {
@@ -142,18 +136,22 @@ func (c *ChatManager) narrateChildStory(ctx context.Context, result *story.ToolR
 	if result != nil {
 		session.ActivateStoryPlayback(result)
 	}
-	log.Infof("设备 %s 开始直接 TTS 朗读故事 story_id=%s len=%d", c.DeviceID, result.StoryID, len([]rune(text)))
+	body := strings.TrimSpace(text)
+	speakText := prependStoryNarrationIntro(c.getStoryService().Config(), result, body)
+	log.Infof("设备 %s 开始直接 TTS 朗读故事 story_id=%s len=%d intro=%t",
+		c.DeviceID, result.StoryID, len([]rune(body)), speakText != body)
 	storyID := result.StoryID
-	return session.AddTextToTTSQueueWithOptions(text, llmResponseChannelOptions{
+	return session.AddTextToTTSQueueWithOptions(speakText, llmResponseChannelOptions{
 		ttsTurnEndPolicy: ttsTurnEndPolicyNone,
 		onEndFunc: func(err error, _ ...any) {
 			if session.IsStoryPlaybackActive() {
-				session.OnStoryTextSent(text)
+				// 进度只计正文（不含标题过渡语）
+				session.OnStoryTextSent(body)
 				session.OnStoryPlaybackFinished(err == nil)
 			}
 			if err == nil && storyID != "" {
 				if updater := session.storyProgressUpdater; updater != nil {
-					updater.RememberStoryForFollowUp(session.ctx, session, storyID, text, true)
+					updater.RememberStoryForFollowUp(session.ctx, session, storyID, body, true)
 				}
 			}
 		},
@@ -164,20 +162,23 @@ func (l *LLMManager) deliverChildStoryFromTool(ctx context.Context, narrationTex
 	if l == nil || l.session == nil {
 		return nil
 	}
-	text := strings.TrimSpace(narrationText)
-	if text == "" {
+	body := strings.TrimSpace(narrationText)
+	if body == "" {
 		return nil
 	}
 	if result != nil {
 		l.session.ActivateStoryPlayback(result)
 	}
-	log.Infof("设备 %s MCP 工具返回故事，直接 TTS 朗读 len=%d", l.clientState.DeviceID, len([]rune(text)))
+	cfg := story.LoadConfig()
+	speakText := prependStoryNarrationIntro(cfg, result, body)
+	log.Infof("设备 %s MCP 工具返回故事，直接 TTS 朗读 len=%d intro=%t",
+		l.clientState.DeviceID, len([]rune(body)), speakText != body)
 	session := l.session
-	return session.AddTextToTTSQueueWithOptions(text, llmResponseChannelOptions{
+	return session.AddTextToTTSQueueWithOptions(speakText, llmResponseChannelOptions{
 		ttsTurnEndPolicy: ttsTurnEndPolicyNone,
 		onEndFunc: func(err error, _ ...any) {
 			if session.IsStoryPlaybackActive() {
-				session.OnStoryTextSent(text)
+				session.OnStoryTextSent(body)
 				session.OnStoryPlaybackFinished(err == nil)
 			}
 			if updater := session.storyProgressUpdater; updater != nil {
@@ -185,10 +186,39 @@ func (l *LLMManager) deliverChildStoryFromTool(ctx context.Context, narrationTex
 				if result != nil {
 					storyID = result.StoryID
 				}
-				updater.RememberStoryForFollowUp(ctx, session, storyID, text, err == nil)
+				updater.RememberStoryForFollowUp(ctx, session, storyID, body, err == nil)
 			}
 		},
 	})
+}
+
+// prependStoryNarrationIntro 在正文前拼接礼貌标题过渡语（进度仍只计 body）。
+func prependStoryNarrationIntro(cfg story.Config, result *story.ToolResult, body string) string {
+	body = strings.TrimSpace(body)
+	if body == "" || story.HasNarrationIntroPrefix(body) {
+		return body
+	}
+	title := ""
+	status := ""
+	if result != nil {
+		title = strings.TrimSpace(result.Title)
+		status = result.Status
+	}
+	var intro string
+	switch status {
+	case story.StatusResume:
+		// 正文已带「上次讲到…」续讲语时不再叠一句「继续讲标题」，避免两句开场。
+		if story.HasResumeTransitionPrefix(body) {
+			return body
+		}
+		intro = story.BuildResumeTitleLead(title, cfg)
+	default:
+		intro = story.BuildNarrationIntro(title, cfg)
+	}
+	if intro == "" {
+		return body
+	}
+	return intro + body
 }
 
 func storyToolResultFromMap(data map[string]interface{}) *story.ToolResult {

@@ -1317,14 +1317,15 @@ func buildKnowledgeSearchRoutingPolicy(knowledgeBases []config_types.KnowledgeBa
 
 func buildStoryRoutingPolicy() string {
 	return "\n儿童故事规则（工具: create_child_story）:\n" +
-		"1. 触发：用户要求讲故事、编故事、睡前故事、再讲一遍、昨晚的故事、接着讲，或点名具体故事/神话/寓言（不必含「故事」二字）。\n" +
+		"1. 触发：用户明确要求讲故事、编故事、睡前故事、再讲一遍、昨晚的故事、接着讲，或点名具体童话/神话/寓言要听正篇（不必含「故事」二字）。\n" +
 		"2. 必须立即调用 create_child_story，禁止在调用工具前口头铺垫或重复过渡语；不要自行编造长篇故事正文。\n" +
 		"3. 调用时填写 theme（通行规范名，ASR 错字须纠正如后裔射太阳→后羿射日）、theme_raw（口语原名可选）、request_type、narration_mode：经典/神话/寓言正篇用 narration_mode=canonical；编故事/原创用 creative。\n" +
 		"4. action：generate 新故事；replay（story_ref: last|last_night|favorite）；resume 续讲；list_recent 消歧。\n" +
 		"5. 若工具返回 need_params/candidates/not_found，用一两句口语追问或说明，不要假装已讲故事。\n" +
 		"6. 若返回 text_to_speak，进入朗读模式完整播报，不要摘要或改写。\n" +
-		"7. 纯闲聊、非故事创作不要调用本工具；事实类问题用 search_knowledge。\n" +
-		"8. 用户问「刚才/刚刚讲了什么故事、什么内容」→ 不要调用本工具，根据 system 中的「最近刚讲过的故事」直接口语回答。"
+		"7. 纯闲聊、非儿童故事创作不要调用本工具；事实类问题用 search_knowledge 或口语常识介绍。\n" +
+		"8. 用户问「刚才/刚刚讲了什么故事、什么内容」→ 不要调用本工具，根据近期对话或最近故事指针直接口语回答。\n" +
+		"9. 【事实介绍 vs 儿童讲故事】承接上文真实事物（景点/建筑/人物/事件等）的「介绍/讲讲……的故事/历史/来历」→ 禁止调用本工具，用口语做事实/历史介绍，不要编成童话。"
 }
 
 func trimTrailingUserMessages(messages []*schema.Message) []*schema.Message {

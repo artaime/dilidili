@@ -23,10 +23,12 @@ done
 ```
 
 - `ClientState`：`SetRecentStoryPointer` / `RecentStoryPointer`
-- 意图：`action=followup` / `is_story_followup`（`BuildStoryIntentSystemPrompt`）
-- 路由：`handleStoryFollowup` / `handleFollowupClarifyTurn`（`story_followup.go`）
+- 意图：`action=followup` / `is_story_followup`（`BuildStoryIntentSystemPrompt`，注入近期对话；事实介绍类「……的故事」为 `action=none`）
+- 路由：`handleStoryFollowup` / `handleFollowupClarifyTurn`（`story_followup.go`）；无名追问且无最近故事 → **放行主对话**（不再固定话术）
 - 取文：`Store.Get` → `FindLatestByTheme` → `storypersist.GetAsset`
-- 回答：路由内 `callLLMSyncText` + `InjectMessage`
+- 回答：路由内 `callLLMSyncText` + `InjectMessage`；无关键词召回快路径
+
+详见 [`INTENT_ROUTER_CONTEXT.md`](../INTENT_ROUTER_CONTEXT.md)。
 
 ### 配置
 
@@ -54,3 +56,4 @@ go test ./internal/domain/story/... ./internal/app/server/chat/... ./internal/da
 | 日期 | 摘要 |
 |------|------|
 | 2026-07-15 | 设计定稿并实现：指针 + followup + 按需拉文/经典直答/澄清收尾 |
+| 2026-07-28 | 分类带近期对话；无指针 followup 放行主对话；去掉关键词召回快路径 |

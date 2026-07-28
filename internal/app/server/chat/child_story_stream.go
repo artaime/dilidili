@@ -74,6 +74,10 @@ func (c *ChatManager) streamGenerateChildStory(ctx context.Context, params *Crea
 	}
 
 	filler := svc.FillerText(plan.Params)
+	// 无明确主题时：先不播通用 filler，等 meta 标题后播一句「接下来给你讲…」，避免「讲一个故事」+「这篇故事叫」两句开场。
+	if strings.TrimSpace(plan.Params.Theme) == "" {
+		filler = ""
+	}
 	if err := c.runStoryStream(ctx, req, plan, filler); err != nil {
 		c.endStoryStreamGuard()
 		return err
@@ -139,6 +143,7 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 		streamErr          error
 		savedComplete      bool
 		playbackStopped    bool // TTS 已停但保护续写中
+		metaTitleAnnounced bool
 	)
 
 	heardRunes := func() int {
@@ -291,12 +296,67 @@ func (c *ChatManager) runStoryStream(ctx context.Context, req story.ToolRequest,
 				streamMu.Lock()
 				plan.StoryMeta = *metaFilter.Meta
 				streamMu.Unlock()
+				// 开放生成（无主题）：meta 到达后播一句礼貌过渡语（含标题），替代开场通用 filler。
+				if !metaTitleAnnounced && strings.TrimSpace(plan.Params.Theme) == "" {
+					announce := story.BuildNarrationIntro(metaFilter.Meta.Title, svc.Config())
+					if announce == "" {
+						announce = story.BuildMetaTitleAnnounce(metaFilter.Meta.Title, svc.Config())
+					}
+					if announce != "" {
+						metaTitleAnnounced = true
+						resp := llm_common.LLMResponseStruct{Text: announce}
+						if firstChunk {
+							resp.IsStart = true
+							firstChunk = false
+						}
+						if !send(resp, false) {
+							streamMu.Lock()
+							stopped := playbackStopped
+							streamMu.Unlock()
+							if stopped {
+								return nil
+							}
+							if story.ShouldCancelGenerationOnInterrupt(heardRunes(), threshold) {
+								return context.Canceled
+							}
+							streamMu.Lock()
+							playbackStopped = true
+							streamMu.Unlock()
+						}
+					} else {
+						metaTitleAnnounced = true
+					}
+				}
 			}
 			if clean == "" {
 				return nil
 			}
 			fullBuilder.WriteString(clean)
 			for _, sent := range sentenceBuf.Append(clean) {
+				// 系统已播过渡语时，丢掉模型重复的开场白。
+				if stripped, skip := story.StripRedundantStoryOpening(sent); skip {
+					log.Infof("设备 %s 跳过故事开场白重复句: %q", c.DeviceID, sent)
+					continue
+				} else {
+					sent = stripped
+				}
+				if strings.TrimSpace(sent) == "" {
+					continue
+				}
+				// 无主题且尚未播过渡语：正文到来前补一句默认开场（meta 缺失时的兜底）。
+				if !metaTitleAnnounced && strings.TrimSpace(plan.Params.Theme) == "" && filler == "" {
+					if fallback := strings.TrimSpace(svc.Config().FillerDefault); fallback != "" && svc.Config().FillerEnabled {
+						metaTitleAnnounced = true
+						fb := llm_common.LLMResponseStruct{Text: fallback}
+						if firstChunk {
+							fb.IsStart = true
+							firstChunk = false
+						}
+						_ = send(fb, false)
+					} else {
+						metaTitleAnnounced = true
+					}
+				}
 				streamMu.Lock()
 				stopped := playbackStopped
 				streamMu.Unlock()
