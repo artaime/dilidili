@@ -3,6 +3,8 @@ package controllers
 import (
 	"crypto/md5"
 	"dili/manager/backend/models"
+	"dili/manager/backend/privacy"
+	"dili/manager/backend/services/device_acl"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -21,6 +23,7 @@ type ChatHistoryController struct {
 	DB            *gorm.DB
 	AudioBasePath string // 音频存储基础路径
 	MaxFileSize   int64  // 最大文件大小（10MB）
+	Privacy       *privacy.Service
 }
 
 // SaveMessageRequest 保存消息请求
@@ -72,6 +75,14 @@ func (c *ChatHistoryController) SaveMessage(ctx *gin.Context) {
 		return
 	}
 
+	content := req.Content
+	if enc, err := c.encryptContent(device.ID, content); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "加密消息失败: " + err.Error()})
+		return
+	} else {
+		content = enc
+	}
+
 	message := &models.ChatMessage{
 		MessageID:     req.MessageID,
 		DeviceID:      req.DeviceID,
@@ -79,7 +90,7 @@ func (c *ChatHistoryController) SaveMessage(ctx *gin.Context) {
 		UserID:        device.UserID,
 		SessionID:     req.SessionID,
 		Role:          req.Role,
-		Content:       req.Content,
+		Content:       content,
 		ToolCallID:    req.ToolCallID,
 		ToolCallsJSON: req.ToolCallsJSON,
 		Metadata:      req.Metadata,
@@ -91,7 +102,7 @@ func (c *ChatHistoryController) SaveMessage(ctx *gin.Context) {
 	if err == nil {
 		// 消息已存在，更新音频数据（如果提供了）
 		if req.AudioData != "" {
-			audioPath, err := c.saveAudioFile(req.MessageID, req.AudioData)
+			audioPath, err := c.saveAudioFile(device.ID, req.MessageID, req.AudioData)
 			if err != nil {
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "保存音频文件失败: " + err.Error()})
 				return
@@ -150,7 +161,7 @@ func (c *ChatHistoryController) SaveMessage(ctx *gin.Context) {
 	// 消息不存在，创建新消息
 	// 处理音频数据 - 保存到文件系统（固定为wav格式，两级hash打散）
 	if req.AudioData != "" {
-		audioPath, err := c.saveAudioFile(req.MessageID, req.AudioData)
+		audioPath, err := c.saveAudioFile(device.ID, req.MessageID, req.AudioData)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "保存音频文件失败: " + err.Error()})
 			return
@@ -220,6 +231,8 @@ func (c *ChatHistoryController) GetMessages(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败"})
 		return
 	}
+
+	c.decryptChatMessages(messages)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"total":     total,
@@ -323,6 +336,8 @@ func (c *ChatHistoryController) GetMessagesByAgent(ctx *gin.Context) {
 		return
 	}
 
+	c.decryptChatMessages(messages)
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"total":     total,
 		"page":      page,
@@ -373,6 +388,8 @@ func (c *ChatHistoryController) ExportMessages(ctx *gin.Context) {
 		return
 	}
 
+	c.decryptChatMessages(messages)
+
 	// 设置响应头，提示下载
 	ctx.Header("Content-Type", "application/json")
 	ctx.Header("Content-Disposition", "attachment; filename=chat_history_"+time.Now().Format("20060102_150405")+".json")
@@ -383,52 +400,75 @@ func (c *ChatHistoryController) ExportMessages(ctx *gin.Context) {
 	})
 }
 
-// saveAudioFile 保存音频文件到文件系统（两级hash打散）
-func (c *ChatHistoryController) saveAudioFile(messageID, audioDataBase64 string) (string, error) {
-	// 解码base64音频数据
+// saveAudioFile 保存音频文件到文件系统（两级hash打散）；deviceDBID 用于落盘加密。
+func (c *ChatHistoryController) saveAudioFile(deviceDBID uint, messageID, audioDataBase64 string) (string, error) {
 	audioData, err := base64.StdEncoding.DecodeString(audioDataBase64)
 	if err != nil {
 		return "", fmt.Errorf("解码音频数据失败: %v", err)
 	}
-
-	// 检查文件大小
 	if int64(len(audioData)) > c.MaxFileSize {
 		return "", fmt.Errorf("音频文件大小超过限制: %d > %d", len(audioData), c.MaxFileSize)
 	}
-
-	// 计算message_id的MD5作为文件名（排除后缀）
+	if c.Privacy != nil {
+		enc, err := c.Privacy.EncryptFileBytes(deviceDBID, audioData)
+		if err != nil {
+			return "", fmt.Errorf("加密音频失败: %w", err)
+		}
+		audioData = enc
+	}
 	fileNameHash := fmt.Sprintf("%x", md5.Sum([]byte(messageID)))
-
-	// 计算两级hash用于目录打散
-	hash1 := fileNameHash[0:2] // 前2个字符
-	hash2 := fileNameHash[2:4] // 第3-4个字符
-
-	// 构建文件路径：{base_path}/{hash1}/{hash2}/{md5(message_id)}.wav
+	hash1 := fileNameHash[0:2]
+	hash2 := fileNameHash[2:4]
 	relativePath := fmt.Sprintf("%s/%s/%s.wav", hash1, hash2, fileNameHash)
 	fullPath := filepath.Join(c.AudioBasePath, relativePath)
-
-	// 创建目录
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("创建目录失败: %v", err)
 	}
-
-	// 写入文件
 	if err := os.WriteFile(fullPath, audioData, 0644); err != nil {
 		return "", fmt.Errorf("写入文件失败: %v", err)
 	}
-
-	// 返回相对路径（用于数据库存储）
 	return relativePath, nil
 }
 
-// deleteAudioFile 删除音频文件
 func (c *ChatHistoryController) deleteAudioFile(relativePath string) error {
 	fullPath := filepath.Join(c.AudioBasePath, relativePath)
 	return os.Remove(fullPath)
 }
 
-// GetAudioFile 获取音频文件（通过Golang转发）
+func (c *ChatHistoryController) encryptContent(deviceDBID uint, content string) (string, error) {
+	if c.Privacy == nil {
+		return content, nil
+	}
+	return c.Privacy.EncryptText(deviceDBID, content)
+}
+
+func (c *ChatHistoryController) decryptChatMessages(messages []models.ChatMessage) {
+	if c.Privacy == nil || len(messages) == 0 {
+		return
+	}
+	deviceIDs := make(map[string]uint)
+	for i := range messages {
+		sn := messages[i].DeviceID
+		deviceDBID, ok := deviceIDs[sn]
+		if !ok {
+			var device models.Device
+			if err := c.DB.Select("id").Where("device_name = ?", sn).First(&device).Error; err != nil {
+				log.Printf("解密对话失败：找不到设备 %s: %v", sn, err)
+				continue
+			}
+			deviceDBID = device.ID
+			deviceIDs[sn] = deviceDBID
+		}
+		plain, err := c.Privacy.DecryptText(deviceDBID, messages[i].Content)
+		if err != nil {
+			log.Printf("解密对话 content 失败 message_id=%s: %v", messages[i].MessageID, err)
+			continue
+		}
+		messages[i].Content = plain
+	}
+}
+
 func (c *ChatHistoryController) GetAudioFile(ctx *gin.Context) {
 	userID, exists := ctx.Get("user_id")
 	if !exists {
@@ -436,25 +476,32 @@ func (c *ChatHistoryController) GetAudioFile(ctx *gin.Context) {
 		return
 	}
 	uid, _ := userID.(uint)
-	serveChatMessageAudio(ctx, c.DB, c.AudioBasePath, ctx.Param("id"), &uid)
+	serveChatMessageAudio(ctx, c.DB, c.Privacy, c.AudioBasePath, ctx.Param("id"), &uid)
 }
 
-func serveChatMessageAudio(ctx *gin.Context, db *gorm.DB, audioBasePath string, id string, userID *uint) {
+func serveChatMessageAudio(ctx *gin.Context, db *gorm.DB, priv *privacy.Service, audioBasePath string, id string, userID *uint) {
 	var message models.ChatMessage
-	query := db.Where("id = ? AND is_deleted = ?", id, false)
-	if userID != nil {
-		query = query.Where("user_id = ?", *userID)
-	}
-	if err := query.First(&message).Error; err != nil {
+	if err := db.Where("id = ? AND is_deleted = ?", id, false).First(&message).Error; err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "消息不存在"})
 		return
 	}
-
+	var device models.Device
+	if err := db.Where("device_name = ?", message.DeviceID).First(&device).Error; err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "消息不存在"})
+		return
+	}
+	if userID != nil {
+		if !device_acl.CanAccess(db, device.ID, *userID) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "消息不存在"})
+			return
+		}
+	} else {
+		log.Printf("audit admin chat_audio message_id=%d device_id=%d", message.ID, device.ID)
+	}
 	if message.AudioPath == "" {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "音频文件不存在"})
 		return
 	}
-
 	fullPath := filepath.Join(audioBasePath, message.AudioPath)
 	audioData, err := os.ReadFile(fullPath)
 	if err != nil {
@@ -465,15 +512,20 @@ func serveChatMessageAudio(ctx *gin.Context, db *gorm.DB, audioBasePath string, 
 		}
 		return
 	}
-
+	if priv != nil {
+		dec, err := priv.DecryptFileBytes(device.ID, audioData)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "解密音频失败"})
+			return
+		}
+		audioData = dec
+	}
 	ctx.Header("Content-Type", "audio/wav")
 	ctx.Header("Content-Length", strconv.Itoa(len(audioData)))
 	ctx.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", filepath.Base(message.AudioPath)))
 	ctx.Data(http.StatusOK, "audio/wav", audioData)
 }
 
-// GetMessagesForInit 获取消息列表（用于初始化加载，内部服务接口，无需认证）
-// 短上下文要求按 user_id+device_id+agent_id 三维过滤，避免设备换绑串话。
 func (c *ChatHistoryController) GetMessagesForInit(ctx *gin.Context) {
 	deviceID := ctx.Query("device_id")
 	agentID := ctx.Query("agent_id")
@@ -495,27 +547,20 @@ func (c *ChatHistoryController) GetMessagesForInit(ctx *gin.Context) {
 
 	query := c.DB.Model(&models.ChatMessage{}).
 		Where("user_id = ? AND device_id = ? AND agent_id = ? AND is_deleted = ?", uint(userID), deviceID, agentID, false)
-
 	if sessionID != "" {
 		query = query.Where("session_id = ?", sessionID)
 	}
 
 	var messages []models.ChatMessage
-	// 先取最新的 N 条，再反转为时间正序（旧 -> 新）供 LLM 使用
-	if err := query.Order("created_at DESC").
-		Order("id DESC").
-		Limit(limit).
-		Find(&messages).Error; err != nil {
+	if err := query.Order("created_at DESC").Order("id DESC").Limit(limit).Find(&messages).Error; err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败"})
 		return
 	}
-
-	// 反转后保证返回顺序为旧 -> 新
 	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
 		messages[i], messages[j] = messages[j], messages[i]
 	}
+	c.decryptChatMessages(messages)
 
-	// 转换为响应格式（只包含文本，不包含音频）
 	messageItems := make([]map[string]interface{}, 0, len(messages))
 	for _, msg := range messages {
 		item := map[string]interface{}{
@@ -524,11 +569,9 @@ func (c *ChatHistoryController) GetMessagesForInit(ctx *gin.Context) {
 			"content":    msg.Content,
 			"created_at": msg.CreatedAt.Format(time.RFC3339),
 		}
-		// 直接返回 tool_call_id（如果存在）
 		if msg.ToolCallID != "" {
 			item["tool_call_id"] = msg.ToolCallID
 		}
-		// 直接返回 tool_calls（如果存在）
 		if msg.ToolCallsJSON != nil && *msg.ToolCallsJSON != "" {
 			var toolCalls []interface{}
 			if err := json.Unmarshal([]byte(*msg.ToolCallsJSON), &toolCalls); err == nil {
@@ -537,13 +580,9 @@ func (c *ChatHistoryController) GetMessagesForInit(ctx *gin.Context) {
 		}
 		messageItems = append(messageItems, item)
 	}
-
-	ctx.JSON(http.StatusOK, gin.H{
-		"messages": messageItems,
-	})
+	ctx.JSON(http.StatusOK, gin.H{"messages": messageItems})
 }
 
-// UpdateMessageAudioRequest 更新消息音频请求
 type UpdateMessageAudioRequest struct {
 	AudioData   string                 `json:"audio_data" binding:"required"`
 	AudioFormat string                 `json:"audio_format"`
@@ -551,52 +590,44 @@ type UpdateMessageAudioRequest struct {
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// UpdateMessageAudio 更新消息音频
 func (c *ChatHistoryController) UpdateMessageAudio(ctx *gin.Context) {
 	messageID := ctx.Param("message_id")
 	if messageID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "message_id 不能为空"})
 		return
 	}
-
 	var req UpdateMessageAudioRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	// 查找消息
 	var message models.ChatMessage
 	if err := c.DB.Where("message_id = ?", messageID).First(&message).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			// 消息不存在，跳过更新（可能是因为 SaveMessage 时没有 AgentID 而被跳过）
 			ctx.JSON(http.StatusOK, gin.H{"message": "跳过更新: 消息不存在"})
 			return
 		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "查询消息失败"})
 		return
 	}
-
-	// 如果消息没有关联的 AgentID，跳过更新
 	if message.AgentID == "" {
 		ctx.JSON(http.StatusOK, gin.H{"message": "跳过更新: 没有关联的 AgentID"})
 		return
 	}
-
-	// 保存音频文件
+	var device models.Device
+	deviceDBID := uint(0)
+	if err := c.DB.Select("id").Where("device_name = ?", message.DeviceID).First(&device).Error; err == nil {
+		deviceDBID = device.ID
+	}
 	if req.AudioData != "" {
-		audioPath, err := c.saveAudioFile(messageID, req.AudioData)
+		audioPath, err := c.saveAudioFile(deviceDBID, messageID, req.AudioData)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "保存音频文件失败: " + err.Error()})
 			return
 		}
-
-		// 如果之前有音频文件，先删除
 		if message.AudioPath != "" {
 			c.deleteAudioFile(message.AudioPath)
 		}
-
-		// 更新消息
 		updates := map[string]interface{}{
 			"audio_path":   audioPath,
 			"audio_format": "wav",
@@ -604,27 +635,22 @@ func (c *ChatHistoryController) UpdateMessageAudio(ctx *gin.Context) {
 		if req.AudioSize > 0 {
 			updates["audio_size"] = req.AudioSize
 		}
-
-		// 更新 metadata
 		if message.Metadata == nil {
 			message.Metadata = make(map[string]interface{})
 		}
 		for k, v := range req.Metadata {
 			message.Metadata[k] = v
 		}
-		// 手动序列化 metadata 到 MetadataJSON（因为 Updates 不会触发 BeforeSave hook）
 		metadataJSONBytes, err := json.Marshal(message.Metadata)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "序列化 metadata 失败: " + err.Error()})
 			return
 		}
 		updates["metadata"] = string(metadataJSONBytes)
-
 		if err := c.DB.Model(&message).Updates(updates).Error; err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "更新消息失败"})
 			return
 		}
 	}
-
 	ctx.JSON(http.StatusOK, message)
 }

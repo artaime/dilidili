@@ -29,14 +29,14 @@ const (
 )
 
 var (
-	ErrForbidden       = errors.New("无权操作该设备")
-	ErrNotMember       = errors.New("不是该设备的家庭成员")
-	ErrAlreadyMember   = errors.New("已是该设备的家庭成员")
-	ErrMemberFull      = errors.New("家庭成员已满")
-	ErrInviteInvalid   = errors.New("邀请码无效或已失效")
-	ErrCannotKickOwner = errors.New("不能移除属主")
+	ErrForbidden        = errors.New("无权操作该设备")
+	ErrNotMember        = errors.New("不是该设备的家庭成员")
+	ErrAlreadyMember    = errors.New("已是该设备的家庭成员")
+	ErrMemberFull       = errors.New("家庭成员已满")
+	ErrInviteInvalid    = errors.New("邀请码无效或已失效")
+	ErrCannotKickOwner  = errors.New("不能移除属主")
 	ErrCannotLeaveOwner = errors.New("属主不能退出，请解绑设备或转让后再试")
-	ErrOwnerOnly       = errors.New("仅属主可执行此操作")
+	ErrOwnerOnly        = errors.New("仅属主可执行此操作")
 )
 
 // CanAccess 属主或 active member 可访问设备。

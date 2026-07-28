@@ -25,6 +25,10 @@
   "jwt": {
     "secret": "your_secret_key", // JWT签名密钥
     "expire_hour": 24           // Token过期时间(小时)
+  },
+  "encryption": {
+    "enabled": false,
+    "key_id": "k1"
   }
 }
 ```
@@ -78,6 +82,11 @@ start.bat help               # 显示帮助
 - 数据库用户权限最小化
 
 ## 安全注意事项
+
+- JWT 密钥与数据库密码勿提交仓库
+- 对话/留言加密：设置 `encryption.enabled=true` 时必须配置环境变量 `PRIVACY_KEK_BASE64`（32 字节密钥的 Base64），否则 Manager 拒绝启动
+- KEK 勿写入 `config.json`；轮换时更新 `encryption.key_id` 并重 wrap DEK（见 `docs/dev/FEATURE_privacy_encryption.md`）
+- 存量明文迁移：`PRIVACY_KEK_BASE64=... go run ./cmd/migrate_privacy_encrypt -c config/config.json`
 
 1. **不要将生产环境配置文件提交到版本控制系统**
 2. **JWT密钥必须保密且足够复杂**

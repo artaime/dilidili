@@ -376,6 +376,20 @@ func (ParentMessage) TableName() string {
 	return "parent_messages"
 }
 
+// DeviceEncryptionKey 设备隐私 DEK（KEK 信封包装后的密文）。
+type DeviceEncryptionKey struct {
+	ID         uint      `json:"id" gorm:"primarykey"`
+	DeviceID   uint      `json:"device_id" gorm:"uniqueIndex:idx_device_encryption_keys_device_id;not null"`
+	KeyID      string    `json:"key_id" gorm:"type:varchar(32);not null;default:'k1'"`
+	WrappedDEK string    `json:"-" gorm:"type:text;not null;column:wrapped_dek"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+func (DeviceEncryptionKey) TableName() string {
+	return "device_encryption_keys"
+}
+
 // TableName 指定表名
 func (ChatMessage) TableName() string {
 	return "chat_messages"

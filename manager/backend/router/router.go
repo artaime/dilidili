@@ -4,9 +4,11 @@ import (
 	"dili/manager/backend/config"
 	"dili/manager/backend/controllers"
 	"dili/manager/backend/middleware"
+	"dili/manager/backend/privacy"
 	"dili/manager/backend/services/device_reset"
 	"dili/manager/backend/static"
 	"io/fs"
+	"log"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -18,6 +20,14 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	r := gin.Default()
 	internalAuthToken := config.ResolveInternalAuthToken(cfg)
 	endpointAuthToken := config.ResolveEndpointAuthToken(cfg)
+
+	privacySvc, err := privacy.NewService(db, privacy.Config{
+		Enabled: cfg.Encryption.Enabled,
+		KeyID:   cfg.Encryption.KeyID,
+	})
+	if err != nil {
+		log.Fatalf("初始化隐私加密失败: %v", err)
+	}
 
 	// CORS配置
 	corsConfig := cors.DefaultConfig()
@@ -63,10 +73,12 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		DB:            db,
 		AudioBasePath: audioBasePath,
 		MaxFileSize:   maxFileSize,
+		Privacy:       privacySvc,
 	}
 	conversationRecordController := &controllers.ConversationRecordController{
 		DB:                    db,
 		ChatHistoryController: chatHistoryController,
+		Privacy:               privacySvc,
 	}
 	deviceMemoryController := &controllers.DeviceMemoryController{DB: db}
 	deviceStoryController := &controllers.DeviceStoryController{DB: db, Cfg: cfg}
@@ -77,8 +89,8 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		DB:           db,
 		ResetService: deviceResetService,
 	}
-	mpMessageController := controllers.NewMpMessageController(db, cfg)
-	parentMessageInternalController := &controllers.ParentMessageInternalController{DB: db}
+	mpMessageController := controllers.NewMpMessageController(db, cfg, privacySvc)
+	parentMessageInternalController := &controllers.ParentMessageInternalController{DB: db, Privacy: privacySvc}
 
 	// API路由组
 	api := r.Group("/api")

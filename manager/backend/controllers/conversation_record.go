@@ -1,10 +1,14 @@
 package controllers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"dili/manager/backend/models"
+	"dili/manager/backend/privacy"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -13,6 +17,7 @@ import (
 type ConversationRecordController struct {
 	DB                    *gorm.DB
 	ChatHistoryController *ChatHistoryController
+	Privacy               *privacy.Service
 }
 
 func (ctrl *ConversationRecordController) parseListQuery(c *gin.Context) (conversationRecordQuery, error) {
@@ -78,17 +83,21 @@ func (ctrl *ConversationRecordController) listByDevice(c *gin.Context, userID *u
 		return
 	}
 
-	items, hasOlder, hasNewer, err := listConversationRecords(ctrl.DB, device.DeviceName, device.ID, device.UserID, query)
+	items, hasOlder, hasNewer, err := listConversationRecords(ctrl.DB, ctrl.Privacy, device.DeviceName, device.ID, device.UserID, query)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询对话记录失败"})
 		return
 	}
 
+	if userID == nil {
+		log.Printf("audit admin conversation_list device_id=%d", device.ID)
+	}
+
 	resp := gin.H{
-		"data":       items,
-		"has_older":  hasOlder,
-		"has_newer":  hasNewer,
-		"device_id":  device.ID,
+		"data":        items,
+		"has_older":   hasOlder,
+		"has_newer":   hasNewer,
+		"device_id":   device.ID,
 		"device_name": device.DeviceName,
 	}
 	if len(items) > 0 {
@@ -121,32 +130,23 @@ func (ctrl *ConversationRecordController) MpGetChatAudio(c *gin.Context) {
 		return
 	}
 	uid, _ := userIDVal.(uint)
-	serveChatMessageAudio(c, ctrl.DB, ctrl.ChatHistoryController.AudioBasePath, c.Param("id"), &uid)
+	serveChatMessageAudio(c, ctrl.DB, ctrl.Privacy, ctrl.ChatHistoryController.AudioBasePath, c.Param("id"), &uid)
 }
 
 func (ctrl *ConversationRecordController) AdminGetChatAudio(c *gin.Context) {
-	serveChatMessageAudio(c, ctrl.DB, ctrl.ChatHistoryController.AudioBasePath, c.Param("id"), nil)
+	serveChatMessageAudio(c, ctrl.DB, ctrl.Privacy, ctrl.ChatHistoryController.AudioBasePath, c.Param("id"), nil)
 }
 
 func (ctrl *ConversationRecordController) AdminGetParentAudio(c *gin.Context) {
-	var msg struct {
-		ID uint
-	}
-	if err := ctrl.DB.Table("parent_messages").Select("id").Where("id = ?", c.Param("id")).Scan(&msg).Error; err != nil || msg.ID == 0 {
+	var msg models.ParentMessage
+	if err := ctrl.DB.Where("id = ?", c.Param("id")).First(&msg).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "留言不存在"})
 		return
 	}
-	var full struct {
-		AudioPath  string
-		SourceType string
-	}
-	if err := ctrl.DB.Table("parent_messages").Select("audio_path, source_type").Where("id = ?", msg.ID).Scan(&full).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "留言不存在"})
-		return
-	}
-	if full.SourceType != "voice" || strings.TrimSpace(full.AudioPath) == "" {
+	if msg.SourceType != "voice" || strings.TrimSpace(msg.AudioPath) == "" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "音频不存在"})
 		return
 	}
-	serveParentMessageAudio(c, full.AudioPath)
+	log.Printf("audit admin parent_audio message_id=%d device_id=%d", msg.ID, msg.DeviceID)
+	serveParentMessageAudio(c, ctrl.Privacy, msg.DeviceID, msg.AudioPath)
 }

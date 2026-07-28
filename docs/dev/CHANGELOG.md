@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- 用户对话与留言落盘加密：AES-256-GCM + 设备级 DEK（`PRIVACY_KEK_BASE64` / `encryption.enabled`）；小程序读路径统一 `CanAccess`；存量迁移命令 `manager/backend/cmd/migrate_privacy_encrypt`。详见 `docs/dev/FEATURE_privacy_encryption.md`
+
 ### Changed
 
 - 小程序语音球 / 扫描球：空闲与结束后用静帧 `voice-ball.png` / `ble-ball.png`，仅录音·试听·列表播放 / 扫描中播对应 GIF；绑定设备页进入不再自动扫描。详见 `docs/features/mp-ball-still-anim/FEATURE.md`

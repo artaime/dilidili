@@ -105,6 +105,7 @@ flowchart LR
 | 小程序 API | `/api/mp/*` | `manager/backend/controllers/mp_*.go` |
 | 小程序公开静态 | `/static/mp/*`（仅 **>50KB** 素材） | `manager/backend/static/mp/`；规范 `.cursor/rules/05-miniprogram-assets.mdc` |
 | 设备家庭成员 | `/api/mp/devices/join`、`.../invites`、`.../members` | `device_acl` + `mp_device.go`；见 `docs/features/device-family-auth/` |
+| 对话/留言隐私加密 | 落盘 AES-GCM；`PRIVACY_KEK_BASE64`；表 `device_encryption_keys` | `manager/backend/privacy/`；见 `docs/dev/FEATURE_privacy_encryption.md` |
 | 家长留言内部 API | `/api/internal/.../parent-messages` | `manager/backend/controllers/parent_message_internal.go` |
 | 故事持久化内部 API | `/api/internal/stories/*` | `manager/backend/controllers/story_internal.go` |
 | 小程序故事详情 | `GET /api/mp/devices/:id/stories/:storyId` | `manager/backend/controllers/device_story.go` |

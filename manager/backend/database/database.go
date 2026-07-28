@@ -80,6 +80,7 @@ func Init(cfg config.DatabaseConfig) *gorm.DB {
 			&models.VoiceCloneTask{},
 			&models.UserVoiceCloneQuota{},
 			&models.ParentMessage{},
+			&models.DeviceEncryptionKey{},
 			&models.StoryAsset{},
 			&models.StoryAssetAlias{},
 			&models.StoryPlayback{},
@@ -90,6 +91,11 @@ func Init(cfg config.DatabaseConfig) *gorm.DB {
 			return nil
 		}
 		log.Println("数据库表结构迁移成功")
+	}
+
+	// 隐私加密表始终确保存在（不依赖 auto_migrate 开关）
+	if err := db.AutoMigrate(&models.DeviceEncryptionKey{}); err != nil {
+		log.Printf("迁移 device_encryption_keys 失败: %v", err)
 	}
 
 	if n, err := device_acl.BackfillOwnerMembers(db); err != nil {

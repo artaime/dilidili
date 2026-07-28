@@ -63,7 +63,7 @@ func TestListConversationRecordsMergeAndOrder(t *testing.T) {
 		t.Fatalf("create pending: %v", err)
 	}
 
-	items, hasOlder, hasNewer, err := listConversationRecords(db, device.DeviceName, device.ID, user.ID, conversationRecordQuery{Limit: 20})
+	items, hasOlder, hasNewer, err := listConversationRecords(db, nil, device.DeviceName, device.ID, user.ID, conversationRecordQuery{Limit: 20})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestListConversationRecordsPaginationBefore(t *testing.T) {
 		}
 	}
 
-	firstPage, hasOlder, _, err := listConversationRecords(db, device.DeviceName, device.ID, user.ID, conversationRecordQuery{Limit: 2})
+	firstPage, hasOlder, _, err := listConversationRecords(db, nil, device.DeviceName, device.ID, user.ID, conversationRecordQuery{Limit: 2})
 	if err != nil {
 		t.Fatalf("first page: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestListConversationRecordsPaginationBefore(t *testing.T) {
 	}
 
 	last := firstPage[0]
-	olderPage, hasOlder2, hasNewer2, err := listConversationRecords(db, device.DeviceName, device.ID, user.ID, conversationRecordQuery{
+	olderPage, hasOlder2, hasNewer2, err := listConversationRecords(db, nil, device.DeviceName, device.ID, user.ID, conversationRecordQuery{
 		Limit: 2,
 		Before: &conversationRecordCursor{
 			SortTime: last.SortTime, Type: last.Type, ID: last.ID,
@@ -159,7 +159,7 @@ func TestListConversationRecordsDateFilter(t *testing.T) {
 		t.Fatalf("create inDay: %v", err)
 	}
 
-	items, hasOlder, _, err := listConversationRecords(db, device.DeviceName, device.ID, user.ID, conversationRecordQuery{
+	items, hasOlder, _, err := listConversationRecords(db, nil, device.DeviceName, device.ID, user.ID, conversationRecordQuery{
 		Limit: 20,
 		Date:  &day,
 	})
@@ -209,7 +209,7 @@ func TestDedupeParentMessageTTSItems(t *testing.T) {
 		t.Fatalf("create parent: %v", err)
 	}
 
-	items, _, _, err := listConversationRecords(db, device.DeviceName, device.ID, user.ID, conversationRecordQuery{Limit: 20})
+	items, _, _, err := listConversationRecords(db, nil, device.DeviceName, device.ID, user.ID, conversationRecordQuery{Limit: 20})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}

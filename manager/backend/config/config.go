@@ -18,7 +18,14 @@ type Config struct {
 	History           HistoryConfig        `json:"history"`
 	WeChat            WeChatConfig         `json:"wechat"`
 	ParentMessage     ParentMessageConfig  `json:"parent_message"`
+	Encryption        EncryptionConfig     `json:"encryption"`
 	Redis             *RedisConfig         `json:"redis,omitempty"`
+}
+
+// EncryptionConfig 对话/留言落盘加密（KEK 仅来自环境变量 PRIVACY_KEK_BASE64）。
+type EncryptionConfig struct {
+	Enabled bool   `json:"enabled"`
+	KeyID   string `json:"key_id"`
 }
 
 type RedisConfig struct {

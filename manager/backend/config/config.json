@@ -44,6 +44,10 @@
     "audio_base_path": "./storage/parent_messages/audio",
     "max_file_size": 10485760
   },
+  "encryption": {
+    "enabled": false,
+    "key_id": "k1"
+  },
   "redis": {
     "host": "127.0.0.1",
     "port": 6379,

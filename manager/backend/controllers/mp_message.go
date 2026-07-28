@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 
 	"dili/manager/backend/config"
 	"dili/manager/backend/models"
+	"dili/manager/backend/privacy"
 	"dili/manager/backend/services/device_acl"
 	"dili/manager/backend/storage"
 
@@ -24,9 +26,10 @@ type MpMessageController struct {
 	DB           *gorm.DB
 	Cfg          *config.Config
 	AudioStorage *storage.AudioStorage
+	Privacy      *privacy.Service
 }
 
-func NewMpMessageController(db *gorm.DB, cfg *config.Config) *MpMessageController {
+func NewMpMessageController(db *gorm.DB, cfg *config.Config, priv *privacy.Service) *MpMessageController {
 	basePath := cfg.ParentMessage.AudioBasePath
 	maxSize := cfg.ParentMessage.MaxFileSize
 	if basePath == "" {
@@ -39,6 +42,7 @@ func NewMpMessageController(db *gorm.DB, cfg *config.Config) *MpMessageControlle
 		DB:           db,
 		Cfg:          cfg,
 		AudioStorage: storage.NewAudioStorage(basePath, maxSize),
+		Privacy:      priv,
 	}
 }
 
@@ -157,26 +161,42 @@ func (ctrl *MpMessageController) saveMessage(c *gin.Context, userID uint, input 
 		return
 	}
 
-		var device models.Device
-		if err := ctrl.DB.Where("id = ?", input.DeviceID).First(&device).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "设备不存在或不属于当前用户"})
-				return
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询设备失败"})
-			return
-		}
-		if !device_acl.CanAccess(ctrl.DB, device.ID, userID) {
+	var device models.Device
+	if err := ctrl.DB.Where("id = ?", input.DeviceID).First(&device).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "设备不存在或不属于当前用户"})
 			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询设备失败"})
+		return
+	}
+	if !device_acl.CanAccess(ctrl.DB, device.ID, userID) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "设备不存在或不属于当前用户"})
+		return
+	}
 
 	now := time.Now()
+	textContent := input.TextContent
+	if enc, err := ctrl.encryptParentText(device.ID, textContent); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "加密留言失败"})
+		return
+	} else {
+		textContent = enc
+	}
+
+	if sourceType == "voice" && strings.TrimSpace(input.AudioPath) != "" {
+		if err := ctrl.encryptParentAudioFile(device.ID, input.AudioPath); err != nil {
+			_ = ctrl.AudioStorage.DeleteAudioFile(input.AudioPath)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "加密留言音频失败"})
+			return
+		}
+	}
+
 	msg := models.ParentMessage{
 		UserID:           userID,
 		DeviceID:         device.ID,
 		Title:            resolveMessageTitle(input.Title, sourceType, now),
-		TextContent:      input.TextContent,
+		TextContent:      textContent,
 		AudioPath:        input.AudioPath,
 		AudioDurationSec: input.AudioDurationSec,
 		SourceType:       sourceType,
@@ -191,6 +211,7 @@ func (ctrl *MpMessageController) saveMessage(c *gin.Context, userID uint, input 
 		return
 	}
 
+	ctrl.decryptParentMessage(&msg)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "留言已发送，设备上线后将通知孩子收听",
 		"data":    enrichParentMessage(msg, device),
@@ -201,9 +222,25 @@ func (ctrl *MpMessageController) ListMessages(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	currentUID, _ := userID.(uint)
 
-	query := ctrl.DB.Where("user_id = ?", currentUID).Order("id DESC")
+	query := ctrl.DB.Model(&models.ParentMessage{}).Order("id DESC")
 	if deviceID := strings.TrimSpace(c.Query("device_id")); deviceID != "" {
-		query = query.Where("device_id = ?", deviceID)
+		var did uint
+		if _, err := fmt.Sscanf(deviceID, "%d", &did); err != nil || did == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "device_id 无效"})
+			return
+		}
+		if !device_acl.CanAccess(ctrl.DB, did, currentUID) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "设备不存在或不属于当前用户"})
+			return
+		}
+		query = query.Where("device_id = ?", did)
+	} else {
+		accessibleIDs, err := device_acl.ListAccessibleDeviceIDs(ctrl.DB, currentUID)
+		if err != nil || len(accessibleIDs) == 0 {
+			c.JSON(http.StatusOK, gin.H{"data": []map[string]interface{}{}})
+			return
+		}
+		query = query.Where("device_id IN ?", accessibleIDs)
 	}
 
 	var messages []models.ParentMessage
@@ -219,9 +256,10 @@ func (ctrl *MpMessageController) ListMessages(c *gin.Context) {
 	deviceMap := ctrl.loadDeviceMap(deviceIDs)
 
 	result := make([]map[string]interface{}, 0, len(messages))
-	for _, msg := range messages {
-		device := deviceMap[msg.DeviceID]
-		result = append(result, enrichParentMessage(msg, device))
+	for i := range messages {
+		ctrl.decryptParentMessage(&messages[i])
+		device := deviceMap[messages[i].DeviceID]
+		result = append(result, enrichParentMessage(messages[i], device))
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
@@ -231,7 +269,7 @@ func (ctrl *MpMessageController) GetMessageAudio(c *gin.Context) {
 	currentUID, _ := userID.(uint)
 
 	var msg models.ParentMessage
-	if err := ctrl.DB.Where("id = ? AND user_id = ?", c.Param("id"), currentUID).First(&msg).Error; err != nil {
+	if err := ctrl.DB.Where("id = ?", c.Param("id")).First(&msg).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "留言不存在"})
 			return
@@ -239,11 +277,15 @@ func (ctrl *MpMessageController) GetMessageAudio(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询留言失败"})
 		return
 	}
+	if !device_acl.CanAccess(ctrl.DB, msg.DeviceID, currentUID) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "留言不存在"})
+		return
+	}
 	if msg.SourceType != "voice" || strings.TrimSpace(msg.AudioPath) == "" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "音频不存在"})
 		return
 	}
-	serveParentMessageAudio(c, msg.AudioPath)
+	serveParentMessageAudio(c, ctrl.Privacy, msg.DeviceID, msg.AudioPath)
 }
 
 func (ctrl *MpMessageController) GetMessage(c *gin.Context) {
@@ -251,7 +293,7 @@ func (ctrl *MpMessageController) GetMessage(c *gin.Context) {
 	currentUID, _ := userID.(uint)
 
 	var msg models.ParentMessage
-	if err := ctrl.DB.Where("id = ? AND user_id = ?", c.Param("id"), currentUID).First(&msg).Error; err != nil {
+	if err := ctrl.DB.Where("id = ?", c.Param("id")).First(&msg).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "留言不存在"})
 			return
@@ -259,9 +301,14 @@ func (ctrl *MpMessageController) GetMessage(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询留言失败"})
 		return
 	}
+	if !device_acl.CanAccess(ctrl.DB, msg.DeviceID, currentUID) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "留言不存在"})
+		return
+	}
 
 	var device models.Device
 	_ = ctrl.DB.Where("id = ?", msg.DeviceID).First(&device).Error
+	ctrl.decryptParentMessage(&msg)
 	c.JSON(http.StatusOK, gin.H{"data": enrichParentMessage(msg, device)})
 }
 
@@ -270,12 +317,16 @@ func (ctrl *MpMessageController) DeleteMessage(c *gin.Context) {
 	currentUID, _ := userID.(uint)
 
 	var msg models.ParentMessage
-	if err := ctrl.DB.Where("id = ? AND user_id = ?", c.Param("id"), currentUID).First(&msg).Error; err != nil {
+	if err := ctrl.DB.Where("id = ?", c.Param("id")).First(&msg).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "留言不存在"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询留言失败"})
+		return
+	}
+	if !device_acl.CanAccess(ctrl.DB, msg.DeviceID, currentUID) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "留言不存在"})
 		return
 	}
 	if msg.AudioPath != "" {
@@ -286,6 +337,40 @@ func (ctrl *MpMessageController) DeleteMessage(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "留言已删除"})
+}
+
+func (ctrl *MpMessageController) encryptParentText(deviceDBID uint, text string) (string, error) {
+	if ctrl.Privacy == nil {
+		return text, nil
+	}
+	return ctrl.Privacy.EncryptText(deviceDBID, text)
+}
+
+func (ctrl *MpMessageController) encryptParentAudioFile(deviceDBID uint, audioPath string) error {
+	if ctrl.Privacy == nil || !ctrl.Privacy.Enabled() {
+		return nil
+	}
+	data, err := os.ReadFile(audioPath)
+	if err != nil {
+		return err
+	}
+	enc, err := ctrl.Privacy.EncryptFileBytes(deviceDBID, data)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(audioPath, enc, 0644)
+}
+
+func (ctrl *MpMessageController) decryptParentMessage(msg *models.ParentMessage) {
+	if msg == nil || ctrl.Privacy == nil {
+		return
+	}
+	plain, err := ctrl.Privacy.DecryptText(msg.DeviceID, msg.TextContent)
+	if err != nil {
+		log.Printf("解密留言失败 id=%d: %v", msg.ID, err)
+		return
+	}
+	msg.TextContent = plain
 }
 
 func (ctrl *MpMessageController) loadDeviceMap(deviceIDs []uint) map[uint]models.Device {
@@ -391,14 +476,29 @@ func findPendingParentMessage(db *gorm.DB, deviceName string) (*models.ParentMes
 	return &msg, nil
 }
 
-func serveParentMessageAudio(c *gin.Context, audioPath string) {
+func serveParentMessageAudio(c *gin.Context, priv *privacy.Service, deviceDBID uint, audioPath string) {
 	if strings.TrimSpace(audioPath) == "" {
 		c.JSON(http.StatusNotFound, gin.H{"error": "音频不存在"})
 		return
 	}
-	if _, err := os.Stat(audioPath); os.IsNotExist(err) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "音频不存在"})
+	data, err := os.ReadFile(audioPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "音频不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "读取音频失败"})
 		return
 	}
-	c.File(audioPath)
+	if priv != nil {
+		dec, err := priv.DecryptFileBytes(deviceDBID, data)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "解密音频失败"})
+			return
+		}
+		data = dec
+	}
+	c.Header("Content-Type", "audio/wav")
+	c.Header("Content-Length", strconv.Itoa(len(data)))
+	c.Data(http.StatusOK, "audio/wav", data)
 }

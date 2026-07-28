@@ -3,10 +3,12 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"dili/manager/backend/models"
+	"dili/manager/backend/privacy"
 	"dili/manager/backend/services/device_acl"
 
 	"gorm.io/gorm"
@@ -105,7 +107,7 @@ func rowToItem(row unifiedRecordRow) ConversationRecordItem {
 	return item
 }
 
-func listConversationRecords(db *gorm.DB, deviceSN string, deviceDBID uint, userID uint, query conversationRecordQuery) ([]ConversationRecordItem, bool, bool, error) {
+func listConversationRecords(db *gorm.DB, priv *privacy.Service, deviceSN string, deviceDBID uint, userID uint, query conversationRecordQuery) ([]ConversationRecordItem, bool, bool, error) {
 	limit := normalizeConversationLimit(query.Limit)
 	fetchLimit := limit + 1
 
@@ -181,6 +183,7 @@ func listConversationRecords(db *gorm.DB, deviceSN string, deviceDBID uint, user
 	for _, row := range rows {
 		items = append(items, rowToItem(row))
 	}
+	decryptConversationItems(priv, deviceDBID, items)
 	items = dedupeParentMessageTTSItems(items)
 
 	if len(items) > 0 {
@@ -252,6 +255,23 @@ func loadDeviceForConversation(db *gorm.DB, deviceID uint, userID *uint) (*model
 		}
 	}
 	return &device, nil
+}
+
+func decryptConversationItems(priv *privacy.Service, deviceDBID uint, items []ConversationRecordItem) {
+	if priv == nil || len(items) == 0 {
+		return
+	}
+	for i := range items {
+		if items[i].Content == "" {
+			continue
+		}
+		plain, err := priv.DecryptText(deviceDBID, items[i].Content)
+		if err != nil {
+			log.Printf("解密对话记录失败 type=%s id=%d: %v", items[i].Type, items[i].ID, err)
+			continue
+		}
+		items[i].Content = plain
+	}
 }
 
 type parentTextRef struct {

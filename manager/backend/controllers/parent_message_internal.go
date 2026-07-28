@@ -2,19 +2,22 @@ package controllers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"dili/manager/backend/models"
+	"dili/manager/backend/privacy"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type ParentMessageInternalController struct {
-	DB *gorm.DB
+	DB      *gorm.DB
+	Privacy *privacy.Service
 }
 
 func (ctrl *ParentMessageInternalController) GetPendingMessage(c *gin.Context) {
@@ -45,8 +48,9 @@ func (ctrl *ParentMessageInternalController) GetPendingMessage(c *gin.Context) {
 	userMap := loadUserFamilyRoleMap(ctrl.DB, userIDs)
 
 	result := make([]gin.H, 0, len(messages))
-	for _, msg := range messages {
-		result = append(result, enrichPendingParentMessage(msg, userMap[msg.UserID]))
+	for i := range messages {
+		ctrl.decryptParentMessageInPlace(&messages[i])
+		result = append(result, enrichPendingParentMessage(messages[i], userMap[messages[i].UserID]))
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
@@ -103,8 +107,9 @@ func (ctrl *ParentMessageInternalController) SearchParentMessages(c *gin.Context
 	userMap := loadUserFamilyRoleMap(ctrl.DB, userIDs)
 
 	result := make([]gin.H, 0, len(messages))
-	for _, msg := range messages {
-		result = append(result, enrichPlayedParentMessage(msg, userMap[msg.UserID]))
+	for i := range messages {
+		ctrl.decryptParentMessageInPlace(&messages[i])
+		result = append(result, enrichPlayedParentMessage(messages[i], userMap[messages[i].UserID]))
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
@@ -167,8 +172,9 @@ func (ctrl *ParentMessageInternalController) GetPlayedMessages(c *gin.Context) {
 	userMap := loadUserFamilyRoleMap(ctrl.DB, userIDs)
 
 	result := make([]gin.H, 0, len(messages))
-	for _, msg := range messages {
-		result = append(result, enrichPlayedParentMessage(msg, userMap[msg.UserID]))
+	for i := range messages {
+		ctrl.decryptParentMessageInPlace(&messages[i])
+		result = append(result, enrichPlayedParentMessage(messages[i], userMap[messages[i].UserID]))
 	}
 	c.JSON(http.StatusOK, gin.H{"data": result})
 }
@@ -183,6 +189,7 @@ func (ctrl *ParentMessageInternalController) GetMessageDetail(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询留言失败"})
 		return
 	}
+	ctrl.decryptParentMessageInPlace(&msg)
 	userMap := loadUserFamilyRoleMap(ctrl.DB, []uint{msg.UserID})
 	c.JSON(http.StatusOK, gin.H{"data": enrichPlayedParentMessage(msg, userMap[msg.UserID])})
 }
@@ -201,7 +208,19 @@ func (ctrl *ParentMessageInternalController) GetMessageAudio(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "音频不存在"})
 		return
 	}
-	serveParentMessageAudio(c, msg.AudioPath)
+	serveParentMessageAudio(c, ctrl.Privacy, msg.DeviceID, msg.AudioPath)
+}
+
+func (ctrl *ParentMessageInternalController) decryptParentMessageInPlace(msg *models.ParentMessage) {
+	if msg == nil || ctrl.Privacy == nil {
+		return
+	}
+	plain, err := ctrl.Privacy.DecryptText(msg.DeviceID, msg.TextContent)
+	if err != nil {
+		log.Printf("解密内部留言失败 id=%d: %v", msg.ID, err)
+		return
+	}
+	msg.TextContent = plain
 }
 
 func (ctrl *ParentMessageInternalController) UpdateMessageStatus(c *gin.Context) {
