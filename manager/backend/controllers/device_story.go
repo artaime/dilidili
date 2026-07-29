@@ -25,6 +25,9 @@ func (ctrl *DeviceStoryController) ListDeviceStories(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "设备 ID 无效"})
 		return
 	}
+	if writeAdminPrivacyGateError(c, assertDeviceBoundToActor(ctrl.DB, uint(deviceID), actorUserIDFromContext(c))) {
+		return
+	}
 
 	limit := 50
 	if v := c.Query("limit"); v != "" {
@@ -43,6 +46,23 @@ func (ctrl *DeviceStoryController) ListDeviceStories(c *gin.Context) {
 }
 
 func (ctrl *DeviceStoryController) GetDeviceStory(c *gin.Context) {
+	ctrl.serveGetDeviceStory(c)
+}
+
+// AdminGetDeviceStory 管理端故事详情：仅本人绑定设备可查看。
+func (ctrl *DeviceStoryController) AdminGetDeviceStory(c *gin.Context) {
+	deviceID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || deviceID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "设备 ID 无效"})
+		return
+	}
+	if writeAdminPrivacyGateError(c, assertDeviceBoundToActor(ctrl.DB, uint(deviceID), actorUserIDFromContext(c))) {
+		return
+	}
+	ctrl.serveGetDeviceStory(c)
+}
+
+func (ctrl *DeviceStoryController) serveGetDeviceStory(c *gin.Context) {
 	deviceID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || deviceID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "设备 ID 无效"})
@@ -74,6 +94,9 @@ func (ctrl *DeviceStoryController) DeleteDeviceStory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "故事 ID 无效"})
 		return
 	}
+	if writeAdminPrivacyGateError(c, assertDeviceBoundToActor(ctrl.DB, uint(deviceID), actorUserIDFromContext(c))) {
+		return
+	}
 	svc := device_story.NewService(ctrl.DB, ctrl.Cfg)
 	result, err := svc.DeleteDeviceStory(c.Request.Context(), uint(deviceID), storyID)
 	if err != nil {
@@ -87,6 +110,9 @@ func (ctrl *DeviceStoryController) ClearDeviceStories(c *gin.Context) {
 	deviceID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || deviceID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "设备 ID 无效"})
+		return
+	}
+	if writeAdminPrivacyGateError(c, assertDeviceBoundToActor(ctrl.DB, uint(deviceID), actorUserIDFromContext(c))) {
 		return
 	}
 	svc := device_story.NewService(ctrl.DB, ctrl.Cfg)
@@ -116,7 +142,7 @@ func (ctrl *DeviceStoryController) MpGetDeviceStory(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该设备"})
 		return
 	}
-	ctrl.GetDeviceStory(c)
+	ctrl.serveGetDeviceStory(c)
 }
 
 func writeDeviceStoryError(c *gin.Context, err error) {

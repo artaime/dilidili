@@ -490,14 +490,17 @@ func serveChatMessageAudio(ctx *gin.Context, db *gorm.DB, priv *privacy.Service,
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "消息不存在"})
 		return
 	}
-	if userID != nil {
-		if !device_acl.CanAccess(db, device.ID, *userID) {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "消息不存在"})
-			return
+		if userID != nil {
+			if !device_acl.CanAccess(db, device.ID, *userID) {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "消息不存在"})
+				return
+			}
+		} else {
+			if writeAdminPrivacyGateError(ctx, assertDeviceBoundToActor(db, device.ID, actorUserIDFromContext(ctx))) {
+				return
+			}
+			log.Printf("audit admin chat_audio message_id=%d device_id=%d", message.ID, device.ID)
 		}
-	} else {
-		log.Printf("audit admin chat_audio message_id=%d device_id=%d", message.ID, device.ID)
-	}
 	if message.AudioPath == "" {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "音频文件不存在"})
 		return

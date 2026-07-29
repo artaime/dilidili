@@ -2770,12 +2770,52 @@ func (ac *AdminController) GetUserVoiceClonesAdmin(c *gin.Context) {
 
 // 设备管理
 func (ac *AdminController) GetDevices(c *gin.Context) {
-	devices, err := NewDeviceService(ac.DB).List(scopeFromContext(c))
+	q := parseDeviceListQuery(c)
+	result, err := NewDeviceService(ac.DB).ListPaged(scopeFromContext(c), q)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取设备列表失败"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": devices})
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (ac *AdminController) GetDevice(c *gin.Context) {
+	id, ok := parseUintParam(c, "id")
+	if !ok {
+		return
+	}
+	device, err := NewDeviceService(ac.DB).Get(scopeFromContext(c), id)
+	if err != nil {
+		writeServiceError(c, err, "获取设备失败")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": device})
+}
+
+func parseDeviceListQuery(c *gin.Context) DeviceListQuery {
+	q := DeviceListQuery{
+		DeviceID:  c.Query("device_id"),
+		NickName:  c.Query("nick_name"),
+		BindUser:  c.Query("bind_user"),
+		Activated: c.Query("activated"),
+	}
+	if v := c.Query("page"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			q.Page = n
+		}
+	}
+	if v := c.Query("page_size"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			q.PageSize = n
+		}
+	}
+	if v := strings.TrimSpace(c.Query("agent_id")); v != "" {
+		if n, err := strconv.ParseUint(v, 10, 64); err == nil {
+			id := uint(n)
+			q.AgentID = &id
+		}
+	}
+	return q
 }
 
 func (ac *AdminController) CreateDevice(c *gin.Context) {

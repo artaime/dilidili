@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"dili/manager/backend/models"
 	"dili/manager/backend/services/device_acl"
@@ -421,6 +422,36 @@ type DeviceResponse struct {
 	RoleName  string `json:"role_name,omitempty"`
 	RoleType  string `json:"role_type,omitempty"`
 	Username  string `json:"username,omitempty"`
+	UserRole  string `json:"user_role,omitempty"` // 绑定用户角色（admin/user），供管理端隐私门禁
+}
+
+// DeviceListQuery 管理端设备列表筛选与分页。
+type DeviceListQuery struct {
+	DeviceID  string // 匹配 device_name（模糊）或数字 id
+	NickName  string
+	BindUser  string // 匹配 username（模糊）或 user_id
+	Activated string // activated | unactivated | 空
+	AgentID   *uint  // nil=不限；非 nil 含 0=未分配
+	Page      int
+	PageSize  int
+}
+
+// AgentDeviceStat 按智能体聚合的设备统计（基于全量，不受列表筛选影响）。
+type AgentDeviceStat struct {
+	AgentID   uint   `json:"agent_id"`
+	AgentName string `json:"agent_name"`
+	Total     int64  `json:"total"`
+	Activated int64  `json:"activated"`
+	Online    int64  `json:"online"`
+}
+
+// DeviceListResult 分页设备列表。
+type DeviceListResult struct {
+	Items      []DeviceResponse  `json:"items"`
+	Total      int64             `json:"total"`
+	Page       int               `json:"page"`
+	PageSize   int               `json:"page_size"`
+	AgentStats []AgentDeviceStat `json:"agent_stats"`
 }
 
 type DeviceService struct {
@@ -429,6 +460,29 @@ type DeviceService struct {
 
 func NewDeviceService(db *gorm.DB) *DeviceService {
 	return &DeviceService{DB: db}
+}
+
+const (
+	deviceListDefaultPageSize = 20
+	deviceListMaxPageSize     = 100
+	deviceOnlineWindow        = 5 * time.Minute
+)
+
+func normalizeDeviceListQuery(q DeviceListQuery) DeviceListQuery {
+	if q.Page < 1 {
+		q.Page = 1
+	}
+	if q.PageSize < 1 {
+		q.PageSize = deviceListDefaultPageSize
+	}
+	if q.PageSize > deviceListMaxPageSize {
+		q.PageSize = deviceListMaxPageSize
+	}
+	q.DeviceID = strings.TrimSpace(q.DeviceID)
+	q.NickName = strings.TrimSpace(q.NickName)
+	q.BindUser = strings.TrimSpace(q.BindUser)
+	q.Activated = strings.TrimSpace(strings.ToLower(q.Activated))
+	return q
 }
 
 func (svc *DeviceService) List(scope accessScope) ([]DeviceResponse, error) {
@@ -441,6 +495,166 @@ func (svc *DeviceService) List(scope accessScope) ([]DeviceResponse, error) {
 		return nil, err
 	}
 	return svc.enrichDevices(scope, devices)
+}
+
+// ListPaged 管理端分页筛选；本人绑定设备置顶；附带全量智能体统计。
+func (svc *DeviceService) ListPaged(scope accessScope, q DeviceListQuery) (*DeviceListResult, error) {
+	q = normalizeDeviceListQuery(q)
+	dbq := svc.DB.Model(&models.Device{})
+	if !scope.IsAdmin {
+		dbq = dbq.Where("devices.user_id = ?", scope.ActorUserID)
+	}
+	dbq, err := svc.applyDeviceListFilters(dbq, q)
+	if err != nil {
+		return nil, err
+	}
+
+	var total int64
+	if err := dbq.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	var devices []models.Device
+	offset := (q.Page - 1) * q.PageSize
+	listQ := dbq.Session(&gorm.Session{}).Select("devices.*").Offset(offset).Limit(q.PageSize)
+	if scope.IsAdmin && scope.ActorUserID > 0 {
+		// 本人绑定置顶：用布尔表达式兼容 MySQL/SQLite；ActorUserID 来自 JWT uint，可安全内联
+		listQ = listQ.Order(fmt.Sprintf(
+			"CASE WHEN devices.user_id = %d THEN 0 ELSE 1 END ASC, devices.id DESC",
+			scope.ActorUserID,
+		))
+	} else {
+		listQ = listQ.Order("devices.id DESC")
+	}
+	if err := listQ.Find(&devices).Error; err != nil {
+		return nil, err
+	}
+
+	items, err := svc.enrichDevices(scope, devices)
+	if err != nil {
+		return nil, err
+	}
+	stats, err := svc.listAgentDeviceStats(scope)
+	if err != nil {
+		return nil, err
+	}
+	return &DeviceListResult{
+		Items:      items,
+		Total:      total,
+		Page:       q.Page,
+		PageSize:   q.PageSize,
+		AgentStats: stats,
+	}, nil
+}
+
+func (svc *DeviceService) applyDeviceListFilters(dbq *gorm.DB, q DeviceListQuery) (*gorm.DB, error) {
+	joinedUsers := false
+	ensureUserJoin := func() {
+		if joinedUsers {
+			return
+		}
+		dbq = dbq.Joins("LEFT JOIN users ON users.id = devices.user_id")
+		joinedUsers = true
+	}
+
+	if q.DeviceID != "" {
+		if id, err := strconv.ParseUint(q.DeviceID, 10, 64); err == nil {
+			dbq = dbq.Where("devices.id = ? OR devices.device_name LIKE ?", uint(id), "%"+q.DeviceID+"%")
+		} else {
+			dbq = dbq.Where("devices.device_name LIKE ?", "%"+q.DeviceID+"%")
+		}
+	}
+	if q.NickName != "" {
+		dbq = dbq.Where("devices.nick_name LIKE ?", "%"+q.NickName+"%")
+	}
+	if q.BindUser != "" {
+		ensureUserJoin()
+		if uid, err := strconv.ParseUint(q.BindUser, 10, 64); err == nil {
+			dbq = dbq.Where("devices.user_id = ? OR users.username LIKE ?", uint(uid), "%"+q.BindUser+"%")
+		} else {
+			dbq = dbq.Where("users.username LIKE ?", "%"+q.BindUser+"%")
+		}
+	}
+	switch q.Activated {
+	case "activated":
+		dbq = dbq.Where("devices.activated = ?", true)
+	case "unactivated":
+		dbq = dbq.Where("devices.activated = ?", false)
+	}
+	if q.AgentID != nil {
+		dbq = dbq.Where("devices.agent_id = ?", *q.AgentID)
+	}
+	return dbq, nil
+}
+
+func (svc *DeviceService) listAgentDeviceStats(scope accessScope) ([]AgentDeviceStat, error) {
+	onlineSince := time.Now().Add(-deviceOnlineWindow)
+	type row struct {
+		AgentID   uint
+		Total     int64
+		Activated int64
+		Online    int64
+	}
+	dbq := svc.DB.Model(&models.Device{})
+	if !scope.IsAdmin {
+		dbq = dbq.Where("user_id = ?", scope.ActorUserID)
+	}
+	var rows []row
+	err := dbq.Select(`
+agent_id AS agent_id,
+COUNT(*) AS total,
+SUM(CASE WHEN activated THEN 1 ELSE 0 END) AS activated,
+SUM(CASE WHEN last_active_at IS NOT NULL AND last_active_at >= ? THEN 1 ELSE 0 END) AS online
+`, onlineSince).
+		Group("agent_id").
+		Order("agent_id ASC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	agentIDs := make([]uint, 0)
+	for _, r := range rows {
+		if r.AgentID > 0 {
+			agentIDs = appendUniqueUint(agentIDs, r.AgentID)
+		}
+	}
+	nameByID := make(map[uint]string)
+	if len(agentIDs) > 0 {
+		var agents []models.Agent
+		if err := svc.DB.Where("id IN ?", agentIDs).Find(&agents).Error; err != nil {
+			return nil, err
+		}
+		for _, a := range agents {
+			nameByID[a.ID] = a.Name
+		}
+	}
+
+	out := make([]AgentDeviceStat, 0, len(rows))
+	var unassigned *AgentDeviceStat
+	for _, r := range rows {
+		stat := AgentDeviceStat{
+			AgentID:   r.AgentID,
+			Total:     r.Total,
+			Activated: r.Activated,
+			Online:    r.Online,
+		}
+		if r.AgentID == 0 {
+			stat.AgentName = "未分配"
+			unassigned = &stat
+			continue
+		}
+		if name := nameByID[r.AgentID]; name != "" {
+			stat.AgentName = name
+		} else {
+			stat.AgentName = fmt.Sprintf("智能体 %d", r.AgentID)
+		}
+		out = append(out, stat)
+	}
+	if unassigned != nil {
+		out = append(out, *unassigned)
+	}
+	return out, nil
 }
 
 func (svc *DeviceService) ListByAgent(scope accessScope, agentID uint) ([]DeviceResponse, error) {
@@ -773,56 +987,59 @@ func (svc *DeviceService) enrichDevices(scope accessScope, devices []models.Devi
 		}
 	}
 
-	usernameByID := make(map[uint]string)
-	if scope.IsAdmin && len(userIDs) > 0 {
-		var users []models.User
-		if err := svc.DB.Where("id IN ?", userIDs).Find(&users).Error; err != nil {
-			return nil, err
-		}
-		for _, user := range users {
-			usernameByID[user.ID] = user.Username
-		}
-	}
-
-	agentNameByID := make(map[uint]string)
-	if len(agentIDs) > 0 {
-		var agents []models.Agent
-		if err := svc.DB.Where("id IN ?", agentIDs).Find(&agents).Error; err != nil {
-			return nil, err
-		}
-		for _, agent := range agents {
-			agentNameByID[agent.ID] = agent.Name
-		}
-	}
-
-	roleByID := make(map[uint]models.Role)
-	if len(roleIDs) > 0 {
-		var roles []models.Role
-		if err := svc.DB.Where("id IN ?", roleIDs).Find(&roles).Error; err != nil {
-			return nil, err
-		}
-		for _, role := range roles {
-			roleByID[role.ID] = role
-		}
-	}
-
-	result := make([]DeviceResponse, 0, len(devices))
-	for _, device := range devices {
-		item := DeviceResponse{
-			Device:    device,
-			AgentName: agentNameByID[device.AgentID],
-			Username:  usernameByID[device.UserID],
-		}
-		if device.RoleID != nil {
-			if role, ok := roleByID[*device.RoleID]; ok {
-				item.RoleName = role.Name
-				item.RoleType = role.RoleType
+		usernameByID := make(map[uint]string)
+		userRoleByID := make(map[uint]string)
+		if scope.IsAdmin && len(userIDs) > 0 {
+			var users []models.User
+			if err := svc.DB.Where("id IN ?", userIDs).Find(&users).Error; err != nil {
+				return nil, err
+			}
+			for _, user := range users {
+				usernameByID[user.ID] = user.Username
+				userRoleByID[user.ID] = user.Role
 			}
 		}
-		result = append(result, item)
+
+		agentNameByID := make(map[uint]string)
+		if len(agentIDs) > 0 {
+			var agents []models.Agent
+			if err := svc.DB.Where("id IN ?", agentIDs).Find(&agents).Error; err != nil {
+				return nil, err
+			}
+			for _, agent := range agents {
+				agentNameByID[agent.ID] = agent.Name
+			}
+		}
+
+		roleByID := make(map[uint]models.Role)
+		if len(roleIDs) > 0 {
+			var roles []models.Role
+			if err := svc.DB.Where("id IN ?", roleIDs).Find(&roles).Error; err != nil {
+				return nil, err
+			}
+			for _, role := range roles {
+				roleByID[role.ID] = role
+			}
+		}
+
+		result := make([]DeviceResponse, 0, len(devices))
+		for _, device := range devices {
+			item := DeviceResponse{
+				Device:    device,
+				AgentName: agentNameByID[device.AgentID],
+				Username:  usernameByID[device.UserID],
+				UserRole:  userRoleByID[device.UserID],
+			}
+			if device.RoleID != nil {
+				if role, ok := roleByID[*device.RoleID]; ok {
+					item.RoleName = role.Name
+					item.RoleType = role.RoleType
+				}
+			}
+			result = append(result, item)
+		}
+		return result, nil
 	}
-	return result, nil
-}
 
 func (svc *DeviceService) assertUserExists(userID uint) error {
 	var count int64

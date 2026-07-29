@@ -436,6 +436,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				// 设备管理
 				admin.GET("/devices", adminController.GetDevices)
 				admin.POST("/devices", adminController.CreateDevice)
+				admin.GET("/devices/:id", adminController.GetDevice)
 				admin.POST("/devices/:id/factory-reset", adminController.FactoryResetDevice)
 				admin.PUT("/devices/:id", adminController.UpdateDevice)
 				admin.DELETE("/devices/:id", adminController.DeleteDevice)
@@ -444,7 +445,7 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				admin.DELETE("/devices/:id/memory", deviceMemoryController.DeleteDeviceMemory)
 				admin.GET("/devices/:id/stories", deviceStoryController.ListDeviceStories)
 				admin.DELETE("/devices/:id/stories", deviceStoryController.ClearDeviceStories)
-				admin.GET("/devices/:id/stories/:storyId", deviceStoryController.GetDeviceStory)
+				admin.GET("/devices/:id/stories/:storyId", deviceStoryController.AdminGetDeviceStory)
 				admin.DELETE("/devices/:id/stories/:storyId", deviceStoryController.DeleteDeviceStory)
 
 				admin.GET("/story-assets", storyAssetController.List)

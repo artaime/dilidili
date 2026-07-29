@@ -21,6 +21,9 @@ func (ctrl *DeviceMemoryController) GetDeviceMemory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "设备 ID 无效"})
 		return
 	}
+	if writeAdminPrivacyGateError(c, assertDeviceBoundToActor(ctrl.DB, uint(deviceID), actorUserIDFromContext(c))) {
+		return
+	}
 
 	svc := device_memory.NewService(ctrl.DB)
 	view, err := svc.GetDeviceMemory(c.Request.Context(), uint(deviceID))
@@ -35,6 +38,9 @@ func (ctrl *DeviceMemoryController) DeleteDeviceMemory(c *gin.Context) {
 	deviceID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || deviceID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "设备 ID 无效"})
+		return
+	}
+	if writeAdminPrivacyGateError(c, assertDeviceBoundToActor(ctrl.DB, uint(deviceID), actorUserIDFromContext(c))) {
 		return
 	}
 

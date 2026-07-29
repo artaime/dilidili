@@ -17,7 +17,12 @@
     <!-- 用户列表表格 -->
     <el-table :data="filteredUserList" v-loading="tableLoading" style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="username" label="用户名" width="150" />
+      <el-table-column label="用户名" width="150">
+        <template #default="{ row }">
+          {{ row.nickname || '—' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="username" label="账号" width="160" />
       <el-table-column prop="email" label="邮箱" width="200" />
       <el-table-column prop="role" label="角色" width="120">
         <template #default="{ row }">
@@ -63,11 +68,11 @@
         :rules="userFormRules" 
         label-width="80px"
       >
-        <el-form-item label="用户名" prop="username">
+        <el-form-item label="账号" prop="username">
           <el-input 
             v-model="userForm.username" 
             :disabled="isEditMode"
-            placeholder="请输入用户名"
+            placeholder="请输入账号"
           />
         </el-form-item>
         
@@ -204,9 +209,11 @@ const filteredUserList = computed(() => {
   if (!searchKeyword.value) {
     return userList.value
   }
-  return userList.value.filter(user => 
-    user.username.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchKeyword.value.toLowerCase())
+  const kw = searchKeyword.value.toLowerCase()
+  return userList.value.filter(user =>
+    (user.nickname || '').toLowerCase().includes(kw) ||
+    (user.username || '').toLowerCase().includes(kw) ||
+    (user.email || '').toLowerCase().includes(kw)
   )
 })
 
@@ -231,7 +238,7 @@ const passwordForm = reactive({
 // 用户表单验证规则
 const userFormRules = {
   username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' }
+    { required: true, message: '请输入账号', trigger: 'blur' }
   ],
   email: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
@@ -347,7 +354,7 @@ const handleUserSubmit = async () => {
 const handleDeleteUser = async (user) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除用户 "${user.username}" 吗？`,
+      `确定要删除用户 "${user.nickname || user.username}" 吗？`,
       '删除确认',
       {
         confirmButtonText: '确定',

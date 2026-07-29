@@ -72,6 +72,12 @@ func (ctrl *ConversationRecordController) listByDevice(c *gin.Context, userID *u
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询设备失败"})
 		return
 	}
+	// 管理端：仅本人绑定的设备可查看隐私对话
+	if userID == nil {
+		if writeAdminPrivacyGateError(c, assertDeviceBoundToActor(ctrl.DB, device.ID, actorUserIDFromContext(c))) {
+			return
+		}
+	}
 	if strings.TrimSpace(device.DeviceName) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "设备缺少 SN，无法查询对话记录"})
 		return
@@ -141,6 +147,9 @@ func (ctrl *ConversationRecordController) AdminGetParentAudio(c *gin.Context) {
 	var msg models.ParentMessage
 	if err := ctrl.DB.Where("id = ?", c.Param("id")).First(&msg).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "留言不存在"})
+		return
+	}
+	if writeAdminPrivacyGateError(c, assertDeviceBoundToActor(ctrl.DB, msg.DeviceID, actorUserIDFromContext(c))) {
 		return
 	}
 	if msg.SourceType != "voice" || strings.TrimSpace(msg.AudioPath) == "" {

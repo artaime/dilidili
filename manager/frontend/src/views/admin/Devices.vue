@@ -1,29 +1,104 @@
 <template>
   <div class="admin-devices">
-    <div class="toolbar">
-      <el-select v-model="bindFilter" placeholder="绑定状态" style="width: 140px">
-        <el-option label="全部" value="all" />
-        <el-option label="已绑定" value="bound" />
-        <el-option label="未绑定" value="unbound" />
-        <el-option label="已激活" value="activated" />
-      </el-select>
-      <el-button type="primary" @click="openAddDialog">
-        <el-icon><Plus /></el-icon>
-        添加设备
-      </el-button>
-      <el-button @click="loadDevices">
-        <el-icon><Refresh /></el-icon>
-        刷新
-      </el-button>
+    <div v-if="agentStats.length" class="agent-stats">
+      <button
+        v-for="item in agentStats"
+        :key="item.key"
+        type="button"
+        class="agent-stat-card"
+        :class="{ active: filters.agentId === item.key }"
+        @click="toggleAgentFilter(item.key)"
+      >
+        <div class="agent-stat-name">{{ item.name }}</div>
+        <div class="agent-stat-metrics">
+          <span>设备 {{ item.total }}</span>
+          <span>激活 {{ item.activated }}</span>
+          <span>在线 {{ item.online }}</span>
+        </div>
+      </button>
     </div>
 
-    <el-table :data="filteredDevices" v-loading="loading" stripe>
+    <div class="toolbar">
+      <div class="filter-controls">
+        <el-input
+          v-model="filters.deviceId"
+          clearable
+          placeholder="设备 ID"
+          style="width: 160px"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <el-input
+          v-model="filters.nickName"
+          clearable
+          placeholder="昵称"
+          style="width: 140px"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <el-input
+          v-model="filters.bindUser"
+          clearable
+          placeholder="绑定用户"
+          style="width: 140px"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <el-select
+          v-model="filters.activated"
+          placeholder="激活状态"
+          clearable
+          style="width: 120px"
+          @change="handleSearch"
+          @clear="handleSearch"
+        >
+          <el-option label="已激活" value="activated" />
+          <el-option label="未激活" value="unactivated" />
+        </el-select>
+        <el-select
+          v-model="filters.agentId"
+          placeholder="关联智能体"
+          clearable
+          style="width: 180px"
+          @change="handleSearch"
+          @clear="handleSearch"
+        >
+          <el-option label="未分配" value="0" />
+          <el-option
+            v-for="agent in agentOptions"
+            :key="agent.key"
+            :label="agent.name"
+            :value="agent.key"
+          />
+        </el-select>
+        <el-button type="primary" @click="handleSearch">查询</el-button>
+        <el-button @click="resetFilters">重置筛选</el-button>
+      </div>
+      <div class="toolbar-actions">
+        <el-button type="primary" @click="openAddDialog">
+          <el-icon><Plus /></el-icon>
+          添加设备
+        </el-button>
+        <el-button @click="loadDevices">
+          <el-icon><Refresh /></el-icon>
+          刷新
+        </el-button>
+      </div>
+    </div>
+
+    <el-table
+      :data="devices"
+      v-loading="loading"
+      stripe
+      :row-class-name="deviceRowClassName"
+    >
       <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column label="设备昵称" min-width="170">
+      <el-table-column label="设备昵称" min-width="190">
         <template #default="{ row }">
           <span :class="['device-nick-name', { 'is-empty': !getDeviceNickName(row) }]">
             {{ formatDeviceNickName(row) }}
           </span>
+          <el-tag v-if="isMyDevice(row)" size="small" type="primary" class="mine-tag">我的</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="设备ID" width="190">
@@ -72,47 +147,75 @@
           {{ new Date(row.created_at).toLocaleString() }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="320" fixed="right">
+      <el-table-column label="操作" width="300" fixed="right" align="right" class-name="device-actions-col" label-class-name="device-actions-col">
         <template #default="{ row }">
-          <el-button size="small" @click="editDevice(row)">
-            编辑
-          </el-button>
-          <el-button
-            size="small"
-            type="warning"
-            :disabled="!row.user_id"
-            @click="factoryResetDevice(row)"
-          >
-            出厂重置
-          </el-button>
-          <el-dropdown trigger="click" @command="(cmd) => handleMoreAction(cmd, row)">
-            <el-button size="small">
-              更多
-              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          <div class="device-actions">
+            <el-button size="small" class="device-action-btn" @click="editDevice(row)">
+              编辑
             </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="conversation" :disabled="!row.agent_id || !row.device_name">
-                  对话记录
-                </el-dropdown-item>
-                <el-dropdown-item command="memory" :disabled="!row.agent_id || !row.device_name">
-                  设备记忆
-                </el-dropdown-item>
-                <el-dropdown-item command="stories" :disabled="!row.device_name">
-                  故事
-                </el-dropdown-item>
-                <el-dropdown-item command="mcp">
-                  MCP
-                </el-dropdown-item>
-                <el-dropdown-item command="delete" divided>
-                  <span class="danger-text">删除</span>
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+            <el-button
+              size="small"
+              type="warning"
+              class="device-action-btn"
+              :disabled="!row.user_id"
+              @click="factoryResetDevice(row)"
+            >
+              出厂重置
+            </el-button>
+            <el-dropdown trigger="click" @command="(cmd) => handleMoreAction(cmd, row)">
+              <el-button size="small" class="device-action-btn">
+                更多
+                <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item
+                    v-if="canViewDevicePrivacy(row)"
+                    command="conversation"
+                    :disabled="!row.agent_id || !row.device_name"
+                  >
+                    对话记录
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="canViewDevicePrivacy(row)"
+                    command="memory"
+                    :disabled="!row.agent_id || !row.device_name"
+                  >
+                    设备记忆
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="canViewDevicePrivacy(row)"
+                    command="stories"
+                    :disabled="!row.device_name"
+                  >
+                    故事
+                  </el-dropdown-item>
+                  <el-dropdown-item command="mcp">
+                    MCP
+                  </el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>
+                    <span class="danger-text">删除</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </template>
       </el-table-column>
     </el-table>
+
+    <div class="pagination-bar">
+      <el-pagination
+        v-model:current-page="pagination.page"
+        v-model:page-size="pagination.pageSize"
+        :total="pagination.total"
+        :page-sizes="[20, 50, 100]"
+        layout="total, sizes, prev, pager, next"
+        background
+        @current-change="loadDevices"
+        @size-change="handlePageSizeChange"
+      />
+    </div>
 
     <!-- 添加/编辑设备对话框 -->
 
@@ -169,7 +272,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, ArrowDown } from '@element-plus/icons-vue'
@@ -177,11 +280,25 @@ import api from '../../utils/api'
 import DeviceForm from '../../components/common/DeviceForm.vue'
 import { createDefaultDeviceForm, deviceToForm } from '../../composables/useAgentFormOptions'
 import { formatDeviceNickName, getDeviceNickName, getDeviceReferenceLabel } from '../../utils/iotDevice'
+import { useAuthStore } from '../../stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const devices = ref([])
-const bindFilter = ref('all')
+const agentStats = ref([])
+const filters = reactive({
+  deviceId: '',
+  nickName: '',
+  bindUser: '',
+  activated: '',
+  agentId: ''
+})
+const pagination = reactive({
+  page: 1,
+  pageSize: 20,
+  total: 0
+})
 const loading = ref(false)
 const showAddDialog = ref(false)
 const editingDevice = ref(null)
@@ -198,25 +315,106 @@ const mcpCallResult = ref('')
 const mcpCallForm = ref({ tool_name: '', argumentsText: '{}' })
 const deviceForm = ref(createDefaultDeviceForm({ isAdmin: true }))
 
-const filteredDevices = computed(() => {
-  const list = devices.value || []
-  switch (bindFilter.value) {
-    case 'bound':
-      return list.filter((item) => item.user_id > 0)
-    case 'unbound':
-      return list.filter((item) => !item.user_id)
-    case 'activated':
-      return list.filter((item) => item.activated)
-    default:
-      return list
-  }
+const isMyDevice = (device) => {
+  const myID = authStore.user?.id
+  return !!myID && Number(device?.user_id) === Number(myID)
+}
+
+const isDeviceOnline = (lastActiveAt) => {
+  if (!lastActiveAt) return false
+  const now = new Date()
+  const lastActive = new Date(lastActiveAt)
+  // 5分钟内有活动认为在线
+  return (now - lastActive) < 5 * 60 * 1000
+}
+
+const agentOptions = computed(() => {
+  return (agentStats.value || [])
+    .filter((item) => item.key !== '0')
+    .map((item) => ({ key: item.key, name: item.name }))
 })
 
-const loadDevices = async () => {
+const toggleAgentFilter = (key) => {
+  filters.agentId = filters.agentId === key ? '' : key
+  handleSearch()
+}
+
+const resetFilters = () => {
+  filters.deviceId = ''
+  filters.nickName = ''
+  filters.bindUser = ''
+  filters.activated = ''
+  filters.agentId = ''
+  pagination.page = 1
+  loadDevices({ pinMine: true })
+}
+
+const handleSearch = () => {
+  pagination.page = 1
+  loadDevices()
+}
+
+const handlePageSizeChange = () => {
+  pagination.page = 1
+  loadDevices()
+}
+
+const deviceRowClassName = ({ row }) => (isMyDevice(row) ? 'is-mine-row' : '')
+
+const hasActiveFilters = () => {
+  return !!(
+    filters.deviceId.trim() ||
+    filters.nickName.trim() ||
+    filters.bindUser.trim() ||
+    filters.activated ||
+    (filters.agentId !== '' && filters.agentId != null)
+  )
+}
+
+const sortMineFirst = (list) => {
+  return (list || []).slice().sort((a, b) => {
+    const aMine = isMyDevice(a) ? 0 : 1
+    const bMine = isMyDevice(b) ? 0 : 1
+    if (aMine !== bMine) return aMine - bMine
+    return Number(b.id || 0) - Number(a.id || 0)
+  })
+}
+
+const buildListParams = () => {
+  const params = {
+    page: pagination.page,
+    page_size: pagination.pageSize
+  }
+  const deviceId = filters.deviceId.trim()
+  const nickName = filters.nickName.trim()
+  const bindUser = filters.bindUser.trim()
+  if (deviceId) params.device_id = deviceId
+  if (nickName) params.nick_name = nickName
+  if (bindUser) params.bind_user = bindUser
+  if (filters.activated) params.activated = filters.activated
+  if (filters.agentId !== '' && filters.agentId != null) params.agent_id = filters.agentId
+  return params
+}
+
+const loadDevices = async (opts = {}) => {
   loading.value = true
   try {
-    const response = await api.get('/admin/devices')
-    devices.value = response.data.data || []
+    const response = await api.get('/admin/devices', { params: buildListParams() })
+    const data = response.data.data || {}
+    const items = data.items || []
+    // 进入页 / 重置筛选（无筛选条件）时前端再兜底置顶本人设备
+    const shouldPin = opts.pinMine || !hasActiveFilters()
+    devices.value = shouldPin ? sortMineFirst(items) : items
+    pagination.total = data.total || 0
+    if (data.page) pagination.page = data.page
+    if (data.page_size) pagination.pageSize = data.page_size
+    agentStats.value = (data.agent_stats || []).map((item) => ({
+      key: String(item.agent_id ?? 0),
+      name: item.agent_name || (Number(item.agent_id) > 0 ? `智能体 ${item.agent_id}` : '未分配'),
+      total: item.total || 0,
+      activated: item.activated || 0,
+      online: item.online || 0
+    }))
   } catch (error) {
     ElMessage.error('加载设备列表失败')
     console.error('Error loading devices:', error)
@@ -232,6 +430,10 @@ const openAddDialog = () => {
 }
 
 const openConversationRecords = (device) => {
+  if (!canViewDevicePrivacy(device)) {
+    ElMessage.warning('仅可查看本人绑定设备的对话记录')
+    return
+  }
   if (!device.agent_id || !device.device_name) {
     ElMessage.warning('设备须绑定智能体且具备 SN 方可查看对话记录')
     return
@@ -240,6 +442,10 @@ const openConversationRecords = (device) => {
 }
 
 const openDeviceMemory = (device) => {
+  if (!canViewDevicePrivacy(device)) {
+    ElMessage.warning('仅可查看本人绑定设备的设备记忆')
+    return
+  }
   if (!device.agent_id || !device.device_name) {
     ElMessage.warning('设备须绑定智能体且具备 SN 方可查看设备记忆')
     return
@@ -248,12 +454,19 @@ const openDeviceMemory = (device) => {
 }
 
 const openDeviceStories = (device) => {
+  if (!canViewDevicePrivacy(device)) {
+    ElMessage.warning('仅可查看本人绑定设备的故事记录')
+    return
+  }
   if (!device.device_name) {
     ElMessage.warning('设备须具备 SN 方可查看故事记录')
     return
   }
   router.push({ name: 'AdminDeviceStories', params: { id: device.id } })
 }
+
+/** 管理端仅对「当前登录管理员本人绑定」的设备开放隐私内容入口 */
+const canViewDevicePrivacy = (device) => isMyDevice(device)
 
 const editDevice = (device) => {
   editingDevice.value = device
@@ -535,17 +748,8 @@ const resetForm = () => {
   }
 }
 
-// 判断设备是否在线（基于最后活跃时间）
-const isDeviceOnline = (lastActiveAt) => {
-  if (!lastActiveAt) return false
-  const now = new Date()
-  const lastActive = new Date(lastActiveAt)
-  // 5分钟内有活动认为在线
-  return (now - lastActive) < 5 * 60 * 1000
-}
-
 onMounted(() => {
-  loadDevices()
+  loadDevices({ pinMine: true })
 })
 </script>
 
@@ -554,12 +758,73 @@ onMounted(() => {
   padding: 20px;
 }
 
+.agent-stats {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.agent-stat-card {
+  flex: 0 0 auto;
+  min-width: 160px;
+  text-align: left;
+  border: 1px solid #e4e7ed;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.agent-stat-card:hover {
+  border-color: #c0c4cc;
+}
+
+.agent-stat-card.active {
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 1px var(--el-color-primary-light-7);
+}
+
+.agent-stat-name {
+  font-weight: 600;
+  color: var(--apple-text, #1d1d1f);
+  margin-bottom: 6px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-stat-metrics {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: #909399;
+}
+
 .toolbar {
   margin-bottom: 20px;
   display: flex;
   gap: 12px;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: flex-start;
   flex-wrap: wrap;
+}
+
+.pagination-bar {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.filter-controls,
+.toolbar-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .device-nick-name {
@@ -570,6 +835,11 @@ onMounted(() => {
 .device-nick-name.is-empty {
   font-weight: 500;
   color: #909399;
+}
+
+.mine-tag {
+  margin-left: 8px;
+  vertical-align: middle;
 }
 
 .device-id-text {
@@ -593,6 +863,44 @@ onMounted(() => {
   color: var(--el-color-danger);
 }
 
+.device-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.device-action-btn {
+  margin: 0 !important;
+  opacity: 1 !important;
+  background-color: #fff !important;
+  border-color: #dcdfe6 !important;
+  color: #606266 !important;
+}
+
+.device-action-btn.el-button--warning {
+  background-color: var(--el-color-warning) !important;
+  border-color: var(--el-color-warning) !important;
+  color: #fff !important;
+}
+
+.device-action-btn.is-disabled,
+.device-action-btn.is-disabled:hover {
+  opacity: 1 !important;
+  background-color: #f5f7fa !important;
+  border-color: #e4e7ed !important;
+  color: #c0c4cc !important;
+}
+
+.device-action-btn.el-button--warning.is-disabled,
+.device-action-btn.el-button--warning.is-disabled:hover {
+  background-color: #f3d19e !important;
+  border-color: #f3d19e !important;
+  color: #fff !important;
+}
+
 .form-tip {
   margin-top: 6px;
   color: rgba(107, 114, 128, 0.78);
@@ -612,4 +920,49 @@ onMounted(() => {
   min-height: 80px;
 }
 .mcp-tools-header { margin-bottom: 12px; }
+</style>
+
+<style>
+/* fixed 列需非 scoped：半透明表头/背景会导致操作栏叠影与按钮发虚 */
+.admin-devices .el-table__fixed-right,
+.admin-devices .el-table__fixed-right-patch {
+  background: #fff !important;
+  box-shadow: -6px 0 12px rgba(15, 23, 42, 0.06);
+}
+
+.admin-devices .el-table__fixed-right .el-table__header th.device-actions-col,
+.admin-devices .el-table__fixed-right .el-table__body td.device-actions-col {
+  background: #fff !important;
+}
+
+.admin-devices .el-table__fixed-right .el-table__body tr.el-table__row--striped td.device-actions-col {
+  background: #fafafa !important;
+}
+
+.admin-devices .el-table__fixed-right .el-table__body tr:hover > td.device-actions-col {
+  background: #f5f7fa !important;
+}
+
+.admin-devices .el-table th.device-actions-col .cell,
+.admin-devices .el-table td.device-actions-col .cell {
+  padding-left: 16px;
+  padding-right: 16px;
+  text-align: right;
+}
+
+.admin-devices .el-table__body tr.is-mine-row > td {
+  background: #f0f7ff !important;
+}
+
+.admin-devices .el-table__body tr.is-mine-row.el-table__row--striped > td {
+  background: #eaf3ff !important;
+}
+
+.admin-devices .el-table__fixed-right .el-table__body tr.is-mine-row > td.device-actions-col {
+  background: #f0f7ff !important;
+}
+
+.admin-devices .el-table__fixed-right .el-table__body tr.is-mine-row.el-table__row--striped > td.device-actions-col {
+  background: #eaf3ff !important;
+}
 </style>

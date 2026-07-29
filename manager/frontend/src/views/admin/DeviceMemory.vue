@@ -121,9 +121,8 @@ const deviceSN = ref('')
 
 const loadDeviceMeta = async () => {
   try {
-    const response = await api.get('/admin/devices')
-    const list = response.data?.data || response.data || []
-    const device = list.find((item) => String(item.id) === String(deviceId.value))
+    const response = await api.get(`/admin/devices/${deviceId.value}`)
+    const device = response.data?.data
     if (device) {
       deviceLabel.value = formatDeviceNickName(device)
       deviceSN.value = device.device_name || ''

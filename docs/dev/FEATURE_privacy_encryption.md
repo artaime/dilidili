@@ -40,7 +40,7 @@ v1|<key_id>|<base64(nonce || ciphertext || tag)>
 - 对话音频：经消息所属设备 `CanAccess`（不再仅比 `message.user_id`）。
 - 留言 List/Get/Audio/Delete：按设备 `CanAccess`；带 `device_id` 时返回该设备全部留言。
 
-Admin 保留解密查看，写审计日志。Internal 接口凭 internal token 解密下发。
+Admin 仅当设备绑定用户为**当前登录管理员本人**时可解密查看（对话/留言/记忆/故事），写审计日志。他人设备与未绑定设备不可见。Internal 接口凭 internal token 解密下发。
 
 ## 迁移
 
