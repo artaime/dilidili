@@ -73,6 +73,36 @@ func TestStoreListInWindow(t *testing.T) {
 	}
 }
 
+func TestGetLastEmptyReturnsNilError(t *testing.T) {
+	cfg := Config{MinRetentionDays: 7, MaxRetentionDays: 90}
+	store := NewStoreWithBackend(newMemoryBackend(), "test", cfg)
+	rec, err := store.GetLast(context.Background(), "no-stories")
+	if err == nil {
+		t.Fatal("expected error when no stories")
+	}
+	if rec != nil {
+		t.Fatal("expected nil record when no stories")
+	}
+}
+
+func TestHandleReplayLastWithNoHistory(t *testing.T) {
+	cfg := Config{MinRetentionDays: 7, MaxRetentionDays: 90, Enabled: true}
+	store := NewStoreWithBackend(newMemoryBackend(), "test", cfg)
+	svc := NewServiceWithStore(store, cfg, nil)
+	res, err := svc.Handle(context.Background(), ToolRequest{
+		Action:   ActionReplay,
+		StoryRef: StoryRefLast,
+		DeviceID: "dev-empty",
+		Now:      time.Now(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res == nil || res.Status != StatusNotFound {
+		t.Fatalf("expected not_found, got %+v", res)
+	}
+}
+
 func TestServiceGenerateAndReplay(t *testing.T) {
 	cfg := Config{MinRetentionDays: 7, MaxRetentionDays: 90, Enabled: true}
 	mem := newMemoryBackend()

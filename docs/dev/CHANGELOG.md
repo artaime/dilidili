@@ -11,6 +11,7 @@
 
 ### Fixed
 
+- 儿童故事 `create_child_story` 复播（`action=replay`, `story_ref=last`）：设备无历史记录时 `GetLast` 曾返回 `(nil, nil)`，导致 `handleReplay` 空指针 panic；现返回 `redis.Nil` 并友好提示无记录
 - 家长留言「播放最近的留言」：同步已播历史时 API 为 `played_at DESC`，原先原样写入导致 `LastPlayedRef` 取到时间最早一条；现规范为升序并按 `PlayedAt` 取最近一次播放
 - 管理端预录入设备：未选所属用户时允许关联任意已有智能体（此前误按管理员归属校验，报「智能体不存在或不属于指定用户」）
 - 管理端添加设备：设备标识（SN）输入框与上方字段等宽；未选所属用户时不再按当前管理员过滤智能体（此前会误显示 No data）

@@ -455,7 +455,7 @@ func (s *Service) handleReplay(ctx context.Context, req ToolRequest) (*ToolResul
 		switch ref {
 		case StoryRefLast:
 			rec, e := s.store.GetLast(ctx, req.DeviceID)
-			if e != nil {
+			if e != nil || rec == nil {
 				return &ToolResult{Status: StatusNotFound, Message: "还没有讲过的故事记录，要不要听一个新的？"}, nil
 			}
 			records = []StoryRecord{*rec}

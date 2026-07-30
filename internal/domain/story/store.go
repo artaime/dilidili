@@ -365,8 +365,12 @@ func hasStoryContent(rec *StoryRecord) bool {
 
 func (s *Store) GetLast(ctx context.Context, deviceID string) (*StoryRecord, error) {
 	ids, err := s.backend.ZRevRange(ctx, s.byTimeKey(deviceID), 0, 0)
-	if err != nil || len(ids) == 0 {
+	if err != nil {
 		return nil, err
+	}
+	if len(ids) == 0 {
+		// 无记录时返回 redis.Nil，避免调用方只判 err 后解引用 nil。
+		return nil, redis.Nil
 	}
 	return s.Get(ctx, deviceID, ids[0])
 }
