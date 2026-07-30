@@ -164,7 +164,6 @@ export const buildDevicePayload = (form = {}, { isAdmin = false, mode = 'create'
 export function useAgentFormOptions(options = {}) {
   const isAdmin = computed(() => !!unref(options.isAdmin))
   const targetUserId = computed(() => Number(unref(options.targetUserId) || 0))
-  const operatorUserId = computed(() => Number(unref(options.operatorUserId) || 0))
 
   const users = ref([])
   const agents = ref([])
@@ -228,11 +227,9 @@ export function useAgentFormOptions(options = {}) {
     try {
       const response = await api.get(`${apiBase.value}/agents`)
       const items = normalizeDataList(response)
-      if (isAdmin.value) {
-        const filterUserId = targetUserId.value || operatorUserId.value
-        agents.value = filterUserId
-          ? items.filter((agent) => Number(agent.user_id) === filterUserId)
-          : items
+      if (isAdmin.value && targetUserId.value) {
+        // 已选所属用户：只返回该用户的智能体；未选时返回全部（管理端预录入设备）
+        agents.value = items.filter((agent) => Number(agent.user_id) === targetUserId.value)
       } else {
         agents.value = items
       }

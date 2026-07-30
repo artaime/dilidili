@@ -11,6 +11,11 @@
 
 ### Fixed
 
+- 家长留言「播放最近的留言」：同步已播历史时 API 为 `played_at DESC`，原先原样写入导致 `LastPlayedRef` 取到时间最早一条；现规范为升序并按 `PlayedAt` 取最近一次播放
+- 管理端预录入设备：未选所属用户时允许关联任意已有智能体（此前误按管理员归属校验，报「智能体不存在或不属于指定用户」）
+- 管理端添加设备：设备标识（SN）输入框与上方字段等宽；未选所属用户时不再按当前管理员过滤智能体（此前会误显示 No data）
+- 设备在线状态：主服务对仍持有 `ChatManager` 的设备每 2 分钟刷新 `last_active_at`（可配 `device_online.heartbeat_interval`），避免连着超过 5 分钟被管理端误判离线
+- 设备下线不再清空 `last_active_at`：此前 `/api/device/inactive` 置 NULL 导致管理端「最后活跃时间」显示「从未活跃」；在线仍按最近 5 分钟内活跃判定
 - 管理端设备列表：进入页面与重置筛选时本人绑定设备置顶（加固后端 ORDER，前端无筛选时再兜底排序）
 - 儿童故事开场过渡语重复两遍：开放流式不再先播通用 filler 再播标题告知，改为 meta 后单句开场；续讲正文已有「上次讲到」时不叠标题引导；跳过模型重复开场白。详见 `docs/features/story-narration-intro/FEATURE.md`
 - 意图/故事旁路抢答：分类注入近期 Dialogue；去掉关键词 fallback 与故事召回快路径；`general` 一律交主对话；无名故事追问无正文时放行；「介绍……的故事」事实介绍不进儿童编故事。详见 `docs/features/INTENT_ROUTER_CONTEXT.md`

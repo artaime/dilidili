@@ -66,10 +66,8 @@ func (c *ChatManager) syncDeviceMessageProfile(ctx context.Context) (*devicestat
 				}
 				refs = append(refs, ref)
 			}
-			p.PlayedHistory = refs
-			if len(refs) > 0 {
-				p.LastPlayedMessageID = refs[0].MessageID
-			}
+			// ListPlayedMessages 为 played_at DESC；此处规范为升序，避免 LastPlayedRef 误取最早一条
+			devicestate.ApplyPlayedHistorySync(p, refs, playedHistoryLimit())
 		}
 		return p
 	})

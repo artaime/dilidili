@@ -255,6 +255,41 @@ func TestDeviceServiceAdminCreateWithoutUserRequiresDeviceName(t *testing.T) {
 	}
 }
 
+func TestDeviceServiceAdminPreRegisterAllowsOtherUserAgent(t *testing.T) {
+	db := setupAgentDeviceServiceTestDB(t)
+	admin := createServiceTestUser(t, db, "prereg-admin", "admin")
+	owner := createServiceTestUser(t, db, "prereg-owner", "user")
+	agent := models.Agent{UserID: owner.ID, Name: "factory-agent", Nickname: "factory-agent"}
+	if err := db.Create(&agent).Error; err != nil {
+		t.Fatalf("create owner agent: %v", err)
+	}
+	deviceSvc := NewDeviceService(db)
+
+	created, err := deviceSvc.Create(accessScope{ActorUserID: admin.ID, IsAdmin: true}, DevicePayload{
+		DeviceName: "SN-PRE-OTHER-AGENT",
+		AgentID:    agent.ID,
+	})
+	if err != nil {
+		t.Fatalf("admin pre-register with other user's agent: %v", err)
+	}
+	if created.UserID != 0 {
+		t.Fatalf("user_id = %d, want 0", created.UserID)
+	}
+	if created.AgentID != agent.ID {
+		t.Fatalf("agent_id = %d, want %d", created.AgentID, agent.ID)
+	}
+
+	// 已指定所属用户时，仍要求智能体属于该用户
+	_, err = deviceSvc.Create(accessScope{ActorUserID: admin.ID, IsAdmin: true}, DevicePayload{
+		UserID:     admin.ID,
+		DeviceName: "SN-PRE-MISMATCH",
+		AgentID:    agent.ID,
+	})
+	if err == nil || !strings.Contains(err.Error(), "智能体不存在或不属于指定用户") {
+		t.Fatalf("mismatched owner error = %v, want ownership rejection", err)
+	}
+}
+
 func TestDeviceServiceCreateDuplicateDeviceName(t *testing.T) {
 	db := setupAgentDeviceServiceTestDB(t)
 	admin := createServiceTestUser(t, db, "dup-device-admin", "admin")

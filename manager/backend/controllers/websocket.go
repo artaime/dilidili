@@ -411,6 +411,32 @@ func (client *WebSocketClient) handlePingRequest(request *WebSocketRequest) {
 	client.sendResponse(request.ID, 200, response, "")
 }
 
+// markDeviceActive 记录设备上线/心跳，更新 last_active_at。
+func markDeviceActive(db *gorm.DB, deviceID string, now time.Time) (time.Time, error) {
+	result := db.Model(&models.Device{}).
+		Where("device_name = ?", deviceID).
+		Update("last_active_at", now)
+	if result.Error != nil {
+		return time.Time{}, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return time.Time{}, gorm.ErrRecordNotFound
+	}
+	return now, nil
+}
+
+// markDeviceInactive 处理设备下线：仅确认设备存在，保留 last_active_at。
+// 在线判定由前端按「最近 5 分钟内有活跃」计算，下线时清空会导致「从未活跃」。
+func markDeviceInactive(db *gorm.DB, deviceID string) (*time.Time, error) {
+	var device models.Device
+	if err := db.Select("id", "last_active_at").
+		Where("device_name = ?", deviceID).
+		First(&device).Error; err != nil {
+		return nil, err
+	}
+	return device.LastActiveAt, nil
+}
+
 // 处理设备活跃时间更新请求
 func (client *WebSocketClient) handleDeviceActiveRequest(request *WebSocketRequest) {
 	// 从请求体中获取device_id
@@ -429,33 +455,28 @@ func (client *WebSocketClient) handleDeviceActiveRequest(request *WebSocketReque
 
 	log.Printf("处理设备活跃时间更新请求，device_id: %s", deviceID)
 
-	// 更新设备最后活跃时间
 	now := time.Now()
-	result := client.controller.DB.Model(&models.Device{}).
-		Where("device_name = ?", deviceID).
-		Update("last_active_at", now)
-
-	if result.Error != nil {
-		log.Printf("更新设备活跃时间失败: %v", result.Error)
-		client.sendResponse(request.ID, 500, nil, fmt.Sprintf("更新设备活跃时间失败: %v", result.Error))
-		return
-	}
-
-	if result.RowsAffected == 0 {
-		log.Printf("设备不存在: %s", deviceID)
-		client.sendResponse(request.ID, 404, nil, "设备不存在")
+	activeAt, err := markDeviceActive(client.controller.DB, deviceID, now)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Printf("设备不存在: %s", deviceID)
+			client.sendResponse(request.ID, 404, nil, "设备不存在")
+			return
+		}
+		log.Printf("更新设备活跃时间失败: %v", err)
+		client.sendResponse(request.ID, 500, nil, fmt.Sprintf("更新设备活跃时间失败: %v", err))
 		return
 	}
 
 	// 构造成功响应
 	response := map[string]interface{}{
 		"device_id":      deviceID,
-		"last_active_at": now.Format(time.RFC3339),
+		"last_active_at": activeAt.Format(time.RFC3339),
 		"message":        "设备活跃时间更新成功",
 	}
 
 	client.sendResponse(request.ID, 200, response, "")
-	log.Printf("设备 %s 活跃时间已更新为: %s", deviceID, now.Format(time.RFC3339))
+	log.Printf("设备 %s 活跃时间已更新为: %s", deviceID, activeAt.Format(time.RFC3339))
 }
 
 // 处理设备离线请求
@@ -476,32 +497,32 @@ func (client *WebSocketClient) handleDeviceInactiveRequest(request *WebSocketReq
 
 	log.Printf("处理设备离线请求，device_id: %s", deviceID)
 
-	// 将设备最后活跃时间设置为0（离线状态）
-	result := client.controller.DB.Model(&models.Device{}).
-		Where("device_name = ?", deviceID).
-		Update("last_active_at", nil) // 设置为NULL表示离线
-
-	if result.Error != nil {
-		log.Printf("更新设备离线状态失败: %v", result.Error)
-		client.sendResponse(request.ID, 500, nil, fmt.Sprintf("更新设备离线状态失败: %v", result.Error))
+	lastActiveAt, err := markDeviceInactive(client.controller.DB, deviceID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			log.Printf("设备不存在: %s", deviceID)
+			client.sendResponse(request.ID, 404, nil, "设备不存在")
+			return
+		}
+		log.Printf("查询设备离线状态失败: %v", err)
+		client.sendResponse(request.ID, 500, nil, fmt.Sprintf("查询设备离线状态失败: %v", err))
 		return
 	}
 
-	if result.RowsAffected == 0 {
-		log.Printf("设备不存在: %s", deviceID)
-		client.sendResponse(request.ID, 404, nil, "设备不存在")
-		return
+	var lastActiveValue interface{}
+	if lastActiveAt != nil {
+		lastActiveValue = lastActiveAt.Format(time.RFC3339)
 	}
 
 	// 构造成功响应
 	response := map[string]interface{}{
 		"device_id":      deviceID,
-		"last_active_at": nil, // 离线状态
+		"last_active_at": lastActiveValue,
 		"message":        "设备离线状态更新成功",
 	}
 
 	client.sendResponse(request.ID, 200, response, "")
-	log.Printf("设备 %s 已设置为离线状态", deviceID)
+	log.Printf("设备 %s 已离线，保留最后活跃时间: %v", deviceID, lastActiveValue)
 }
 
 // 发送响应

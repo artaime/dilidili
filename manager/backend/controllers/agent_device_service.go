@@ -35,6 +35,10 @@ func resolveAgentOwnerUserID(scope accessScope, deviceUserID uint) uint {
 	if deviceUserID > 0 {
 		return deviceUserID
 	}
+	// 管理端预录入（未绑用户）：不强制智能体归属当前管理员，仅校验智能体存在
+	if scope.IsAdmin {
+		return 0
+	}
 	return scope.ActorUserID
 }
 
@@ -1053,12 +1057,19 @@ func (svc *DeviceService) assertUserExists(userID uint) error {
 }
 
 func (svc *DeviceService) assertAgentOwnedByUser(agentID uint, userID uint) error {
+	query := svc.DB.Model(&models.Agent{}).Where("id = ?", agentID)
+	if userID > 0 {
+		query = query.Where("user_id = ?", userID)
+	}
 	var count int64
-	if err := svc.DB.Model(&models.Agent{}).Where("id = ? AND user_id = ?", agentID, userID).Count(&count).Error; err != nil {
+	if err := query.Count(&count).Error; err != nil {
 		return err
 	}
 	if count == 0 {
-		return fmt.Errorf("智能体不存在或不属于指定用户")
+		if userID > 0 {
+			return fmt.Errorf("智能体不存在或不属于指定用户")
+		}
+		return fmt.Errorf("智能体不存在")
 	}
 	return nil
 }

@@ -1,6 +1,9 @@
 package devicestate
 
-import "time"
+import (
+	"sort"
+	"time"
+)
 
 const DefaultPlayedHistoryLimit = 20
 
@@ -58,9 +61,46 @@ func AppendPlayedHistory(profile *DeviceMessageProfile, ref PlayedMessageRef, li
 	return profile
 }
 
+// ApplyPlayedHistorySync 用已播列表覆盖档案。输入可为任意顺序（如 API 的 played_at DESC）；
+// 内部规范为 PlayedAt 升序，与 AppendPlayedHistory 约定一致，保证 LastPlayedRef 指向最近一次播放。
+func ApplyPlayedHistorySync(profile *DeviceMessageProfile, refs []PlayedMessageRef, limit int) *DeviceMessageProfile {
+	if profile == nil {
+		return nil
+	}
+	if limit <= 0 {
+		limit = DefaultPlayedHistoryLimit
+	}
+	if len(refs) == 0 {
+		profile.PlayedHistory = make([]PlayedMessageRef, 0)
+		return profile
+	}
+	sorted := make([]PlayedMessageRef, len(refs))
+	copy(sorted, refs)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if sorted[i].PlayedAt.Equal(sorted[j].PlayedAt) {
+			return sorted[i].MessageID < sorted[j].MessageID
+		}
+		return sorted[i].PlayedAt.Before(sorted[j].PlayedAt)
+	})
+	if len(sorted) > limit {
+		sorted = sorted[len(sorted)-limit:]
+	}
+	profile.PlayedHistory = sorted
+	profile.LastPlayedMessageID = sorted[len(sorted)-1].MessageID
+	return profile
+}
+
+// LastPlayedRef 返回最近一次播放的留言（按 PlayedAt，同时间按 MessageID）。
 func (p *DeviceMessageProfile) LastPlayedRef() (PlayedMessageRef, bool) {
 	if p == nil || len(p.PlayedHistory) == 0 {
 		return PlayedMessageRef{}, false
 	}
-	return p.PlayedHistory[len(p.PlayedHistory)-1], true
+	best := p.PlayedHistory[0]
+	for i := 1; i < len(p.PlayedHistory); i++ {
+		ref := p.PlayedHistory[i]
+		if ref.PlayedAt.After(best.PlayedAt) || (ref.PlayedAt.Equal(best.PlayedAt) && ref.MessageID > best.MessageID) {
+			best = ref
+		}
+	}
+	return best, true
 }

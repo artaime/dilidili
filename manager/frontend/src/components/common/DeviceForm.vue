@@ -10,7 +10,6 @@
     <el-form-item v-if="isAdmin" label="所属用户" prop="user_id">
       <el-select
         v-model="form.user_id"
-        placeholder="请选择所属用户"
         filterable
         :clearable="!isAdminEditMode"
         style="width: 100%"
@@ -47,7 +46,6 @@
     <el-form-item label="设备昵称" prop="nick_name">
       <el-input
         v-model="form.nick_name"
-        placeholder="例如：客厅音箱、办公室狄哩"
         maxlength="50"
         show-word-limit
         clearable
@@ -55,18 +53,12 @@
     </el-form-item>
 
     <template v-if="!isBindMode">
-      <div class="device-form-grid">
-        <el-form-item label="设备标识 (SN)" prop="device_name">
-          <el-input
-            v-model="form.device_name"
-            placeholder="出厂预登记 SN，例如 SN-XXXXXXXX-XXXXXXXX"
-            clearable
-          />
-          <div v-if="isAdmin" class="form-hint">
-            小程序绑定前，管理员需先预录入设备 SN。未登记设备将无法被家长绑定。
-          </div>
-        </el-form-item>
-      </div>
+      <el-form-item label="设备标识 (SN)" prop="device_name">
+        <el-input
+          v-model="form.device_name"
+          clearable
+        />
+      </el-form-item>
 
       <div class="device-form-grid">
         <el-form-item v-if="isAdmin" label="激活状态" prop="activated">
@@ -78,7 +70,6 @@
         <el-form-item label="关联智能体" prop="agent_id">
           <el-select
             v-model="form.agent_id"
-            placeholder="请选择智能体"
             style="width: 100%"
             filterable
             :loading="loading.agents"
@@ -102,7 +93,6 @@ import {
   buildDevicePayload,
   useAgentFormOptions
 } from '../../composables/useAgentFormOptions'
-import { useAuthStore } from '../../stores/auth'
 
 const props = defineProps({
   modelValue: {
@@ -142,10 +132,8 @@ const form = computed({
   set: (value) => emit('update:modelValue', value)
 })
 
-const authStore = useAuthStore()
 const formRef = ref(null)
 const targetUserId = computed(() => props.isAdmin ? Number(form.value.user_id || 0) : 0)
-const operatorUserId = computed(() => Number(authStore.user?.id || 0))
 const isBindMode = computed(() => props.mode === 'bind')
 const isAdminEditMode = computed(() => props.isAdmin && props.mode === 'edit')
 const originalUserID = ref(0)
@@ -159,16 +147,15 @@ const {
   loadAgents
 } = useAgentFormOptions({
   isAdmin: computed(() => props.isAdmin),
-  targetUserId,
-  operatorUserId
+  targetUserId
 })
 
 const displayAgents = computed(() => {
   const source = props.agents.length ? props.agents : agents.value
   if (!props.isAdmin) return source
-  const filterUserId = targetUserId.value || operatorUserId.value
-  if (!filterUserId) return source
-  return source.filter((agent) => Number(agent.user_id) === filterUserId)
+  // 仅在已选所属用户时按用户过滤；未选用户时展示全部（预录入场景）
+  if (!targetUserId.value) return source
+  return source.filter((agent) => Number(agent.user_id) === targetUserId.value)
 })
 
 const agentLabel = (agent) => {

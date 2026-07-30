@@ -44,6 +44,8 @@ ESP32 设备
 | 管理台 API 401/403 | `manager/backend/middleware/auth.go` |
 | 管理台 API 4xx 参数错误 | `manager/backend/controllers/`、`manager/backend/router/router.go` |
 | 管理台 API 5xx / DB 错误 | `manager/backend/database/`、`manager/backend/controllers/` |
+| 设备「从未活跃」但曾连过 | `websocket.go`：`inactive` 勿清空 `last_active_at`；上线写 `/api/device/active` |
+| 设备明明连着却显示离线 | 管理端按 `last_active_at` 5 分钟窗；主服务 `startDeviceOnlineHeartbeat` 须刷新；真源是 `chatManagers` |
 | 控制台 UI 异常 | `manager/frontend/src/views/` |
 
 ## 按错误文案 grep

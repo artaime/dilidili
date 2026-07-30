@@ -102,6 +102,9 @@ func (a *App) Run() {
 	// 启动运行时监控上报（含资源池，并兼容旧 pool/stats 接口）
 	observability.StartRuntimeReporter(ctx, a)
 
+	// 对仍持有 ChatManager 的设备周期刷新 last_active_at，避免管理端 5 分钟窗口误判离线
+	a.startDeviceOnlineHeartbeat(ctx)
+
 	select {} // 阻塞主线程
 }
 
@@ -548,6 +551,58 @@ func (s *App) DeviceOffline(deviceID string) {
 		return
 	}
 	provider.NotifyDeviceEvent(context.Background(), config_types.EventDeviceOffline, eventData)
+}
+
+const defaultDeviceOnlineHeartbeatInterval = 2 * time.Minute
+
+// resolveDeviceOnlineHeartbeatInterval 心跳间隔须小于管理端 5 分钟在线窗口。
+func resolveDeviceOnlineHeartbeatInterval() time.Duration {
+	if d := viper.GetDuration("device_online.heartbeat_interval"); d > 0 {
+		return d
+	}
+	return defaultDeviceOnlineHeartbeatInterval
+}
+
+func onlineDeviceIDsFromManagers(managers map[string]*chat.ChatManager) []string {
+	ids := make([]string, 0, len(managers))
+	for id, manager := range managers {
+		id = strings.TrimSpace(id)
+		if id == "" || manager == nil {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func (a *App) startDeviceOnlineHeartbeat(ctx context.Context) {
+	interval := resolveDeviceOnlineHeartbeatInterval()
+	ticker := time.NewTicker(interval)
+	log.Infof("设备在线心跳已启动 interval=%s", interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				log.Debugf("设备在线心跳已停止")
+				return
+			case <-ticker.C:
+				a.refreshOnlineDeviceActivity()
+			}
+		}
+	}()
+}
+
+// refreshOnlineDeviceActivity 按当前 ChatManager 集合刷新管理端 last_active_at。
+func (a *App) refreshOnlineDeviceActivity() {
+	ids := onlineDeviceIDsFromManagers(a.GetAllChatManagers())
+	if len(ids) == 0 {
+		return
+	}
+	log.Debugf("设备在线心跳刷新: count=%d", len(ids))
+	for _, deviceID := range ids {
+		a.DeviceOnline(deviceID)
+	}
 }
 
 func (a *App) registerHandler() {
