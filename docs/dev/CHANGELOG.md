@@ -23,6 +23,7 @@
 
 ### Changed
 
+- 根目录 `README.md`：按本仓库实际代码重写（AIO 内嵌启动、源码分离、Compose；去掉与上游不一致的部署描述）
 - 管理端用户列表：「用户名」显示 `nickname`，新增「账号」列显示 `username`
 - 管理端设备管理：仅可查看**本人绑定**设备的对话记录、设备记忆、故事等隐私内容（前后端双重门禁）；操作栏右对齐且不透明。详见 `docs/features/admin-device-privacy-gate/FEATURE.md`
 - 意图路由：分类器注入近期 Dialogue，删除关键词 fallback；`general`/`device`/`needs_dialogue` 交主 LLM；事实介绍 vs 儿童讲故事消歧。详见 `docs/features/INTENT_ROUTER_CONTEXT.md`
